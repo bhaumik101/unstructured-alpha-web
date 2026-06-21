@@ -21,24 +21,29 @@
 #
 # Connection string resolution:
 #   1. UNSTRUCTURED_ALPHA_DATABASE_URL environment variable -- checked
-#      FIRST, deliberately, ahead of st.secrets. This is what tests/conftest.py
-#      sets to a throwaway SQLite file before any test runs. Caught live,
-#      not assumed: with secrets checked first, running pytest on a machine
-#      that has a real .streamlit/secrets.toml configured (i.e. any
-#      developer's actual laptop, not just a sandbox without network access)
-#      would silently connect to and write fake test users/alerts into the
-#      REAL production Neon database instead of the intended test DB --
-#      the only reason this didn't already happen unnoticed is that it was
-#      run somewhere with no network route to Neon, which surfaced it as a
-#      connection error instead of silent data pollution. An explicit env
-#      var override is a narrower, more deliberate signal than whatever
-#      happens to be sitting in a local secrets.toml, so it must win.
-#   2. st.secrets["DATABASE_URL"] if running under Streamlit with that
-#      secret configured (the production path -- a Postgres URL from
-#      Neon/Supabase/Railway, set in Streamlit Community Cloud's app
-#      settings, never committed to the repo). Streamlit Cloud itself never
-#      sets the env var above, so this remains the real production path.
-#   3. A local SQLite file at ~/.unstructured_alpha/data/app.db (the
+#      FIRST, deliberately, ahead of everything else. This is what
+#      tests/conftest.py sets to a throwaway SQLite file before any test
+#      runs. Caught live, not assumed: with secrets checked first, running
+#      pytest on a machine that has a real .streamlit/secrets.toml
+#      configured (i.e. any developer's actual laptop, not just a sandbox
+#      without network access) would silently connect to and write fake
+#      test users/alerts into the REAL production Neon database instead of
+#      the intended test DB -- the only reason this didn't already happen
+#      unnoticed is that it was run somewhere with no network route to
+#      Neon, which surfaced it as a connection error instead of silent data
+#      pollution. An explicit, narrowly-named override beats anything else
+#      configured, so it must win.
+#   2. A plain DATABASE_URL environment variable -- the de facto standard
+#      name on every host that ISN'T Streamlit Cloud (Render, Railway,
+#      Heroku-style platforms all use exactly this). Checked before
+#      st.secrets so the same code works unmodified after a hosting
+#      migration, not just on Streamlit Cloud.
+#   3. st.secrets["DATABASE_URL"] if running under Streamlit Cloud with
+#      that secret configured (a Postgres URL from Neon/Supabase, set in
+#      Streamlit Cloud's app settings, never committed to the repo).
+#      Neither env var above is ever set there, so this remains the real
+#      Streamlit Cloud production path.
+#   4. A local SQLite file at ~/.unstructured_alpha/data/app.db (the
 #      existing local-dev default -- and the same reasoning as before for
 #      WHY it lives outside the project folder: a cloud-synced project
 #      directory causes real SQLite disk I/O errors, confirmed live).
@@ -58,7 +63,7 @@ _LOCAL_DB_PATH = os.path.join(_LOCAL_DB_DIR, "app.db")
 
 
 def _resolve_database_url() -> str:
-    env_url = os.environ.get("UNSTRUCTURED_ALPHA_DATABASE_URL")
+    env_url = os.environ.get("UNSTRUCTURED_ALPHA_DATABASE_URL") or os.environ.get("DATABASE_URL")
     if env_url:
         return env_url
 

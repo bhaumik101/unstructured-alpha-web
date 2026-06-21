@@ -1,0 +1,37 @@
+# Render Blueprint for Unstructured Alpha.
+#
+# This defines the web service so Render's dashboard can pick it up
+# automatically ("New +" -> "Blueprint", point it at this GitHub repo).
+# Secrets are listed by NAME only (sync: false) -- Render will prompt you
+# to type each value into its dashboard once, encrypted at rest there. None
+# of the actual values live in this file or in git, same principle as
+# .streamlit/secrets.toml being gitignored.
+#
+# Why a Python native environment, not Docker: this app has no system-level
+# dependencies beyond what's in requirements.txt (psycopg2-binary ships
+# precompiled wheels, so no Postgres client headers needed at build time).
+# Docker would just add an extra layer with nothing to abstract here.
+#
+# --server.port $PORT --server.address 0.0.0.0 is required specifically
+# because Render assigns the listen port dynamically via the $PORT env var
+# and proxies external traffic to it -- Streamlit's default
+# (localhost:8501) would never receive that traffic.
+
+services:
+  - type: web
+    name: unstructured-alpha
+    runtime: python
+    plan: free  # change to "starter" ($7/mo) for always-on, no cold start
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false

@@ -70,7 +70,18 @@ actually finish signing up. To enable real verification emails:
 3. For real signups (not just testing), verify a sending domain in Resend and use an address
    on that domain as `RESEND_FROM_EMAIL` below — Resend's default test sender
    (`onboarding@resend.dev`) only delivers to the email address on your own Resend account,
-   not to arbitrary recipients.
+   not to arbitrary recipients. This works regardless of where the app itself is hosted —
+   if you're also buying a domain for the custom-domain migration below, the same domain
+   covers both:
+   - In Resend: **Domains → Add Domain**, enter the domain (or a subdomain like
+     `mail.yourdomain.com`).
+   - Resend shows you the DKIM/SPF/DMARC DNS records to add.
+   - Add those records at your registrar (same place you'll add the Render CNAME, if you're
+     doing that migration too).
+   - Click **Check DNS** in Resend's dashboard. Propagation can take up to 24 hours; status
+     goes `not_started` → `pending` → `verified`.
+   - Once verified, set `RESEND_FROM_EMAIL` to an address on that domain, e.g.
+     `Unstructured Alpha <noreply@yourdomain.com>`.
 
 ### Step 5 — Add secrets
 
@@ -94,15 +105,67 @@ accounts/watchlists) and synthetic demo data (for FRED/EIA signals) when they're
 
 ---
 
-## Custom Domain (Optional — makes it look professional)
+## Custom Domain — Requires Migrating Off Streamlit Cloud
 
-Streamlit Cloud supports custom domains on all plans.
+**Correction, checked directly against Streamlit's current docs and community threads
+(2026-06-21):** Streamlit Community Cloud's free tier does **not** support a fully custom
+domain like `unstructuredalpha.com`. It only lets you customize the subdomain slug under
+`streamlit.app` (e.g. `unstructured-alpha.streamlit.app`, which this app already has). A
+real custom domain for the whole app requires either Streamlit's enterprise Snowflake
+offering (a different product, requires a Snowflake account — not a fit for this project's
+scale) or moving hosting elsewhere. The earlier version of this doc claimed otherwise; that
+was wrong.
 
-1. Buy a domain (e.g., `unstructuredalpha.com`) from Namecheap or Cloudflare (~$10/year)
-2. In Streamlit Cloud: Settings → Custom domain → enter your domain
-3. Add a CNAME record in your domain registrar pointing to Streamlit's URL
+### Recommended target: Render
 
-Result: `https://dashboard.unstructuredalpha.com`
+Render is the best fit for this app specifically: a genuine free tier, 2 free custom domains
+included per workspace, and no Docker/system-dependency work needed (verified — `psycopg2-binary`
+ships precompiled wheels, so nothing beyond `requirements.txt` is required at build time).
+Pricing, checked live against Render's pricing page (2026-06-21):
+
+| Plan | Cost | Behavior |
+|---|---|---|
+| Free (Hobby) | $0 | Spins down after 15 min idle; ~1 min cold start on the next visit (Streamlit Cloud's free tier already does something similar) |
+| Starter | $7/month per service | Always-on, no cold start, 512MB RAM / 0.5 CPU |
+
+Custom domains: 2 included free on a Hobby workspace, additional domains $0.25/month each.
+
+### Step 1 — Buy a domain
+
+From Namecheap or Cloudflare, ~$10–15/year. This one domain covers **both** the app's new
+URL and the Resend sending domain below — buy once, use for both.
+
+### Step 2 — Deploy to Render
+
+This repo already has a `render.yaml` blueprint checked in.
+
+1. Go to [render.com](https://render.com) and sign in with GitHub (account creation is a
+   step only you can do).
+2. Click **New +** → **Blueprint**, select the `unstructured-alpha-dashboard` repo.
+3. Render reads `render.yaml` automatically and shows the `unstructured-alpha` web service.
+4. It will prompt you to fill in the env vars listed there (`DATABASE_URL`, `RESEND_API_KEY`,
+   `RESEND_FROM_EMAIL`, `FRED_API_KEY`, `EIA_API_KEY`) — same values as your
+   `.streamlit/secrets.toml` today. Your existing Neon database doesn't need to move; Render
+   just connects to it the same way Streamlit Cloud did.
+5. Deploy. You'll get a `https://unstructured-alpha.onrender.com`-style URL first — confirm
+   the app actually works there before touching DNS.
+
+### Step 3 — Point your domain at Render
+
+1. In the Render dashboard, open the service → **Settings → Custom Domains** → add your
+   domain.
+2. Render shows you the exact DNS record to add (typically a CNAME for a subdomain like
+   `app.yourdomain.com`, or an A/ALIAS record for the bare domain).
+3. Add that record at your registrar (Namecheap/Cloudflare). Propagation can take up to a
+   few hours.
+4. Render auto-provisions a TLS certificate once the DNS record resolves — no separate
+   certificate step.
+
+### Step 4 — Decide what happens to the Streamlit Cloud app
+
+Once the Render version is confirmed working on the new domain, you can either leave the
+Streamlit Cloud deployment running as a backup (it's free) or delete it. Nothing about this
+migration requires deleting it immediately.
 
 ---
 
@@ -222,5 +285,12 @@ Or just link to it: *"Access the live dashboard at dashboard.unstructuredalpha.c
 | FINRA API | **Free** |
 | Hosted Postgres (Neon/Supabase, accounts) | **Free** tier (low usage) |
 | Resend (verification emails) | **Free** tier (3,000/mo) |
-| Custom domain | ~$10–15/year |
-| **Total** | **~$0–15/year**, until usage outgrows the free tiers above |
+| **Total, staying on Streamlit Cloud (no custom domain)** | **~$0/year** |
+
+If migrating to Render for a real custom domain (see above):
+
+| Component | Cost |
+|---|---|
+| Render hosting | **Free** (cold starts) or **$7/month** (always-on) |
+| Domain (covers both Render + Resend) | ~$10–15/year |
+| **Total, on Render with custom domain** | **~$10–15/year** (free hosting) or **~$94–99/year** (always-on) |

@@ -12,13 +12,21 @@
 # use requests directly), and avoids adding a dependency just to wrap one
 # REST call this small.
 #
-# Configuration (st.secrets, never committed):
+# Configuration -- environment variable checked FIRST, st.secrets as a
+# fallback (same priority order as FRED_API_KEY/EIA_API_KEY in
+# utils/fetchers.py and DATABASE_URL in utils/db.py). This matters beyond
+# consistency: st.secrets only exists at all under Streamlit Cloud's
+# secrets.toml mechanism, so a host without that (Render, Railway, a plain
+# VPS) needs the env var path to work, not just a fallback that happens to
+# never get reached:
 #   RESEND_API_KEY   -- required to actually send mail.
 #   RESEND_FROM_EMAIL -- optional; defaults to Resend's own test sender
 #     ("onboarding@resend.dev"), which only works for sending TO the email
 #     address on the Resend account itself, not arbitrary recipients --
 #     real signups need a verified sending domain configured in Resend and
 #     that address set here.
+
+import os
 
 import requests
 import streamlit as st
@@ -34,14 +42,19 @@ class EmailSendError(Exception):
 
 
 def _get_resend_config() -> tuple[str, str]:
-    try:
-        api_key = st.secrets.get("RESEND_API_KEY", "")
-    except Exception:
-        api_key = ""
-    try:
-        from_email = st.secrets.get("RESEND_FROM_EMAIL", _DEFAULT_FROM)
-    except Exception:
-        from_email = _DEFAULT_FROM
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    if not api_key:
+        try:
+            api_key = st.secrets.get("RESEND_API_KEY", "")
+        except Exception:
+            api_key = ""
+
+    from_email = os.environ.get("RESEND_FROM_EMAIL", "")
+    if not from_email:
+        try:
+            from_email = st.secrets.get("RESEND_FROM_EMAIL", _DEFAULT_FROM)
+        except Exception:
+            from_email = _DEFAULT_FROM
     return api_key, from_email
 
 
