@@ -1,0 +1,794 @@
+# utils/analysis.py
+# Unstructured Alpha — Analysis Engine
+#
+# Correlation engine  : lag-adjusted Pearson r, rolling correlation, lag optimizer
+# Signal scoring       : z-score vs. 52-week baseline → bull/bear/neutral status
+# COT scoring          : commercial vs. speculator positioning extremes
+# Confluence scoring   : weighted multi-signal bull/bear case generator
+# Power Supercycle     : thematic convergence scoring
+
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+from scipy import stats
+from typing import Dict, List, Optional, Tuple
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SERIES ALIGNMENT
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _strip_tz(s: pd.Series) -> pd.Series:
+    if hasattr(s.index, "tz") and s.index.tz is not None:
+        s = s.copy()
+        s.index = s.index.tz_localize(None)
+    return s
+
+
+def align_series(
+    signal: pd.Series,
+    price: pd.Series,
+    lag_weeks: int = 0,
+    freq: str = "W",
+) -> pd.DataFrame:
+    """
+    Resample both series to weekly, shift signal forward by lag_weeks,
+    then align on common dates.
+
+    lag_weeks = 4 means the signal is shifted 4 weeks into the future
+    (i.e., the signal from 4 weeks ago is compared to today's price),
+    which tests whether the signal leads the price.
+    """
+    sig_w = _strip_tz(signal).resample(freq).mean().dropna()
+    prc_w = _strip_tz(price).resample(freq).last().dropna()
+
+    if lag_weeks > 0:
+        sig_w = sig_w.shift(lag_weeks)
+
+    aligned = pd.DataFrame({"signal": sig_w, "price": prc_w}).dropna()
+    return aligned
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CORRELATION ENGINE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_correlation(
+    signal: pd.Series,
+    price: pd.Series,
+    lag_weeks: int = 0,
+    scan_max_lag: int = 16,
+) -> dict:
+    """
+    Full correlation analysis between a signal and a price series.
+
+    Returns:
+        pearson_r       : correlation coefficient at the specified lag
+        r_squared       : R² at the specified lag
+        p_value         : two-tailed p-value
+        significant     : True if p < 0.05
+        n               : number of overlapping weekly observations
+        aligned         : DataFrame of raw signal + price (weekly)
+        aligned_returns : DataFrame of week-over-week returns (used for correlation)
+        rolling_corr    : 26-week rolling correlation Series
+        lag_scan        : Dict[lag → r] for lags 0..scan_max_lag
+        best_lag        : lag (in weeks) that maximises |r|
+        best_r          : r at best_lag
+    """
+    aligned = align_series(signal, price, lag_weeks)
+
+    if len(aligned) < 12:
+        return {
+            "error": f"Insufficient overlapping data ({len(aligned)} weeks)",
+            "n": len(aligned),
+            "lag_scan": {},
+            "aligned": aligned,
+        }
+
+    sig_ret = aligned["signal"].pct_change().dropna()
+    prc_ret = aligned["price"].pct_change().dropna()
+    combined = pd.DataFrame({"s": sig_ret, "p": prc_ret}).dropna()
+
+    if len(combined) < 8:
+        return {"error": "Insufficient return data", "n": len(combined), "lag_scan": {}}
+
+    r, p_val = stats.pearsonr(combined["s"], combined["p"])
+
+    # Rolling 26-week correlation
+    rolling_corr = combined["s"].rolling(26).corr(combined["p"])
+
+    # Lag scan — find optimal prediction window
+    lag_scan: Dict[int, float] = {}
+    for test_lag in range(0, scan_max_lag + 1):
+        al = align_series(signal, price, test_lag)
+        if len(al) < 12:
+            continue
+        sr = al["signal"].pct_change().dropna()
+        pr = al["price"].pct_change().dropna()
+        cb = pd.DataFrame({"s": sr, "p": pr}).dropna()
+        if len(cb) >= 8:
+            rc, _ = stats.pearsonr(cb["s"], cb["p"])
+            lag_scan[test_lag] = round(rc, 4)
+
+    best_lag = max(lag_scan, key=lambda k: abs(lag_scan[k])) if lag_scan else lag_weeks
+    best_r   = lag_scan.get(best_lag, r)
+
+    return {
+        "pearson_r":      round(float(r), 4),
+        "r_squared":      round(float(r ** 2), 4),
+        "p_value":        round(float(p_val), 6),
+        "significant":    bool(p_val < 0.05),
+        "n":              len(combined),
+        "aligned":        aligned,
+        "aligned_returns": combined,
+        "rolling_corr":   rolling_corr,
+        "lag_scan":       lag_scan,
+        "best_lag":       best_lag,
+        "best_r":         round(float(best_r), 4),
+        "current_lag":    lag_weeks,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FAST SINGLE-LAG CORRELATION (per-ticker weighting)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_quick_correlation(
+    signal: pd.Series,
+    price: pd.Series,
+    lag_weeks: int = 0,
+) -> float:
+    """
+    Fast Pearson r at a single specified lag — no lag scanning.
+    Used for real-time per-ticker correlation weighting on the Ticker Deep Dive.
+
+    Returns a value in [-1, 1]. Returns 0.0 on failure / insufficient data.
+    Positive r = signal moves in same direction as price.
+    Negative r with inverse=True means the signal is still predictive (bearish signal).
+    """
+    try:
+        aligned = align_series(signal, price, lag_weeks)
+        if len(aligned) < 12:
+            return 0.0
+        sr = aligned["signal"].pct_change().dropna()
+        pr = aligned["price"].pct_change().dropna()
+        cb = pd.DataFrame({"s": sr, "p": pr}).dropna()
+        if len(cb) < 8:
+            return 0.0
+        r, p = stats.pearsonr(cb["s"], cb["p"])
+        # Only count statistically meaningful correlations (p < 0.20)
+        # otherwise treat as noise and return a weak weight
+        if p >= 0.20:
+            return float(round(r * 0.5, 4))  # dampen insignificant correlations
+        return float(round(r, 4))
+    except Exception:
+        return 0.0
+
+
+def compute_quick_correlation_stats(
+    signal: pd.Series,
+    price: pd.Series,
+    lag_weeks: int = 0,
+) -> dict:
+    """
+    Fast Pearson r + p-value at a single specified lag — no lag scanning.
+
+    Unlike compute_quick_correlation (which dampens but never exposes the
+    p-value), this returns the actual significance test result so callers
+    can filter signals by genuine statistical significance (p < 0.05) for
+    a specific ticker, rather than relying on PCS alone.
+
+    Returns: {"r": float, "p_value": float, "significant": bool, "n": int}
+    n = number of overlapping return observations used in the test.
+    A p_value of 1.0 / significant=False is returned whenever there isn't
+    enough overlapping data to run the test at all.
+    """
+    try:
+        aligned = align_series(signal, price, lag_weeks)
+        if len(aligned) < 12:
+            return {"r": 0.0, "p_value": 1.0, "significant": False, "n": len(aligned)}
+        sr = aligned["signal"].pct_change().dropna()
+        pr = aligned["price"].pct_change().dropna()
+        cb = pd.DataFrame({"s": sr, "p": pr}).dropna()
+        if len(cb) < 8:
+            return {"r": 0.0, "p_value": 1.0, "significant": False, "n": len(cb)}
+        r, p = stats.pearsonr(cb["s"], cb["p"])
+        return {
+            "r":           float(round(r, 4)),
+            "p_value":     float(round(p, 6)),
+            "significant": bool(p < 0.05),
+            "n":           len(cb),
+        }
+    except Exception:
+        return {"r": 0.0, "p_value": 1.0, "significant": False, "n": 0}
+
+
+def compute_backtested_pcs(
+    signal_series: pd.Series,
+    price_series_list: List[pd.Series],
+    lag_weeks: int = 0,
+    tickers: Optional[List[str]] = None,
+) -> dict:
+    """
+    Compute a REAL Predictive Confidence Score from actual backtested
+    correlation + significance, instead of a hand-assigned 1-10 number.
+
+    Tests the signal against ALL of its claimed relevant tickers' price
+    histories (passed in by the caller — callers should pass a representative
+    sample, e.g. up to 5, not just the first one: a signal that correlates
+    well with one ticker and poorly with the rest should NOT score as if it
+    were broadly validated). Derives PCS from:
+      - significance_rate : fraction of tested tickers where p < 0.05
+      - avg_abs_r          : average |correlation| across tested tickers
+      PCS = clip(1 + significance_rate*5 + avg_abs_r*4, 1, 10), rounded.
+
+    `tickers`, if provided, must be parallel to price_series_list — each
+    result in "details" is tagged with its ticker symbol so callers can show
+    exactly which tickers passed/failed, not just an aggregate number.
+
+    Returns {"pcs": int|None, "backtested": bool, "n_tested": int,
+             "significance_rate": float, "avg_abs_r": float, "details": [...]}.
+    pcs is None and backtested=False when there isn't enough overlapping data
+    to run the test at all — callers should fall back to a static default in
+    that case, and label it clearly as unvalidated rather than presenting it
+    as equivalent to a backtested score.
+    """
+    results = []
+    for i, price_series in enumerate(price_series_list):
+        if signal_series is None or signal_series.empty or price_series is None or price_series.empty:
+            continue
+        stat = compute_quick_correlation_stats(signal_series, price_series, lag_weeks=lag_weeks)
+        stat["ticker"] = tickers[i] if tickers and i < len(tickers) else None
+        if stat["n"] >= 8:
+            results.append(stat)
+
+    if not results:
+        return {
+            "pcs": None, "backtested": False, "n_tested": 0,
+            "significance_rate": 0.0, "avg_abs_r": 0.0, "details": [],
+        }
+
+    sig_rate  = sum(1 for r in results if r["significant"]) / len(results)
+    avg_abs_r = sum(abs(r["r"]) for r in results) / len(results)
+    pcs_raw   = 1 + sig_rate * 5 + avg_abs_r * 4
+    pcs       = int(round(max(1.0, min(10.0, pcs_raw))))
+
+    return {
+        "pcs": pcs, "backtested": True, "n_tested": len(results),
+        "significance_rate": round(sig_rate, 2), "avg_abs_r": round(avg_abs_r, 3),
+        "details": results,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SIGNAL SCORING
+# ─────────────────────────────────────────────────────────────────────────────
+
+def score_signal(signal: pd.Series, inverse: bool = False) -> dict:
+    """
+    Score the current signal reading vs. its 52-week history.
+
+    Returns a 0–100 score (50 = neutral, ≥65 = bullish, ≤35 = bearish).
+    inverse=True means a rising signal is bearish (e.g., jobless claims).
+
+    Z-score basis:
+        score = clip(50 + z * 15, 0, 100)
+    A 2σ move from the 52-week mean → score of ~80 (strong signal).
+    """
+    clean = signal.dropna()
+    if len(clean) < 12:
+        return {
+            "score":         50.0,
+            "status":        "insufficient_data",
+            "z_score":       0.0,
+            "percentile":    50.0,
+            "current":       float("nan"),
+            "mean_52w":      float("nan"),
+            "std_52w":       float("nan"),
+            "deviation_pct": 0.0,
+            "trend_4w_pct":  0.0,
+        }
+
+    current  = float(clean.iloc[-1])
+    hist_52w = clean.tail(52)
+    mean     = float(hist_52w.mean())
+    std      = float(hist_52w.std())
+    z        = (current - mean) / std if std > 0 else 0.0
+    pct      = float(stats.percentileofscore(clean.values, current))
+
+    if inverse:
+        z   = -z
+        pct = 100.0 - pct
+
+    score = float(np.clip(50.0 + z * 15.0, 0.0, 100.0))
+
+    # 4-week momentum
+    if len(clean) >= 8:
+        recent = float(clean.tail(4).mean())
+        prior  = float(clean.iloc[-8:-4].mean())
+        trend_pct = (recent - prior) / abs(prior) * 100.0 if prior != 0 else 0.0
+        if inverse:
+            trend_pct = -trend_pct
+    else:
+        trend_pct = 0.0
+
+    if score >= 65:
+        status = "bullish"
+    elif score <= 35:
+        status = "bearish"
+    else:
+        status = "neutral"
+
+    return {
+        "score":         round(score, 1),
+        "status":        status,
+        "z_score":       round(z, 2),
+        "percentile":    round(pct, 1),
+        "current":       round(current, 4),
+        "mean_52w":      round(mean, 4),
+        "std_52w":       round(std, 4),
+        "deviation_pct": round((current - mean) / mean * 100 if mean != 0 else 0.0, 2),
+        "trend_4w_pct":  round(trend_pct, 2),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COT POSITIONING SCORE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def score_cot(cot_df: pd.DataFrame) -> dict:
+    """
+    Score CFTC COT positioning.
+
+    Interpretation (from Project Bible §CFTC COT):
+        - Commercials = "smart money" — they hedge real exposure
+        - Extreme commercial net LONG + extreme speculator net SHORT → contrarian BULL
+        - Extreme speculator net LONG + commercial net SHORT → contrarian BEAR
+
+    Returns a 0–100 score driven by commercial positioning percentile.
+    """
+    if cot_df.empty or len(cot_df) < 12:
+        return {
+            "score": 50.0, "status": "neutral",
+            "spec_net": 0, "comm_net": 0,
+            "spec_net_pct": 50.0, "comm_net_pct": 50.0,
+            "spec_extreme": False, "comm_extreme": False,
+            "contrarian_signal": None,
+        }
+
+    df = cot_df.copy()
+    df["spec_net"] = df["spec_long"] - df["spec_short"]
+    df["comm_net"] = df["comm_long"] - df["comm_short"]
+
+    curr_spec = float(df["spec_net"].iloc[-1])
+    curr_comm = float(df["comm_net"].iloc[-1])
+
+    spec_pct = float(stats.percentileofscore(df["spec_net"].values, curr_spec))
+    comm_pct = float(stats.percentileofscore(df["comm_net"].values, curr_comm))
+
+    comm_mean = float(df["comm_net"].mean())
+    comm_std  = float(df["comm_net"].std())
+    comm_z    = (curr_comm - comm_mean) / comm_std if comm_std > 0 else 0.0
+
+    score = float(np.clip(50.0 + comm_z * 15.0, 0.0, 100.0))
+
+    spec_extreme = spec_pct >= 85 or spec_pct <= 15
+    comm_extreme = comm_pct >= 85 or comm_pct <= 15
+
+    # Contrarian signal: extremes in both, opposite directions
+    contrarian = None
+    if spec_pct >= 85 and comm_pct <= 20:
+        contrarian = "BEARISH SETUP — Specs at extreme long, commercials hedging short"
+    elif spec_pct <= 15 and comm_pct >= 80:
+        contrarian = "BULLISH SETUP — Specs at extreme short, commercials net long"
+
+    return {
+        "score":              round(score, 1),
+        "status":             "bullish" if score >= 65 else ("bearish" if score <= 35 else "neutral"),
+        "spec_net":           int(curr_spec),
+        "comm_net":           int(curr_comm),
+        "spec_net_pct":       round(spec_pct, 1),
+        "comm_net_pct":       round(comm_pct, 1),
+        "spec_extreme":       spec_extreme,
+        "comm_extreme":       comm_extreme,
+        "contrarian_signal":  contrarian,
+        "net_positions_df":   df[["date", "spec_net", "comm_net"]].tail(104),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FEDERAL CONTRACT VELOCITY
+# ─────────────────────────────────────────────────────────────────────────────
+
+def score_contract_velocity(contracts_df: pd.DataFrame) -> dict:
+    """
+    Score federal contract award velocity for a company.
+    Compares trailing 6-month award volume to prior 6-month baseline.
+    """
+    if contracts_df.empty or "date" not in contracts_df.columns:
+        return {
+            "score": 50.0, "status": "no_data", "recent_total": 0, "prior_total": 0,
+            "pct_change": 0.0, "award_count": 0,
+        }
+
+    df = contracts_df.dropna(subset=["date", "amount"]).copy()
+    now   = pd.Timestamp.now()
+    cut6  = now - pd.Timedelta(days=182)
+    cut12 = now - pd.Timedelta(days=365)
+
+    recent = df[df["date"] >= cut6]["amount"].sum()
+    prior  = df[(df["date"] >= cut12) & (df["date"] < cut6)]["amount"].sum()
+
+    if prior <= 0:
+        pct_chg = 100.0 if recent > 0 else 0.0
+    else:
+        pct_chg = (recent - prior) / prior * 100.0
+
+    # Map % change to 0-100 score: +100% change → ~80 score; −50% → ~30
+    z = pct_chg / 50.0  # ±50% ≈ ±1 z-score
+    score = float(np.clip(50.0 + z * 15.0, 0.0, 100.0))
+
+    return {
+        "score":        round(score, 1),
+        "status":       "bullish" if score >= 65 else ("bearish" if score <= 35 else "neutral"),
+        "recent_total": recent,
+        "prior_total":  prior,
+        "pct_change":   round(pct_chg, 1),
+        "award_count":  len(df),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MULTI-SIGNAL CONFLUENCE SCORING
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_confluence(
+    signal_scores: Dict[str, dict],
+    weights: Optional[Dict[str, float]] = None,
+) -> dict:
+    """
+    Compute a weighted multi-signal confluence score for a ticker.
+
+    Each signal_score dict must contain at least:
+        {"score": float, "status": "bullish"|"bearish"|"neutral"}
+
+    Returns overall_score (0–100), conviction level, and signal breakdowns.
+    This is the PRIMARY differentiator — no other retail platform does this.
+    """
+    if not signal_scores:
+        return {
+            "overall_score": 50.0,
+            "conviction": "No Data",
+            "case": "NEUTRAL",
+            "bull_count": 0,
+            "bear_count": 0,
+            "neutral_count": 0,
+            "bull_signals": [],
+            "bear_signals": [],
+            "neutral_signals": [],
+        }
+
+    bull, bear, neutral = [], [], []
+    w_sum   = 0.0
+    w_total = 0.0
+
+    for sig_id, sd in signal_scores.items():
+        w  = (weights or {}).get(sig_id, 1.0)
+        sc = float(sd.get("score", 50))
+        w_sum   += sc * w
+        w_total += w
+
+        st_val = sd.get("status", "neutral")
+        if st_val == "bullish":
+            bull.append(sig_id)
+        elif st_val == "bearish":
+            bear.append(sig_id)
+        else:
+            neutral.append(sig_id)
+
+    overall = w_sum / w_total if w_total > 0 else 50.0
+    n = len(signal_scores)
+
+    agreement = max(len(bull), len(bear)) / n if n > 0 else 0.0
+    if agreement >= 0.80:
+        conviction = "Very High"
+    elif agreement >= 0.60:
+        conviction = "High"
+    elif agreement >= 0.40:
+        conviction = "Moderate"
+    else:
+        conviction = "Low / Mixed"
+
+    if overall >= 62:
+        case = "BULL"
+    elif overall <= 38:
+        case = "BEAR"
+    else:
+        case = "NEUTRAL"
+
+    return {
+        "overall_score":   round(overall, 1),
+        "conviction":      conviction,
+        "case":            case,
+        "bull_count":      len(bull),
+        "bear_count":      len(bear),
+        "neutral_count":   len(neutral),
+        "bull_signals":    bull,
+        "bear_signals":    bear,
+        "neutral_signals": neutral,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# POWER SUPERCYCLE CONVERGENCE SCORE
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Signal weights reflect PCS scores and thematic centrality to the thesis
+_SUPERCYCLE_WEIGHTS: Dict[str, float] = {
+    "uranium_proxy":     2.2,   # Nuclear fuel demand = core thesis driver
+    "copper":            2.0,   # Grid buildout = physical constraint
+    "natural_gas":       1.6,   # Data center co-located generation
+    "hyperscaler_capex": 1.8,   # AI demand = the trigger
+    "ata_trucking":      0.9,   # Macro backdrop
+    "jobless_claims":    0.7,   # Macro risk-off indicator (inverse)
+    "crude_oil":         0.8,   # Energy complex health
+    "food_cpi":          0.5,   # Inflation / real rate context
+}
+
+
+def compute_supercycle_score(signal_scores: Dict[str, dict]) -> dict:
+    """
+    Compute the Power Supercycle convergence score.
+
+    The thesis: AI training → massive compute → power demand → grid buildout
+    → copper + nuclear/gas → uranium + SWU tight → cycle repeats.
+
+    Score ≥70: High Conviction Bull — multiple legs of the thesis confirmed.
+    Score 50–70: Building — not all legs confirmed yet.
+    Score <50: Headwinds — signals diverging.
+    """
+    result = compute_confluence(signal_scores, weights=_SUPERCYCLE_WEIGHTS)
+
+    # Add conviction label specific to the supercycle thesis
+    score = result["overall_score"]
+    if score >= 72:
+        thesis_status = "HIGH CONVICTION — Multiple legs of the Power Supercycle confirmed"
+    elif score >= 60:
+        thesis_status = "BUILDING — Key signals aligning; watch for confirmation"
+    elif score >= 45:
+        thesis_status = "MIXED — Thesis intact but signal divergence present"
+    else:
+        thesis_status = "HEADWINDS — Multiple signals contradict the thesis"
+
+    result["thesis_status"] = thesis_status
+    return result
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BULL/BEAR NARRATIVE BUILDER
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SIGNAL_BULL_TEMPLATES = {
+    "ata_trucking":      "ATA Trucking Tonnage is running {dev_pct:+.1f}% above its 52-week average, signaling broad freight demand expansion — historically a {lag}-week leading indicator for industrial and transportation stocks.",
+    "rail_traffic":      "Rail intermodal traffic is elevated {dev_pct:+.1f}% vs. baseline, suggesting import pipeline strength and manufacturing activity {lag} weeks out.",
+    "jobless_claims":    "Initial jobless claims are running {dev_pct:+.1f}% below 52-week average — labor market resilience that historically supports consumer spending for {lag}+ weeks.",
+    "layoffs_rate":      "The BLS layoffs rate is {dev_pct:+.1f}% below baseline, indicating corporate confidence in near-term demand.",
+    "crude_oil":         "WTI crude trending above 52-week mean by {dev_pct:+.1f}% — rising energy demand reflects healthy industrial activity.",
+    "natural_gas":       "Henry Hub gas prices elevated {dev_pct:+.1f}% — indicates power demand exceeding supply, favorable for gas producers and pipeline operators.",
+    "uranium_proxy":     "Uranium market (URA proxy) running {dev_pct:+.1f}% above 52-week average — signals accelerating utility demand for nuclear fuel ahead of new reactor commitments.",
+    "copper":            "COMEX copper trading {dev_pct:+.1f}% above 52-week average — physical tightness in the grid buildout critical material. LME inventory dynamics confirm.",
+    "hyperscaler_capex": "Hyperscaler CapEx composite is running elevated — AI infrastructure investment at record pace, driving multi-year power and infrastructure demand.",
+    "food_cpi":          "Food CPI is below trend — reduced agricultural supply pressure supports grocery and food-service margins.",
+    "quantum_proxy":     "Quantum computing equity basket is trending higher — institutional sentiment on milestone timing is improving.",
+}
+
+_SIGNAL_BEAR_TEMPLATES = {
+    "ata_trucking":      "ATA Trucking Tonnage has deteriorated {dev_pct:+.1f}% below its 52-week average — freight contraction typically precedes manufacturing and retail slowdowns by {lag} weeks.",
+    "rail_traffic":      "Rail intermodal traffic is tracking {dev_pct:+.1f}% below baseline — import pipeline weakness suggesting inventory drawdowns ahead.",
+    "jobless_claims":    "Initial jobless claims have risen {dev_pct:+.1f}% above 52-week average — labor market deterioration that historically pressures consumer discretionary spending.",
+    "layoffs_rate":      "BLS layoffs rate is elevated {dev_pct:+.1f}% above baseline — corporate caution on near-term demand.",
+    "crude_oil":         "WTI crude below 52-week mean by {dev_pct:+.1f}% — demand destruction signal for energy complex.",
+    "natural_gas":       "Henry Hub below baseline — power demand softness or oversupply, pressuring gas producer margins.",
+    "uranium_proxy":     "Uranium market (URA proxy) below 52-week average by {dev_pct:+.1f}% — slowing utility contracting pace, reduced nuclear fuel demand.",
+    "copper":            "COMEX copper below 52-week average by {dev_pct:+.1f}% — grid buildout pace slowing or oversupply from mine expansions.",
+    "hyperscaler_capex": "Hyperscaler CapEx composite showing deceleration — data center investment cycle may be plateauing.",
+    "food_cpi":          "Food CPI rising {dev_pct:+.1f}% above trend — agricultural supply disruption feeding through to grocery and food-service margins.",
+    "quantum_proxy":     "Quantum computing equity basket is weakening — institutional skepticism on near-term milestone timing.",
+}
+
+
+def build_narrative(
+    ticker: str,
+    signal_scores: Dict[str, dict],
+    signal_configs: dict,
+) -> dict:
+    """
+    Build a structured bull and bear case narrative based on signal readings.
+    Returns text bullets for each side plus an overall conviction assessment.
+    """
+    bull_points, bear_points = [], []
+
+    for sig_id, sd in signal_scores.items():
+        cfg    = signal_configs.get(sig_id, {})
+        lag    = cfg.get("lag_weeks", 4)
+        dev    = sd.get("deviation_pct", 0.0)
+        status = sd.get("status", "neutral")
+
+        if status == "bullish":
+            tmpl = _SIGNAL_BULL_TEMPLATES.get(sig_id)
+            if tmpl:
+                bull_points.append(tmpl.format(dev_pct=abs(dev), lag=lag))
+        elif status == "bearish":
+            tmpl = _SIGNAL_BEAR_TEMPLATES.get(sig_id)
+            if tmpl:
+                bear_points.append(tmpl.format(dev_pct=abs(dev), lag=lag))
+
+    confluence = compute_confluence(signal_scores)
+
+    return {
+        "bull_points":  bull_points,
+        "bear_points":  bear_points,
+        "confluence":   confluence,
+        "ticker":       ticker,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FORWARD PREDICTION MODEL
+# ─────────────────────────────────────────────────────────────────────────────
+
+def predict_ticker_forward(
+    confluence_score: float,
+    price_series: pd.Series,
+    signal_scores: Dict[str, dict],
+    horizons_days: list[int] | None = None,
+) -> dict:
+    """
+    Signal-based forward probability model for a ticker.
+
+    Inputs:
+      confluence_score : weighted confluence 0-100 (already momentum-blended)
+      price_series     : daily close prices
+      signal_scores    : {sig_id: scored} dict
+      horizons_days    : list of forecast horizons (default [30, 60, 90])
+
+    Returns:
+      horizons         : list[{days, label, bull_pct, bear_pct, neutral_pct,
+                                price_low, price_mid, price_high}]
+      annual_vol_pct   : annualized historical volatility %
+      momentum_1m      : 1-month return %
+      momentum_3m      : 3-month return %
+      regime           : "BULL" | "BEAR" | "NEUTRAL"
+      regime_strength  : 0-100
+      key_signals      : list of (name, status) for top 3 driving signals
+      plain_english    : one-paragraph summary for non-professionals
+    """
+    if horizons_days is None:
+        horizons_days = [30, 60, 90]
+
+    ps = price_series.dropna()
+    last_price = float(ps.iloc[-1]) if len(ps) > 0 else 100.0
+
+    # ── Momentum ──────────────────────────────────────────────────────────────
+    def _ret(n: int) -> float:
+        if len(ps) >= n:
+            return float((ps.iloc[-1] / ps.iloc[-n]) - 1)
+        return 0.0
+
+    mom_1m = _ret(22)
+    mom_3m = _ret(66)
+    mom_6m = _ret(132)
+    mom_1y = _ret(252)
+
+    # ── Historical Volatility ─────────────────────────────────────────────────
+    if len(ps) >= 30:
+        daily_rets = ps.pct_change().dropna()
+        ann_vol = float(daily_rets.std() * np.sqrt(252))
+    else:
+        ann_vol = 0.25  # default 25% vol
+
+    # ── Base Bull Probability from Confluence ─────────────────────────────────
+    # Map 0-100 confluence → 5-95% bull probability (logistic-like mapping)
+    # Score=50 → ~50% bull, Score=75 → ~75% bull, Score=25 → ~25% bull
+    base_bull = np.clip(confluence_score, 5.0, 95.0)
+
+    # ── Momentum Adjustment ───────────────────────────────────────────────────
+    # Positive 1M momentum adds up to +8 ppt; negative subtracts up to -8 ppt
+    mom_adj = np.clip(mom_1m * 0.4 + mom_3m * 0.2, -0.08, 0.08) * 100
+
+    # ── Signal Trend Consistency Adjustment ──────────────────────────────────
+    # If >60% of signals are one-directional, add conviction bonus
+    n_bull = sum(1 for v in signal_scores.values() if v.get("status") == "bullish")
+    n_bear = sum(1 for v in signal_scores.values() if v.get("status") == "bearish")
+    n_sig  = max(1, len(signal_scores))
+    consistency_adj = 0.0
+    if n_bull / n_sig > 0.60:
+        consistency_adj = +5.0
+    elif n_bear / n_sig > 0.60:
+        consistency_adj = -5.0
+
+    final_bull = float(np.clip(base_bull + mom_adj + consistency_adj, 5.0, 95.0))
+    final_bear = float(np.clip(100 - final_bull - 10, 3.0, 90.0))
+    final_neutral = max(2.0, 100.0 - final_bull - final_bear)
+
+    # Normalise so they sum to 100
+    total = final_bull + final_bear + final_neutral
+    final_bull    = round(final_bull    / total * 100, 1)
+    final_bear    = round(final_bear    / total * 100, 1)
+    final_neutral = round(100.0 - final_bull - final_bear, 1)
+
+    # ── Per-Horizon Outputs ───────────────────────────────────────────────────
+    horizons = []
+    for days in horizons_days:
+        t = days / 252.0
+        vol_range = ann_vol * np.sqrt(t)
+
+        # Expected drift: bull_prob pushes price toward bull centre
+        drift = (final_bull - final_bear) / 100.0 * ann_vol * t
+
+        price_mid  = round(last_price * (1 + drift), 2)
+        price_high = round(last_price * (1 + drift + vol_range), 2)
+        price_low  = round(last_price * (1 + drift - vol_range), 2)
+
+        horizons.append({
+            "days":        days,
+            "label":       f"{days}D",
+            "bull_pct":    final_bull,
+            "bear_pct":    final_bear,
+            "neutral_pct": final_neutral,
+            "price_low":   price_low,
+            "price_mid":   price_mid,
+            "price_high":  price_high,
+        })
+
+    # ── Regime ───────────────────────────────────────────────────────────────
+    regime = "BULL" if final_bull > 60 else ("BEAR" if final_bear > 60 else "NEUTRAL")
+    regime_strength = round(max(final_bull, final_bear), 1)
+
+    # ── Key Signals ──────────────────────────────────────────────────────────
+    # Sort by absolute score deviation from 50 — highest deviation = most informative
+    key_sigs = sorted(
+        [(sid, v) for sid, v in signal_scores.items()],
+        key=lambda x: abs(x[1].get("score", 50) - 50),
+        reverse=True,
+    )[:3]
+
+    # ── Plain-English Summary ─────────────────────────────────────────────────
+    trend_word  = "rising" if mom_1m > 0.02 else ("falling" if mom_1m < -0.02 else "flat")
+    regime_word = "bullish" if regime == "BULL" else ("bearish" if regime == "BEAR" else "mixed")
+    conviction_word = (
+        "strong" if regime_strength > 70 else
+        "moderate" if regime_strength > 55 else
+        "weak"
+    )
+
+    plain_english = (
+        f"Based on {n_sig} independent alternative data signals, the current macro environment "
+        f"is {regime_word} for this ticker with {conviction_word} conviction "
+        f"({regime_strength:.0f}% probability). "
+        f"The stock has been {trend_word} over the past month "
+        f"({mom_1m:+.1%}). "
+        f"Over the next 30 days, the model estimates a {final_bull:.0f}% chance of upside "
+        f"and {final_bear:.0f}% chance of downside, "
+        f"with a price range of ${price_low:.2f}–${price_high:.2f} (±{ann_vol*np.sqrt(30/252):.1%} "
+        f"based on {ann_vol:.0%} annualised vol). "
+        f"This is NOT a buy/sell recommendation — it's a probability estimate from macro signals."
+    ).replace("$", "\\$")  # escape for markdown
+
+    return {
+        "horizons":         horizons,
+        "annual_vol_pct":   round(ann_vol * 100, 1),
+        "momentum_1m":      round(mom_1m * 100, 2),
+        "momentum_3m":      round(mom_3m * 100, 2),
+        "momentum_6m":      round(mom_6m * 100, 2),
+        "momentum_1y":      round(mom_1y * 100, 2),
+        "regime":           regime,
+        "regime_strength":  regime_strength,
+        "last_price":       last_price,
+        "key_signals":      [(sid, v.get("status", "neutral")) for sid, v in key_sigs],
+        "plain_english":    plain_english,
+        "final_bull":       final_bull,
+        "final_bear":       final_bear,
+        "final_neutral":    final_neutral,
+    }

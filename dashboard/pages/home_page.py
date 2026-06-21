@@ -1,0 +1,242 @@
+"""
+Home — Unstructured Alpha landing page
+Simplified, retail-first design with clear CTAs and plain-English explainers.
+"""
+
+import streamlit as st
+
+st.set_page_config(
+    page_title="Unstructured Alpha — Home",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={"About": "Unstructured Alpha — hedge-fund signals for everyday investors."},
+)
+
+from utils.header import render_header, render_sidebar_base
+from utils.config import SIGNALS, CATEGORIES
+
+render_header("Home")
+render_sidebar_base()
+
+# ── Hero ──────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div style="text-align:center;padding:28px 0 20px;font-family:Georgia,serif;">
+    <div style="font-size:2.0rem;font-weight:800;color:#1C2B4A;line-height:1.2;">
+        Hedge Fund Signals.<br>
+        <span style="color:#B8860B;">Made for Everyone.</span>
+    </div>
+    <div style="font-size:1.0rem;color:#6B6560;margin-top:10px;max-width:560px;margin-left:auto;margin-right:auto;">
+        Institutional-grade alternative data from free public sources —
+        trucking freight, uranium contracts, jobless claims, rig counts, and more —
+        scored and mapped to specific stocks so you know what the signals actually mean.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── 3 Big Start Buttons ───────────────────────────────────────────────────────
+btn1, btn2, btn3 = st.columns(3)
+
+with btn1:
+    st.markdown("""
+    <div style="background:#1C2B4A;border-radius:10px;padding:22px 18px;text-align:center;
+                font-family:Georgia,serif;color:#FAF7F0;min-height:120px;">
+        <div style="font-size:0.68rem;letter-spacing:0.12em;color:#C9A84C;margin-bottom:8px;">SIGNALS</div>
+        <div style="font-weight:700;font-size:1.0rem;margin-bottom:6px;">Check the Signals</div>
+        <div style="font-size:0.80rem;color:#C9A84C;line-height:1.4;">
+            See which macro signals are flashing bullish or bearish right now.
+            Simple or Pro mode.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open Signal Dashboard →", use_container_width=True, key="cta_signals"):
+        st.switch_page("pages/1_Signal_Dashboard.py")
+
+with btn2:
+    st.markdown("""
+    <div style="background:#1B5E20;border-radius:10px;padding:22px 18px;text-align:center;
+                font-family:Georgia,serif;color:#FAF7F0;min-height:120px;">
+        <div style="font-size:0.68rem;letter-spacing:0.12em;color:#A5D6A7;margin-bottom:8px;">TICKER</div>
+        <div style="font-weight:700;font-size:1.0rem;margin-bottom:6px;">Analyze Any Ticker</div>
+        <div style="font-size:0.80rem;color:#A5D6A7;line-height:1.4;">
+            Full signal score + 30/60/90-day probability model
+            for any stock on any exchange.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open Ticker Deep Dive →", use_container_width=True, key="cta_dive"):
+        st.switch_page("pages/3_Ticker_Deep_Dive.py")
+
+with btn3:
+    st.markdown("""
+    <div style="background:#7B1010;border-radius:10px;padding:22px 18px;text-align:center;
+                font-family:Georgia,serif;color:#FAF7F0;min-height:120px;">
+        <div style="font-size:0.68rem;letter-spacing:0.12em;color:#EF9A9A;margin-bottom:8px;">MARKET</div>
+        <div style="font-weight:700;font-size:1.0rem;margin-bottom:6px;">Market Snapshot</div>
+        <div style="font-size:0.80rem;color:#EF9A9A;line-height:1.4;">
+            Indices, rates, commodities, and sector performance
+            with 1D → ALL time selectors.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    if st.button("Open Market Overview →", use_container_width=True, key="cta_market"):
+        st.switch_page("pages/5_Market_Overview.py")
+
+st.markdown("")
+st.divider()
+
+# ── Plain-English explainers ──────────────────────────────────────────────────
+exp1, exp2 = st.columns(2)
+
+with exp1:
+    st.markdown("### What is this?")
+    st.markdown("""
+    Hedge funds pay **$50,000–$500,000/year** for alternative data — signals from physical
+    economic activity that predict stock moves before earnings reports confirm them.
+
+    Examples:
+    - Trucking freight volume drops → retail stocks fall 6 weeks later
+    - Uranium spot price rises → nuclear fuel company stocks follow
+    - Jobless claims spike → consumer discretionary stocks weaken
+
+    This dashboard pulls that same data from **free government sources** and connects each signal
+    to the stocks it affects — with the causal logic explained in plain English.
+
+    *Think of it as having a friend at a hedge fund who actually explains their reasoning.*
+    """)
+
+with exp2:
+    st.markdown("### How to use it")
+    st.markdown("""
+    **Step 1 — Check the Signal Dashboard**
+    See which signals are bullish, bearish, or neutral right now.
+    Use **Simple mode** if you're new; **Pro mode** for z-scores and percentiles.
+
+    **Step 2 — Analyze a specific ticker**
+    Go to **Ticker Deep Dive**, type any stock symbol. You'll get:
+    - A composite signal score (0–100)
+    - A 30/60/90-day probability model
+    - A plain-English bull & bear case
+
+    **Step 3 — Screen the universe**
+    Use the **Stock Screener** to find tickers ranked by signal strength.
+    Filter by sector, signal direction, or score range.
+
+    **Step 4 — Go deeper**
+    The **Power Supercycle** page tracks the AI → Power → Nuclear thesis specifically.
+    The **Deep Correlation Scan** on Ticker Deep Dive lets you measure the exact lead time
+    for any signal/ticker pair.
+    """)
+
+st.divider()
+
+# ── Signal Library quick preview ──────────────────────────────────────────────
+import pandas as pd
+
+total_sigs = len(SIGNALS)
+by_cat = {}
+for cfg in SIGNALS.values():
+    cat = cfg.get("category", "macro")
+    by_cat[cat] = by_cat.get(cat, 0) + 1
+
+cat_cols = st.columns(len(by_cat) + 1)
+cat_cols[0].metric("Total Signals", total_sigs)
+for ci, (cat_key, count) in enumerate(by_cat.items(), 1):
+    cat_meta = CATEGORIES.get(cat_key, {})
+    cat_cols[ci].metric(cat_meta.get('name', cat_key), count)
+
+with st.expander("Browse all signals →"):
+    rows = []
+    for sig_id, cfg in SIGNALS.items():
+        cat_meta = CATEGORIES.get(cfg.get("category","macro"), {})
+        rows.append({
+            "Signal":    cfg["name"],
+            "Category":  cat_meta.get('name',''),
+            "PCS":       cfg["pcs"],
+            "Lead":      f"~{cfg['lag_weeks']}w",
+            "Direction": "↓ Rising = Bearish" if cfg.get("inverse") else "↑ Rising = Bullish",
+            "Tickers":   ", ".join(cfg["relevant_tickers"][:4]),
+        })
+    st.dataframe(
+        pd.DataFrame(rows),
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "PCS": st.column_config.NumberColumn("PCS /10", format="%d", help="Predictive Confidence Score. 8+ = publication-grade research."),
+            "Lead": st.column_config.TextColumn("Signal Lead", help="How far ahead this signal historically leads the market."),
+        },
+    )
+
+st.divider()
+
+# ── Quick glossary ────────────────────────────────────────────────────────────
+st.markdown("### Common Questions")
+
+gl_col1, gl_col2 = st.columns(2)
+
+with gl_col1:
+    with st.expander("What is 'alternative data'?"):
+        st.markdown("""
+        **Alternative data** is any data source that isn't a stock price or earnings report.
+        Examples: freight volumes, uranium contracts, unemployment claims, gasoline prices, housing permits.
+        Hedge funds have used this for decades. Most of it comes from free government sources that
+        nobody packages for regular investors — until now.
+        """)
+
+    with st.expander("What is the Confluence Score?"):
+        st.markdown("""
+        The **Confluence Score** (0–100) measures how many independent signals are pointing the same
+        direction for a specific stock.
+        - **Score > 65** = Multiple bullish signals converging — higher conviction
+        - **Score 35–65** = Mixed signals — wait for clarity
+        - **Score < 35** = Multiple bearish signals — caution
+
+        One bullish signal is noise. Five independent signals all pointing bullish is a thesis.
+        """)
+
+    with st.expander("What is the Prediction Model?"):
+        st.markdown("""
+        The **Prediction Model** on the Ticker Deep Dive page estimates the probability that a
+        stock is higher or lower over the next 30, 60, or 90 days — based on:
+        1. Current macro signal readings (confluence score)
+        2. Recent price momentum (1-month and 3-month)
+        3. Historical volatility (for the price range estimate)
+
+        It is **not** a buy/sell signal. It's a probability estimate to help you think
+        about risk and timing alongside your own analysis.
+        """)
+
+with gl_col2:
+    with st.expander("What is the PCS (Predictive Confidence Score)?"):
+        st.markdown("""
+        The **PCS** (1–10) rates how confident we are that a signal actually predicts stocks.
+        Based on: documented historical cases, causal logic, lead time quality, and data reliability.
+        - **8–10**: Publication-grade research, well-documented causal mechanism
+        - **5–7**: Solid signal with some empirical support
+        - **1–4**: Experimental — use with caution
+
+        Signals with PCS ≥ 7 carry more weight in the confluence score calculation.
+        """)
+
+    with st.expander("What is 'signal lead time'?"):
+        st.markdown("""
+        If a signal has a **6-week lead time**, it means: when this signal moves, the related
+        stock price historically follows in the same direction about 6 weeks later.
+
+        Example: Lumber prices peak → homebuilder stocks peak 6–8 weeks later.
+        This gives you a potential window to act before the price move happens.
+        """)
+
+    with st.expander("Is this financial advice?"):
+        st.markdown("""
+        **No.** This is a research and education tool. All signals are interpretations of
+        publicly available data. Past signal accuracy does not predict future performance.
+        Always do your own due diligence before making any investment decision.
+        Consult a licensed financial advisor for personalized advice.
+        """)
+
+st.markdown("""
+<div style="text-align:center;padding:20px;font-size:0.75rem;color:#9E9E8E;font-family:Georgia,serif;">
+    Unstructured Alpha — Alternative data research tool. Not financial advice.
+    All data from public sources (FRED, yfinance, USASpending.gov).
+</div>
+""", unsafe_allow_html=True)
