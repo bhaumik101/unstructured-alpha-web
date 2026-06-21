@@ -647,7 +647,9 @@ SIGNALS = {
         "tier": 2,
         "pcs": 7,
         "source": "yfinance",
-        "series_id": "LBS=F",
+        "series_id": "LBR=F",  # was "LBS=F" — verified dead/frozen on a May-2023 contract (CME's
+        # old lumber futures symbol; the contract was redesigned). LBR=F is the current generic
+        # front-month symbol, verified live 2026-06-21 (showing Jul-2026 contract, updating same-day).
         "frequency": "daily",
         "lag_weeks": 8,
         "inverse": False,
