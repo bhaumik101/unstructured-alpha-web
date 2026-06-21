@@ -443,6 +443,119 @@ def fetch_insider_trades(ticker: str, days: int = 180) -> pd.DataFrame:
         return pd.DataFrame()
 
 
+@st.cache_data(ttl=21600, show_spinner=False)
+def fetch_insider_transactions_detail(ticker: str, days: int = 180, max_filings: int = 20) -> pd.DataFrame:
+    """
+    Fetch and parse ACTUAL Form 4 transaction detail (buy/sell direction,
+    shares, price) -- not just filing metadata.
+
+    fetch_insider_trades() above only returns who-filed-when via EDGAR's
+    full-text search INDEX; the search index does not include parsed
+    transaction content. That content only exists in each filing's
+    underlying XML, which is what this function fetches and parses.
+
+    URL pattern verified live against real filings before writing this
+    (not assumed from memory): EDGAR full-text search hits include an
+    "_id" field shaped "{accession-no-dashes-with-dash}:{filename}" and a
+    "ciks" list whose first entry is the FILER's (insider's) CIK, not the
+    issuer's. The filing's XML lives at:
+        https://www.sec.gov/Archives/edgar/data/{filer_cik}/{accession_no_no_dashes}/{filename}
+    Confirmed the filename varies by filing agent (e.g. "doc4.xml" for one
+    company's agent, "form4.xml" for another's) -- this is why the filename
+    must come from the search hit's own "_id" field, not be assumed/hardcoded.
+
+    Only counts genuine open-market transactions: transactionCode "P"
+    (purchase) or "S" (sale) inside <nonDerivativeTransaction> -- NOT
+    <nonDerivativeHolding> (no transaction, just a position snapshot), and
+    NOT <derivativeTransaction> codes like "A" (grant/award) or "M"
+    (option exercise) or "F" (shares withheld for taxes on vesting), none
+    of which reflect a genuine buy/sell decision by the insider.
+
+    Returns columns: date, insider, role, code (P/S), shares, price, value
+    (shares * price, signed: + for P, - for S).
+    """
+    start = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    end   = datetime.now().strftime("%Y-%m-%d")
+    headers = {"User-Agent": "UnstructuredAlpha/1.0 research@unstructuredalpha.com"}
+
+    search_url = (
+        "https://efts.sec.gov/LATEST/search-index"
+        f"?q=%22{ticker}%22&forms=4"
+        f"&dateRange=custom&startdt={start}&enddt={end}"
+    )
+
+    try:
+        r = requests.get(search_url, headers=headers, timeout=12)
+        r.raise_for_status()
+        hits = r.json().get("hits", {}).get("hits", [])
+    except Exception:
+        return pd.DataFrame()
+
+    records = []
+    for hit in hits[:max_filings]:
+        src = hit.get("_source", {})
+        hit_id = hit.get("_id", "")
+        ciks = src.get("ciks", [])
+        if ":" not in hit_id or not ciks:
+            continue
+        accession, filename = hit_id.split(":", 1)
+        filer_cik = ciks[0].lstrip("0") or "0"
+        accession_nodash = accession.replace("-", "")
+        xml_url = f"https://www.sec.gov/Archives/edgar/data/{filer_cik}/{accession_nodash}/{filename}"
+
+        try:
+            xr = requests.get(xml_url, headers=headers, timeout=12)
+            xr.raise_for_status()
+            root = ET.fromstring(xr.content)
+        except Exception:
+            continue
+
+        insider_name = ""
+        owner_el = root.find("reportingOwner/reportingOwnerId/rptOwnerName")
+        if owner_el is not None and owner_el.text:
+            insider_name = owner_el.text
+
+        rel = root.find("reportingOwner/reportingOwnerRelationship")
+        role_parts = []
+        if rel is not None:
+            if (rel.findtext("isOfficer") or "0") == "1":
+                title = rel.findtext("officerTitle") or "Officer"
+                role_parts.append(title)
+            if (rel.findtext("isDirector") or "0") == "1":
+                role_parts.append("Director")
+            if (rel.findtext("isTenPercentOwner") or "0") == "1":
+                role_parts.append("10%+ Owner")
+        role = ", ".join(role_parts) if role_parts else "Unknown"
+
+        for tx in root.findall("nonDerivativeTable/nonDerivativeTransaction"):
+            code = tx.findtext("transactionCoding/transactionCode", default="")
+            if code not in ("P", "S"):
+                continue
+            try:
+                shares = float(tx.findtext("transactionAmounts/transactionShares/value", default="0"))
+                price  = float(tx.findtext("transactionAmounts/transactionPricePerShare/value", default="0"))
+            except (ValueError, TypeError):
+                continue
+            tx_date = tx.findtext("transactionDate/value", default="")
+            value = shares * price
+            records.append({
+                "date":    tx_date,
+                "insider": insider_name,
+                "role":    role,
+                "code":    code,
+                "shares":  shares,
+                "price":   price,
+                "value":   value if code == "P" else -value,
+            })
+
+    if not records:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(records)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    return df.dropna(subset=["date"]).sort_values("date", ascending=False).reset_index(drop=True)
+
+
 # NOTE: a Google Trends fetcher (via the unofficial "pytrends" scraper) used
 # to live here. Removed — confirmed via a full-codebase audit that it was
 # never called from anywhere (no page, no signal config, dead since it was

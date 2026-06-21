@@ -17,6 +17,7 @@ import pytest
 from utils.analysis import (
     score_signal,
     score_contract_velocity,
+    score_insider_activity,
     compute_quick_correlation_stats,
     compute_backtested_pcs,
 )
@@ -67,6 +68,75 @@ def test_score_signal_handles_zero_std_without_crashing():
     result = score_signal(flat)
     assert result["score"] == 50.0
     assert result["status"] == "neutral"
+
+
+# ── score_insider_activity ───────────────────────────────────────────────────
+
+def _make_tx(code, insider, value=10000.0):
+    return {"date": pd.Timestamp("2026-01-01"), "insider": insider, "role": "Officer",
+            "code": code, "shares": 100, "price": value / 100, "value": value if code == "P" else -value}
+
+
+def test_score_insider_activity_empty_df_has_all_keys():
+    result = score_insider_activity(pd.DataFrame())
+    for key in ("score", "status", "distinct_buyers", "distinct_sellers",
+                "buy_count", "sell_count", "net_value", "cluster_bonus_applied"):
+        assert key in result
+    assert result["status"] == "no_data"
+
+
+def test_score_insider_activity_missing_code_column_has_all_keys():
+    result = score_insider_activity(pd.DataFrame({"foo": [1, 2]}))
+    assert result["status"] == "no_data"
+
+
+def test_score_insider_activity_cluster_buying_is_strongly_bullish():
+    """3+ distinct insiders buying, zero sellers -> cluster bonus, bullish."""
+    df = pd.DataFrame([
+        _make_tx("P", "Alice"), _make_tx("P", "Bob"), _make_tx("P", "Carol"),
+    ])
+    result = score_insider_activity(df)
+    assert result["distinct_buyers"] == 3
+    assert result["distinct_sellers"] == 0
+    assert result["cluster_bonus_applied"] is True
+    assert result["status"] == "bullish"
+    assert result["score"] > 65
+
+
+def test_score_insider_activity_cluster_selling_is_strongly_bearish():
+    df = pd.DataFrame([
+        _make_tx("S", "Alice"), _make_tx("S", "Bob"), _make_tx("S", "Carol"),
+    ])
+    result = score_insider_activity(df)
+    assert result["distinct_sellers"] == 3
+    assert result["cluster_bonus_applied"] is True
+    assert result["status"] == "bearish"
+    assert result["score"] < 35
+
+
+def test_score_insider_activity_single_buyer_no_cluster_bonus():
+    """One insider buying shouldn't get the multi-insider cluster bonus."""
+    df = pd.DataFrame([_make_tx("P", "Alice")])
+    result = score_insider_activity(df)
+    assert result["cluster_bonus_applied"] is False
+    assert result["score"] > 50  # still leans bullish, just not as strongly
+
+
+def test_score_insider_activity_mixed_buyers_and_sellers_nets_out():
+    df = pd.DataFrame([
+        _make_tx("P", "Alice"), _make_tx("S", "Bob"),
+    ])
+    result = score_insider_activity(df)
+    assert result["distinct_buyers"] == 1
+    assert result["distinct_sellers"] == 1
+    assert result["score"] == 50.0
+    assert result["status"] == "neutral"
+
+
+def test_score_insider_activity_net_value_reflects_signed_sum():
+    df = pd.DataFrame([_make_tx("P", "Alice", 5000), _make_tx("S", "Bob", 3000)])
+    result = score_insider_activity(df)
+    assert result["net_value"] == 2000.0  # +5000 - 3000
 
 
 # ── score_contract_velocity ──────────────────────────────────────────────────

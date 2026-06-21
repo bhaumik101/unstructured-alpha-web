@@ -20,9 +20,11 @@ from utils.config import SIGNALS, TICKERS, CATEGORIES
 from utils.fetchers import (
     fetch_price, fetch_signal_series, is_synthetic,
     fetch_federal_contracts, fetch_insider_trades, fetch_live_quote,
+    fetch_insider_transactions_detail,
 )
 from utils.analysis import (
     score_signal, compute_confluence, compute_quick_correlation,
+    score_insider_activity,
     compute_quick_correlation_stats, compute_correlation,
     score_contract_velocity, build_narrative,
 )
@@ -254,11 +256,28 @@ _contracts_df_early = fetch_federal_contracts(company_name_hint, years=2)
 _contract_vel = score_contract_velocity(_contracts_df_early)
 _has_contract_signal = _contract_vel.get("status") != "no_data" and _contract_vel.get("award_count", 0) >= 3
 
+# ── Blend in real insider buy/sell activity, when relevant ────────────────────
+# fetch_insider_transactions_detail() parses actual Form 4 XML (transaction
+# code, shares, price) -- unlike fetch_insider_trades() below, which only
+# has filing metadata. score_insider_activity() scores on insider COUNT and
+# clustering (see its docstring for why, not dollar value). Only blended in
+# when there's at least one real open-market P/S transaction on record --
+# most tickers in a 180-day window won't have any, and a "no_data" 50 would
+# just add noise.
+_insider_tx_early = fetch_insider_transactions_detail(ticker_input, days=180)
+_insider_score = score_insider_activity(_insider_tx_early)
+_has_insider_signal = _insider_score.get("status") != "no_data"
+
 _macro_score = confluence["overall_score"]
-if _has_contract_signal:
-    _final_score = _macro_score * 0.70 + _mom_score * 0.15 + _contract_vel["score"] * 0.15
-else:
+_n_optional = int(_has_contract_signal) + int(_has_insider_signal)
+if _n_optional == 0:
     _final_score = _macro_score * 0.80 + _mom_score * 0.20
+elif _n_optional == 1:
+    _opt_score = _contract_vel["score"] if _has_contract_signal else _insider_score["score"]
+    _final_score = _macro_score * 0.70 + _mom_score * 0.15 + _opt_score * 0.15
+else:
+    _final_score = (_macro_score * 0.60 + _mom_score * 0.15
+                     + _contract_vel["score"] * 0.125 + _insider_score["score"] * 0.125)
 confluence["overall_score"] = round(_final_score, 1)
 
 # Recompute case from blended score
@@ -298,7 +317,7 @@ with c_case:
         <div style="font-size:2.2rem;font-weight:800;color:{score_color};">{case}</div>
         <div style="font-size:0.95rem;color:#1A1612;">Conviction: <b>{conviction}</b></div>
         <div style="font-size:0.80rem;color:#6B6560;margin-top:6px;">
-            Based on {len(relevant_sig_ids)} independent signals + price momentum{" + federal contract award velocity" if _has_contract_signal else ""}
+            Based on {len(relevant_sig_ids)} independent signals + price momentum{" + federal contract award velocity" if _has_contract_signal else ""}{" + insider buy/sell activity" if _has_insider_signal else ""}
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1170,30 +1189,62 @@ with st.expander("Why insider trades matter and how to interpret them"):
     **Why it matters:**
     - Insiders know the business better than anyone
     - C-suite buying = they believe the stock is undervalued
-    - C-suite selling = could be personal liquidity, but worth monitoring
+    - C-suite selling = could be personal liquidity, but worth monitoring — most insider Form 4
+      activity is routine RSU vesting or option exercises, not a real buy/sell decision, which is
+      why the table below only counts genuine open-market purchases and sales.
 
-    **The Unstructured Alpha edge:**
-    We combine insider buy signals with our macro signal readings. When {ticker_input} insiders
-    are buying AND our macro signals are flashing bullish simultaneously — that's a highest-conviction
-    setup. The insider has internal knowledge; the macro signals have external confirmation.
+    **How the score below is built:** weighted on insider COUNT and clustering, not dollar amount —
+    a $1M purchase is massive for a small-cap and trivial for a mega-cap, and this product has no
+    reliable market-cap context to normalize that fairly. Multiple independent insiders buying in
+    the same window (without anyone selling) is scored more bullish than one large purchase by one
+    person, consistent with the academic finance literature on insider trading (Lakonishok & Lee
+    2001; Seyhun), which finds clustered insider buying more predictive than transaction size alone.
+
+    **Honesty check:** this specific signal — real Form 4 transaction detail, scored on clustering —
+    has not yet been independently backtested against forward returns the way the Confluence Score
+    itself was (see About → Methodology for that backtest). Treat it as a real, methodologically
+    grounded read, not yet a proven one for this exact implementation.
 
     **Data source:** SEC EDGAR (free public database). Filings appear within 48 hours of the transaction.
     """)
 
-with st.spinner(f"Fetching insider transactions for {ticker_input}…"):
+# Real, parsed open-market transactions (P/S only) — reuses the same cached
+# fetch already done above for the Confluence Score blend, no extra cost.
+st.markdown("**Open-Market Buy/Sell Activity (last 180 days)**")
+if _has_insider_signal:
+    ins_color = "#1B5E20" if _insider_score["status"] == "bullish" else ("#7B1010" if _insider_score["status"] == "bearish" else "#8B7355")
+    i1, i2, i3, i4 = st.columns(4)
+    i1.metric("Insider Score", f"{_insider_score['score']:.0f}/100")
+    i2.metric("Distinct Buyers", _insider_score["distinct_buyers"])
+    i3.metric("Distinct Sellers", _insider_score["distinct_sellers"])
+    i4.metric("Net Value", f"${_insider_score['net_value']:,.0f}")
+    if _insider_score["cluster_bonus_applied"]:
+        st.markdown(f'<span style="color:{ins_color};font-weight:700;">Cluster pattern detected</span> — 3+ insiders moved the same direction with no one going the other way.', unsafe_allow_html=True)
+
+    tx_display = _insider_tx_early[["date", "insider", "role", "code", "shares", "price", "value"]].copy()
+    tx_display["date"] = tx_display["date"].dt.strftime("%Y-%m-%d")
+    tx_display["code"] = tx_display["code"].map({"P": "Purchase", "S": "Sale"})
+    tx_display["price"] = tx_display["price"].map(lambda v: f"${v:,.2f}")
+    tx_display["value"] = tx_display["value"].map(lambda v: f"${v:,.0f}")
+    st.dataframe(tx_display, use_container_width=True, hide_index=True)
+else:
+    st.info(f"No genuine open-market purchases or sales (transaction code P/S) found for {ticker_input} in the last 180 days — most Form 4 activity in this window, if any, was grants, vesting, or option exercises, not a buy/sell decision.")
+
+with st.spinner(f"Fetching insider filing history for {ticker_input}…"):
     insider_df = fetch_insider_trades(ticker_input, days=180)
 
-if not insider_df.empty:
-    display_insider = insider_df[
-        [c for c in ["date", "filer", "form", "entity"] if c in insider_df.columns]
-    ].head(10).copy()
-    if "date" in display_insider.columns:
-        display_insider["date"] = display_insider["date"].dt.strftime("%Y-%m-%d")
+with st.expander("All Form 4 filings (including grants/vesting, not just buy/sell)"):
+    if not insider_df.empty:
+        display_insider = insider_df[
+            [c for c in ["date", "filer", "form", "entity"] if c in insider_df.columns]
+        ].head(10).copy()
+        if "date" in display_insider.columns:
+            display_insider["date"] = display_insider["date"].dt.strftime("%Y-%m-%d")
 
-    st.dataframe(display_insider, use_container_width=True, hide_index=True)
-    st.caption(f"Showing {min(10, len(insider_df))} most recent Form 4 filings from SEC EDGAR. [View all on SEC EDGAR →](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={ticker_input}&type=4&dateb=&owner=include&count=40)")
-else:
-    st.info(f"No recent Form 4 filings found for {ticker_input} in EDGAR search. This may indicate low insider activity or the EDGAR search returned no results. [Search manually →](https://efts.sec.gov/LATEST/search-index?q={ticker_input}&forms=4)")
+        st.dataframe(display_insider, use_container_width=True, hide_index=True)
+        st.caption(f"Showing {min(10, len(insider_df))} most recent Form 4 filings from SEC EDGAR. [View all on SEC EDGAR →](https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company={ticker_input}&type=4&dateb=&owner=include&count=40)")
+    else:
+        st.info(f"No recent Form 4 filings found for {ticker_input} in EDGAR search. This may indicate low insider activity or the EDGAR search returned no results. [Search manually →](https://efts.sec.gov/LATEST/search-index?q={ticker_input}&forms=4)")
 
 st.divider()
 

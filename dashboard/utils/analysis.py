@@ -398,6 +398,79 @@ def score_cot(cot_df: pd.DataFrame) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# INSIDER TRADING ACTIVITY (real Form 4 transaction detail, not just filings)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def score_insider_activity(tx_df: pd.DataFrame) -> dict:
+    """
+    Score genuine open-market insider buying/selling from real Form 4
+    transaction detail (utils/fetchers.fetch_insider_transactions_detail —
+    parsed XML, transactionCode P/S only, not grants/vesting/options).
+
+    Methodology, deliberately NOT dollar-amount-based: a $1M purchase is
+    massive for a small-cap and trivial for a mega-cap, and this product
+    has no reliable market-cap context to normalize that fairly. Instead
+    this scores on insider COUNT and clustering, which is also what the
+    academic literature (Lakonishok & Lee 2001; Seyhun) actually finds most
+    predictive: multiple INDEPENDENT insiders buying in the same window is
+    a much stronger signal than one large purchase by one person, since it
+    is harder to coordinate/fake and more often reflects genuine shared
+    conviction (e.g. several executives buying around the same earnings
+    cycle) rather than one person's idiosyncratic liquidity need.
+
+    Returns {"score": float, "status": str, "distinct_buyers": int,
+             "distinct_sellers": int, "buy_count": int, "sell_count": int,
+             "net_value": float, "cluster_bonus_applied": bool}.
+    """
+    if tx_df.empty or "code" not in tx_df.columns:
+        return {
+            "score": 50.0, "status": "no_data", "distinct_buyers": 0,
+            "distinct_sellers": 0, "buy_count": 0, "sell_count": 0,
+            "net_value": 0.0, "cluster_bonus_applied": False,
+        }
+
+    buys  = tx_df[tx_df["code"] == "P"]
+    sells = tx_df[tx_df["code"] == "S"]
+    distinct_buyers  = buys["insider"].nunique()
+    distinct_sellers = sells["insider"].nunique()
+    total_distinct = distinct_buyers + distinct_sellers
+
+    if total_distinct == 0:
+        return {
+            "score": 50.0, "status": "no_data", "distinct_buyers": 0,
+            "distinct_sellers": 0, "buy_count": len(buys), "sell_count": len(sells),
+            "net_value": float(tx_df["value"].sum()), "cluster_bonus_applied": False,
+        }
+
+    buy_ratio = distinct_buyers / total_distinct
+    score = 50.0 + (buy_ratio - 0.5) * 80.0
+
+    # Cluster bonus: 3+ distinct insiders independently buying, with no
+    # sellers at all, is the single strongest pattern in this dataset --
+    # push it further bullish than the ratio alone would.
+    cluster_bonus_applied = False
+    if distinct_buyers >= 3 and distinct_sellers == 0:
+        score = min(score + 15.0, 95.0)
+        cluster_bonus_applied = True
+    elif distinct_sellers >= 3 and distinct_buyers == 0:
+        score = max(score - 15.0, 5.0)
+        cluster_bonus_applied = True
+
+    score = float(np.clip(score, 5.0, 95.0))
+
+    return {
+        "score": round(score, 1),
+        "status": "bullish" if score >= 65 else ("bearish" if score <= 35 else "neutral"),
+        "distinct_buyers": int(distinct_buyers),
+        "distinct_sellers": int(distinct_sellers),
+        "buy_count": len(buys),
+        "sell_count": len(sells),
+        "net_value": float(tx_df["value"].sum()),
+        "cluster_bonus_applied": cluster_bonus_applied,
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # FEDERAL CONTRACT VELOCITY
 # ─────────────────────────────────────────────────────────────────────────────
 

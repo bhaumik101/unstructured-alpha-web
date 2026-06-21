@@ -21,6 +21,7 @@ import streamlit as st
 
 from utils.fetchers import (
     fetch_fred, fetch_eia, fetch_fda_approval_velocity, fetch_live_quote,
+    fetch_insider_transactions_detail,
     is_synthetic, _synthetic_signal,
 )
 
@@ -161,6 +162,104 @@ def test_fetch_fda_approval_velocity_falls_back_to_empty_on_request_exception():
     with patch("utils.fetchers.requests.get", side_effect=ConnectionError("network down")):
         s = fetch_fda_approval_velocity()
     assert s.empty
+
+
+# ── insider transaction detail (real Form 4 XML parsing) ─────────────────────
+#
+# The search-hit shape below is the exact field structure confirmed live
+# against efts.sec.gov (Lockheed Martin and Microsoft Form 4 filings,
+# 2026-06-21) -- "_id" is "{accession}:{filename}", "ciks"[0] is the FILER's
+# CIK (confirmed the filename varies by filing agent: one company's agent
+# used "doc4.xml", another's used "form4.xml" -- this is why the parser
+# must read the filename from the search hit, not assume one).
+INSIDER_SEARCH_FIXTURE = {
+    "hits": {"hits": [{
+        "_id": "0000789019-26-000128:form4.xml",
+        "_source": {"ciks": ["0001487290", "0000789019"], "display_names": ["Mason Mark"]},
+    }]}
+}
+
+# This XML shape (tag nesting) is the exact structure confirmed live via
+# the reportingOwner/nonDerivativeTable paths fetched directly from
+# sec.gov/Archives -- a P (purchase) transaction is synthesized here since
+# live examples found during research were grants/vesting (codes A/F), not
+# open-market buys, but the schema itself (SEC's Form 4 XML spec, stable
+# for two decades) is identical in structure regardless of which code value
+# appears.
+INSIDER_XML_PURCHASE = b"""<?xml version="1.0"?>
+<ownershipDocument>
+  <reportingOwner>
+    <reportingOwnerId><rptOwnerName>Mason Mark</rptOwnerName></reportingOwnerId>
+    <reportingOwnerRelationship>
+      <isOfficer>1</isOfficer>
+      <officerTitle>Chief Financial Officer</officerTitle>
+      <isDirector>0</isDirector>
+      <isTenPercentOwner>0</isTenPercentOwner>
+    </reportingOwnerRelationship>
+  </reportingOwner>
+  <nonDerivativeTable>
+    <nonDerivativeTransaction>
+      <transactionDate><value>2026-03-15</value></transactionDate>
+      <transactionCoding><transactionCode>P</transactionCode></transactionCoding>
+      <transactionAmounts>
+        <transactionShares><value>1000</value></transactionShares>
+        <transactionPricePerShare><value>50.25</value></transactionPricePerShare>
+      </transactionAmounts>
+    </nonDerivativeTransaction>
+  </nonDerivativeTable>
+</ownershipDocument>"""
+
+
+def _mock_get_sequence(*responses):
+    """Returns a side_effect function yielding each mock response in order."""
+    it = iter(responses)
+    def _side_effect(*args, **kwargs):
+        return next(it)
+    return _side_effect
+
+
+def test_fetch_insider_transactions_detail_parses_real_response_shapes():
+    fetch_insider_transactions_detail.clear()
+    search_resp = _mock_response(INSIDER_SEARCH_FIXTURE)
+    xml_resp = MagicMock()
+    xml_resp.raise_for_status = MagicMock()
+    xml_resp.content = INSIDER_XML_PURCHASE
+
+    with patch("utils.fetchers.requests.get", side_effect=_mock_get_sequence(search_resp, xml_resp)):
+        df = fetch_insider_transactions_detail("MSFT", days=180)
+
+    assert len(df) == 1
+    row = df.iloc[0]
+    assert row["code"] == "P"
+    assert row["insider"] == "Mason Mark"
+    assert row["role"] == "Chief Financial Officer"
+    assert row["shares"] == 1000.0
+    assert row["price"] == 50.25
+    assert row["value"] == 1000.0 * 50.25  # positive: purchase
+
+
+def test_fetch_insider_transactions_detail_skips_non_open_market_codes():
+    """Grants/vesting (code A) and option exercises (M) must NOT be counted
+    as buy/sell signal -- only P and S reflect a genuine market decision."""
+    fetch_insider_transactions_detail.clear()
+    xml_grant = INSIDER_XML_PURCHASE.replace(b"<transactionCode>P</transactionCode>",
+                                              b"<transactionCode>A</transactionCode>")
+    search_resp = _mock_response(INSIDER_SEARCH_FIXTURE)
+    xml_resp = MagicMock()
+    xml_resp.raise_for_status = MagicMock()
+    xml_resp.content = xml_grant
+
+    with patch("utils.fetchers.requests.get", side_effect=_mock_get_sequence(search_resp, xml_resp)):
+        df = fetch_insider_transactions_detail("MSFT", days=180)
+
+    assert df.empty
+
+
+def test_fetch_insider_transactions_detail_empty_on_search_failure():
+    fetch_insider_transactions_detail.clear()
+    with patch("utils.fetchers.requests.get", side_effect=ConnectionError("network down")):
+        df = fetch_insider_transactions_detail("MSFT", days=180)
+    assert df.empty
 
 
 # ── live quote (st.fragment auto-refresh feature) ────────────────────────────
