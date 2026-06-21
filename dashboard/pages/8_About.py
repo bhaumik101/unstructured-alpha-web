@@ -105,16 +105,44 @@ with m2:
 
     st.markdown("**Confluence Scoring**")
     st.markdown("""
-    The Confluence Score (0–100) aggregates independent signals into a single conviction metric.
+    The Confluence Score (0–100) aggregates independent signals into a single alignment metric.
     When 5–7 unrelated signals from different data domains (trucking, credit, labor, energy)
-    all point the same direction, the probability of a false positive drops significantly.
+    all currently read the same direction, that is a stronger *description* of the present data
+    than any single signal alone — but see the Backtest Results section directly below before
+    treating that description as a forecast.
 
-    - Score >65 = Bullish convergence
-    - Score 35–65 = Mixed / low conviction
-    - Score <35 = Bearish convergence
-
-    A score of 80+ with High conviction is the highest-quality setup in the system.
+    - Score >65 = Signals currently aligned bullish
+    - Score 35–65 = Mixed / low agreement
+    - Score <35 = Signals currently aligned bearish
     """)
+
+st.markdown("**Backtest Results — Confluence & Power Supercycle Scores**")
+st.markdown("""
+<div style="background:#FFF0F0;border-radius:6px;padding:14px 18px;border:1px solid #E8B4B4;
+            font-size:0.86rem;color:#5D2020;margin-bottom:8px;font-family:Georgia,serif;line-height:1.7;">
+We walk-forward backtested the actual scoring functions above (not a simplified version — the
+real production code) against 6 tickers spanning the Power Supercycle thesis (CEG, VST, NEE, ETN,
+VRT, PWR — chosen because none are mechanical constituents of any signal being tested, e.g. URA's
+largest holding is Cameco, so CCJ was excluded to avoid circularity), at ~19 monthly checkpoints,
+using only data available as of each checkpoint date (no lookahead).
+
+<b>Result:</b> pooled across all 6 tickers (96–108 observations depending on horizon), there is
+no statistically significant relationship between either score and 1/2/3-month forward returns
+(all |r| &lt; 0.07, p &gt; 0.5). Two of the six tickers — the two with the most narrative-extended,
+momentum-driven price action in the test window — showed a significant <i>negative</i> relationship
+in isolation (high score coincided with a cyclical top, not a forward rally); the other four showed
+no significant relationship in either direction. None of the individual-ticker results survive
+correction for testing multiple tickers/horizons at once.
+
+<b>What this means in practice:</b> these scores are an honest, real-time read of how many
+independent alternative-data signals currently agree — useful context, and the methodology behind
+them (lag-scanning, statistical significance filtering on individual signals, PCS weighting) is
+sound. But the combined score has not been shown to predict forward price moves, on this sample.
+Treat it as descriptive, not predictive, until a larger backtest says otherwise. We are not hiding
+this finding because it's the inconvenient one — building this product on a score we can verify
+beats building it on a score that just sounds good.
+</div>
+""", unsafe_allow_html=True)
 
 # ── Signal Library ─────────────────────────────────────────────────────────────
 st.divider()

@@ -23,6 +23,11 @@ render_header("Stock Screener")
 
 render_sidebar_base()
 
+st.caption(
+    "Confluence Score ranks tickers by current signal agreement, not a validated return forecast — "
+    "see About → Methodology for the backtest behind that distinction."
+)
+
 END   = datetime.now().strftime("%Y-%m-%d")
 START = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
 

@@ -455,6 +455,14 @@ def compute_confluence(
 
     Returns overall_score (0–100), conviction level, and signal breakdowns.
     This is the PRIMARY differentiator — no other retail platform does this.
+
+    Note on "conviction": it measures AGREEMENT among the input signals
+    (what fraction point the same direction), not validated predictive
+    accuracy. A walk-forward backtest of this function (see
+    compute_supercycle_score's docstring for the specific numbers) found no
+    significant relationship between the resulting score and forward returns
+    pooled across 6 tickers. High conviction means the signals agree with
+    each other right now — it does not yet mean they're right.
     """
     if not signal_scores:
         return {
@@ -539,27 +547,43 @@ _SUPERCYCLE_WEIGHTS: Dict[str, float] = {
 
 def compute_supercycle_score(signal_scores: Dict[str, dict]) -> dict:
     """
-    Compute the Power Supercycle convergence score.
+    Compute the Power Supercycle alignment score.
 
     The thesis: AI training → massive compute → power demand → grid buildout
     → copper + nuclear/gas → uranium + SWU tight → cycle repeats.
 
-    Score ≥70: High Conviction Bull — multiple legs of the thesis confirmed.
-    Score 50–70: Building — not all legs confirmed yet.
-    Score <50: Headwinds — signals diverging.
+    IMPORTANT — what this score is and isn't: it is a real-time read of how
+    many of the 8 underlying signals are currently elevated vs. their own
+    trailing history, weighted toward the legs judged most central to the
+    thesis. It is NOT a validated predictor of forward returns. A walk-forward
+    backtest (real production code, 6 tickers spanning the thesis — CEG, VST,
+    NEE, ETN, VRT, PWR — ~19 monthly checkpoints, pooled) found no
+    statistically significant relationship between this score and 1/2/3-month
+    forward returns in either direction (all |r| < 0.07, p > 0.5 pooled).
+    Two of the six tickers showed a significant NEGATIVE relationship in
+    isolation before pooling — driven by the two most narrative-extended
+    names, where a high reading coincided with a cyclical top rather than
+    leading one. Treat this score as a description of current signal
+    alignment, not a forecast, until a larger/longer backtest says otherwise.
+
+    Score ≥70: signals strongly aligned bullish (not "confirmed" — aligned).
+    Score 50–70: building alignment, not yet strong.
+    Score <50: signals diverging from / against the thesis.
     """
     result = compute_confluence(signal_scores, weights=_SUPERCYCLE_WEIGHTS)
 
-    # Add conviction label specific to the supercycle thesis
+    # Status label describes CURRENT SIGNAL ALIGNMENT only — deliberately not
+    # phrased as "confirmed" or "conviction", since that would claim a
+    # predictive validity this score has not earned (see backtest note above).
     score = result["overall_score"]
     if score >= 72:
-        thesis_status = "HIGH CONVICTION — Multiple legs of the Power Supercycle confirmed"
+        thesis_status = "STRONGLY ALIGNED — Most legs of the Power Supercycle are reading bullish right now"
     elif score >= 60:
-        thesis_status = "BUILDING — Key signals aligning; watch for confirmation"
+        thesis_status = "ALIGNING — Some signals bullish, not yet a strong majority"
     elif score >= 45:
-        thesis_status = "MIXED — Thesis intact but signal divergence present"
+        thesis_status = "MIXED — Signals are split between bullish and bearish readings"
     else:
-        thesis_status = "HEADWINDS — Multiple signals contradict the thesis"
+        thesis_status = "DIVERGING — Most signals are currently reading against the thesis"
 
     result["thesis_status"] = thesis_status
     return result

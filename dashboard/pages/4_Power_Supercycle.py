@@ -146,6 +146,13 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
+st.caption(
+    "This score describes how aligned the 8 underlying signals are RIGHT NOW, weighted toward the "
+    "legs judged most central to the thesis. A walk-forward backtest against 6 tickers found no "
+    "statistically significant relationship between this score and forward returns — treat it as a "
+    "real-time read of signal alignment, not a forecast. See About → Methodology for the full backtest."
+)
+
 # ── Signal Leg Status Cards ───────────────────────────────────────────────────
 st.markdown("### Five Legs of the Supercycle")
 

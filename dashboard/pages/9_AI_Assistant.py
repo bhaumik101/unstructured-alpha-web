@@ -255,11 +255,14 @@ So two tickers in the same sector (e.g. CCJ and LEU, both uranium miners) get **
 **TOP SIGNAL DRIVERS** shows the 3 signals with the highest impact (|r| × |score-50|).
 
 Below that is the full signal table, sorted by impact, with correlation (r) and status for each.
+
+IMPORTANT: this score describes how many signals currently agree, not a validated forecast.
+See the "confluence score" topic below for the backtest finding.
 """,
 
     # Confluence score
     ("confluence score", "what does score mean", "how is score calculated"): """
-The **Confluence Score** (0-100) measures how many alternative data signals are aligning bullishly or bearishly for a specific ticker.
+The **Confluence Score** (0-100) measures how many alternative data signals are CURRENTLY aligning bullishly or bearishly for a specific ticker.
 
 **Formula:**
 ```
@@ -277,7 +280,15 @@ Where:
 - **< 35** = BEAR (negative confluence)
 - **35–65** = NEUTRAL or MIXED
 
-**Conviction levels:** Extreme Bull/Bear > 80/<20, Strong > 70/<30, Moderate > 60/<40
+**Conviction levels:** Extreme Bull/Bear > 80/<20, Strong > 70/<30, Moderate > 60/<40 — these
+measure AGREEMENT among signals, not proven accuracy.
+
+**Has this been backtested?** Yes, honestly: we walk-forward backtested the real Confluence and
+Power Supercycle scoring functions against 6 tickers (CEG, VST, NEE, ETN, VRT, PWR), ~19 monthly
+checkpoints, no lookahead. Pooled result: no statistically significant relationship with 1/2/3-month
+forward returns (all |r| < 0.07). Two tickers showed a significant negative relationship in
+isolation before pooling washed it out. Conclusion: treat this score as a real-time read of signal
+agreement, not a forecast, until a bigger backtest proves otherwise. Full numbers on the About page.
 """,
 
     # VIX

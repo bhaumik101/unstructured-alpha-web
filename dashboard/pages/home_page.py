@@ -184,13 +184,17 @@ with gl_col1:
 
     with st.expander("What is the Confluence Score?"):
         st.markdown("""
-        The **Confluence Score** (0–100) measures how many independent signals are pointing the same
-        direction for a specific stock.
-        - **Score > 65** = Multiple bullish signals converging — higher conviction
-        - **Score 35–65** = Mixed signals — wait for clarity
-        - **Score < 35** = Multiple bearish signals — caution
+        The **Confluence Score** (0–100) measures how many independent signals are CURRENTLY pointing
+        the same direction for a specific stock.
+        - **Score > 65** = Multiple bullish signals currently aligning
+        - **Score 35–65** = Mixed signals — no clear read right now
+        - **Score < 35** = Multiple bearish signals currently aligning
 
-        One bullish signal is noise. Five independent signals all pointing bullish is a thesis.
+        One bullish signal is more likely to be noise than five independent ones agreeing — but
+        agreement is not the same as accuracy. We walk-forward backtested this exact score against
+        6 tickers and found no statistically significant relationship with forward returns. It's a
+        real-time read of what the data currently says, not a validated forecast. Full numbers on
+        the About page.
         """)
 
     with st.expander("What is the Prediction Model?"):

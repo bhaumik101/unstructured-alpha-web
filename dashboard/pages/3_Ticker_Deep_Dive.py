@@ -314,19 +314,29 @@ with st.expander("What does the Confluence Score mean?"):
     The **Confluence Score** (0–100) combines {len(relevant_sig_ids)} independent alternative data
     signals and weights them by their Predictive Confidence Score (PCS).
 
-    - **Score >65** = Multiple independent signals pointing bullish for {ticker_input}
-    - **Score 35–65** = Mixed signals — no clear directional edge
-    - **Score <35** = Multiple signals pointing bearish
+    - **Score >65** = Multiple independent signals currently reading bullish for {ticker_input}
+    - **Score 35–65** = Mixed signals — no clear directional read right now
+    - **Score <35** = Multiple signals currently reading bearish
 
     **Conviction level = "{conviction}"** means {
         "most signals are pointing the same direction — high agreement." if "High" in conviction
-        else "signals are mixed — lower directional confidence." if conviction == "Low / Mixed"
+        else "signals are mixed — lower directional agreement." if conviction == "Low / Mixed"
         else "a majority of signals agree."
     }
 
-    **Why this matters:** One bullish signal might be noise. When {confluence['bull_count']} *independent*
-    signals from different data sources all point the same direction simultaneously, that's a
-    much stronger case. This is how institutional desks build conviction.
+    **What this score is:** a read of how many independent signals currently agree, weighted by
+    each one's backtested correlation with {ticker_input}'s own price history. One bullish signal
+    might be noise; several independent ones agreeing simultaneously is a stronger *description*
+    of the current data.
+
+    **What this score is not, yet:** a validated predictor of forward returns. A walk-forward
+    backtest of this exact scoring function (real production code, tested against 6 tickers
+    spanning the Power Supercycle thesis, pooled across ~19 monthly checkpoints) found no
+    statistically significant relationship between the score and 1/2/3-month forward returns.
+    Two of the six tickers tested showed a significant *negative* relationship in isolation —
+    high readings coincided with a cyclical top rather than leading one — before pooling washed
+    that out to noise. Treat conviction as agreement among signals today, not a guarantee about
+    tomorrow. Full methodology and numbers: About → Methodology.
     """)
 
 st.divider()
