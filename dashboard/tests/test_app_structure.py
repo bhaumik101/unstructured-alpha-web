@@ -9,7 +9,7 @@ anything else even runs.
 import ast
 from pathlib import Path
 
-from tests.conftest import DASHBOARD_ROOT, ROUTED_PAGES, RETIRED_STUB_PAGES
+from tests.conftest import DASHBOARD_ROOT, ROUTED_PAGES
 
 
 def _all_project_py_files():
@@ -33,18 +33,18 @@ def test_every_python_file_parses():
 
 def test_every_pages_file_is_accounted_for():
     """
-    Every file under pages/ must be either a routed page (in ROUTED_PAGES)
-    or an explicitly retired stub (in RETIRED_STUB_PAGES). If someone adds
-    a new page file and forgets to register it in app.py's st.navigation(),
-    or forgets to update this test's lists, this catches the drift instead
-    of it silently never being tested.
+    Every file under pages/ must be a routed page (in ROUTED_PAGES). If
+    someone adds a new page file and forgets to register it in app.py's
+    st.navigation(), or forgets to update ROUTED_PAGES, this catches the
+    drift instead of it silently never being tested. (Retired-stub pages
+    used to be a separate, allowed category here -- removed along with
+    the actual stub files once a real filesystem could delete them.)
     """
-    known = {Path(p).name for p in ROUTED_PAGES + RETIRED_STUB_PAGES}
+    known = {Path(p).name for p in ROUTED_PAGES}
     actual = {p.name for p in (DASHBOARD_ROOT / "pages").glob("*.py")}
     unaccounted = actual - known
     assert not unaccounted, (
-        f"pages/ contains files not listed in ROUTED_PAGES or RETIRED_STUB_PAGES "
-        f"in tests/conftest.py: {unaccounted}"
+        f"pages/ contains files not listed in ROUTED_PAGES in tests/conftest.py: {unaccounted}"
     )
 
 

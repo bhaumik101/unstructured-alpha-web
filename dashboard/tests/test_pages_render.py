@@ -11,31 +11,12 @@ days later by a user screenshot.
 
 import pytest
 
-from tests.conftest import ROUTED_PAGES, RETIRED_STUB_PAGES
+from tests.conftest import ROUTED_PAGES
 
 
 @pytest.mark.parametrize("page_path", ROUTED_PAGES)
 def test_page_renders_without_exception(app_test, page_path):
     at = app_test(page_path)
-    assert not at.exception, (
-        f"{page_path} raised: " + "\n".join(str(e) for e in at.exception)
-    )
-
-
-@pytest.mark.parametrize("page_path", RETIRED_STUB_PAGES)
-def test_retired_stub_renders_without_exception(app_test, page_path):
-    """
-    Retired pages aren't in app.py's navigation, so they can't be reached
-    via switch_page (that requires a registered page). They're tested
-    directly via AppTest.from_file() instead — this only checks they don't
-    crash, not full navigation integration, since standalone st.page_link /
-    st.switch_page calls inside them can't resolve outside the real app.
-    """
-    from streamlit.testing.v1 import AppTest
-    from tests.conftest import DASHBOARD_ROOT
-
-    at = AppTest.from_file(str(DASHBOARD_ROOT / page_path), default_timeout=60)
-    at.run()
     assert not at.exception, (
         f"{page_path} raised: " + "\n".join(str(e) for e in at.exception)
     )

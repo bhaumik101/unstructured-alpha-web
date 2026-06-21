@@ -20,12 +20,24 @@
 # differences so the same Python code runs correctly against either.
 #
 # Connection string resolution:
-#   1. st.secrets["DATABASE_URL"] if running under Streamlit with that
+#   1. UNSTRUCTURED_ALPHA_DATABASE_URL environment variable -- checked
+#      FIRST, deliberately, ahead of st.secrets. This is what tests/conftest.py
+#      sets to a throwaway SQLite file before any test runs. Caught live,
+#      not assumed: with secrets checked first, running pytest on a machine
+#      that has a real .streamlit/secrets.toml configured (i.e. any
+#      developer's actual laptop, not just a sandbox without network access)
+#      would silently connect to and write fake test users/alerts into the
+#      REAL production Neon database instead of the intended test DB --
+#      the only reason this didn't already happen unnoticed is that it was
+#      run somewhere with no network route to Neon, which surfaced it as a
+#      connection error instead of silent data pollution. An explicit env
+#      var override is a narrower, more deliberate signal than whatever
+#      happens to be sitting in a local secrets.toml, so it must win.
+#   2. st.secrets["DATABASE_URL"] if running under Streamlit with that
 #      secret configured (the production path -- a Postgres URL from
 #      Neon/Supabase/Railway, set in Streamlit Community Cloud's app
-#      settings, never committed to the repo).
-#   2. UNSTRUCTURED_ALPHA_DATABASE_URL environment variable (lets tests or
-#      a non-Streamlit script point at a specific database).
+#      settings, never committed to the repo). Streamlit Cloud itself never
+#      sets the env var above, so this remains the real production path.
 #   3. A local SQLite file at ~/.unstructured_alpha/data/app.db (the
 #      existing local-dev default -- and the same reasoning as before for
 #      WHY it lives outside the project folder: a cloud-synced project
@@ -46,15 +58,15 @@ _LOCAL_DB_PATH = os.path.join(_LOCAL_DB_DIR, "app.db")
 
 
 def _resolve_database_url() -> str:
+    env_url = os.environ.get("UNSTRUCTURED_ALPHA_DATABASE_URL")
+    if env_url:
+        return env_url
+
     try:
         if "DATABASE_URL" in st.secrets:
             return st.secrets["DATABASE_URL"]
     except Exception:
         pass  # st.secrets raises if no secrets.toml exists at all -- fine, fall through
-
-    env_url = os.environ.get("UNSTRUCTURED_ALPHA_DATABASE_URL")
-    if env_url:
-        return env_url
 
     os.makedirs(_LOCAL_DB_DIR, exist_ok=True)
     return f"sqlite:///{_LOCAL_DB_PATH}"

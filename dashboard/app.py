@@ -16,6 +16,18 @@ form and calls st.stop() before pg.run() ever reaches a page, so no
 conflict; on a run where they're already logged in, require_login()
 returns immediately without rendering anything, leaving the routed page's
 own set_page_config() call as the genuine first command.
+
+st.navigation() is called BEFORE require_login(), deliberately. Calling it
+draws the grouped sidebar (Home/Signals/Research/Market/Alerts/Info)
+immediately as a side effect -- separate from pg.run(), which is what
+actually executes the selected page's content. require_login() still
+gates the content: if nobody's logged in, it renders the login form in
+the main area and calls st.stop() before pg.run() below ever executes, so
+no page content leaks pre-login. This was caught live, not assumed: with
+the order reversed (require_login() first), st.navigation() never ran
+on a not-logged-in script pass, so Streamlit fell back to auto-discovering
+every file in pages/ and showed that flat, ungrouped list (complete with
+two already-retired stub pages) instead of the intended grouped nav.
 """
 
 import streamlit as st
@@ -24,7 +36,6 @@ from utils.db import init_db
 from utils.auth_ui import require_login
 
 init_db()
-current_user = require_login()
 
 pg = st.navigation(
     {
@@ -52,5 +63,7 @@ pg = st.navigation(
     },
     position="sidebar",
 )
+
+current_user = require_login()
 
 pg.run()

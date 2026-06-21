@@ -65,12 +65,12 @@ ROUTED_PAGES = [
     "pages/10_Alerts.py",
 ]
 
-# Pages that exist as files but are intentionally retired redirect stubs,
-# not real routed pages — excluded from ROUTED_PAGES on purpose.
-RETIRED_STUB_PAGES = [
-    "pages/2_Signal_Analysis.py",
-    "pages/7_Macro_Monitor.py",
-]
+# pages/2_Signal_Analysis.py and pages/7_Macro_Monitor.py used to be kept
+# around as harmless "this page moved" redirect stubs (consolidated into
+# Ticker Deep Dive and Market Overview respectively) because an earlier
+# sandbox environment couldn't delete files. They were genuinely deleted
+# once a real filesystem could do it -- RETIRED_STUB_PAGES and its test no
+# longer apply and were removed along with the files.
 
 
 @pytest.fixture
