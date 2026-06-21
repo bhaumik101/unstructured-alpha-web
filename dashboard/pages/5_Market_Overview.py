@@ -11,6 +11,7 @@ import streamlit as st
 import yfinance as yf
 
 from utils.header import render_header, render_sidebar_base
+from utils.fetchers import fetch_live_quote
 
 st.set_page_config(page_title="Market Overview — UA", layout="wide")
 render_header("Market Overview")
@@ -187,6 +188,29 @@ INDICES = {
 with st.spinner("Loading market data…"):
     idx_data = get_batch_quotes(list(INDICES.values()))
 
+@st.fragment(run_every="60s")
+def _render_live_index_quote(ticker: str) -> None:
+    """
+    Auto-refreshes every 60s, independent of the rest of the page — only
+    this small fragment re-runs on the timer, not the full script, so the
+    period-aware historical fetch + sparkline above (get_batch_quotes,
+    cached 15 min) doesn't re-fire every minute just to keep a live price
+    ticking. Same fetch_live_quote() used on Ticker Deep Dive. Silently
+    renders nothing if the live quote isn't available, since the stat card
+    above already shows the period-based last price as a fallback.
+    """
+    q = fetch_live_quote(ticker)
+    if q["price"] is not None:
+        delta_str = f"{q['pct_change']:+.2f}%" if q["pct_change"] is not None else ""
+        color = "#1B5E20" if (q["pct_change"] or 0) > 0 else ("#7B1010" if (q["pct_change"] or 0) < 0 else "#8B7355")
+        st.markdown(
+            f'<div style="font-size:0.72rem;color:#9E9E8E;margin-top:2px;">'
+            f'LIVE: <span style="color:{color};font-weight:700;">{q["price"]:,.2f} {delta_str}</span>'
+            f' &middot; updates every 60s</div>',
+            unsafe_allow_html=True,
+        )
+
+
 idx_cols = st.columns(len(INDICES))
 for col, (name, ticker) in zip(idx_cols, INDICES.items()):
     q = idx_data.get(ticker, {})
@@ -199,6 +223,8 @@ for col, (name, ticker) in zip(idx_cols, INDICES.items()):
         else:
             chg_abs_str = f"{period_label(period_sel)}"
         col.markdown(stat_card(name, f"{q['last']:,.2f}", chg_abs_str, chg_pct), unsafe_allow_html=True)
+        with col:
+            _render_live_index_quote(ticker)
         if "series" in q and len(q["series"]) >= 3:
             col.plotly_chart(
                 mini_sparkline(q["series"], color, period_sel),

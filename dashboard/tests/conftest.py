@@ -8,6 +8,23 @@ yfinance) are expected to fall back to synthetic data or an empty Series
 when network access is unavailable, and that fallback path itself is part
 of what's under test — a page should never raise, even with zero network
 access and zero API keys configured.
+
+KNOWN BLIND SPOT — st.fragment bodies are NOT exercised by AppTest:
+Confirmed empirically (not assumed) while wiring up live-price auto-refresh:
+a real NameError inside an `@st.fragment(run_every=...)`-decorated function
+(pages/5_Market_Overview.py's _render_live_index_quote, caused by a bad
+import placement) did not surface during `at.run()` -- `at.exception` was
+empty and none of the fragment's expected output appeared in `at.markdown`.
+AppTest does not invoke fragment bodies at all; it only renders the parts of
+the script that run unconditionally on a normal rerun. Every page test in
+test_pages_render.py can pass cleanly while a fragment elsewhere on that same
+page is silently broken. There is no test-suite-only fix for this (it is a
+limitation of AppTest itself, not a gap in how these tests are written) --
+any code living inside an st.fragment needs a live browser check before
+trusting it, the same way it had to be caught here. Currently two fragments
+exist in this codebase: Ticker Deep Dive's and Market Overview's live-price
+auto-refresh. If you add another, verify it live; pytest passing is not
+evidence it works.
 """
 
 import os
