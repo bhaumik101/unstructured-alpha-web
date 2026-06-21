@@ -6,9 +6,25 @@ Navigation router. Each page handles its own set_page_config.
 Run locally:
     pip install -r requirements.txt
     streamlit run app.py
+
+Accounts: every page requires a logged-in user (see utils/auth_ui.py).
+Deliberately does NOT call st.set_page_config() here -- every routed page
+already calls it itself as that page's first Streamlit command, and
+Streamlit only allows ONE set_page_config() call per script run. On a run
+where the user isn't logged in yet, require_login() renders the login
+form and calls st.stop() before pg.run() ever reaches a page, so no
+conflict; on a run where they're already logged in, require_login()
+returns immediately without rendering anything, leaving the routed page's
+own set_page_config() call as the genuine first command.
 """
 
 import streamlit as st
+
+from utils.db import init_db
+from utils.auth_ui import require_login
+
+init_db()
+current_user = require_login()
 
 pg = st.navigation(
     {

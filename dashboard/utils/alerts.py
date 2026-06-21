@@ -32,12 +32,20 @@ def _pct_change(new: float, old: float) -> float:
     return (new - old) / abs(old) * 100.0
 
 
-def evaluate_ticker(ticker: str, thresholds: dict) -> list[dict]:
+def evaluate_ticker(user_id: int, ticker: str, thresholds: dict) -> list[dict]:
     """
-    Evaluate one watched ticker against its stored last-seen state.
+    Evaluate one watched ticker against ITS OWNER'S stored last-seen state.
     Returns the list of newly-created alert dicts (already persisted) --
     empty if nothing crossed a threshold this check, including the very
     first check for a ticker (nothing to compare against yet).
+
+    Note: compute_full_ticker_score() itself is not cached, but every
+    fetcher it calls underneath is cached by ticker (not by user) -- so two
+    different users watching the same ticker share the underlying data
+    fetch, which is correct (the macro signals and price history ARE the
+    same regardless of who's watching) and efficient (no duplicated network
+    calls just because multiple accounts watch the same name). Only the
+    per-user last-seen snapshot and threshold comparison are user-scoped.
     """
     ticker = ticker.upper().strip()
     new_alerts = []
@@ -53,7 +61,7 @@ def evaluate_ticker(ticker: str, thresholds: dict) -> list[dict]:
     short_interest_status = full["short_interest_score"].get("status") if full["has_short_interest_signal"] else "no_data"
     thirteenf_status = full["thirteenf_score"].get("status") if full["has_13f_signal"] else "no_data"
 
-    prior = alerts_db.get_alert_state(ticker)
+    prior = alerts_db.get_alert_state(user_id, ticker)
 
     if prior is not None:
         bull_threshold = thresholds.get("score_bull_threshold", alerts_db.DEFAULT_SCORE_BULL_THRESHOLD)
@@ -66,10 +74,10 @@ def evaluate_ticker(ticker: str, thresholds: dict) -> list[dict]:
             crossed_bearish = prior_score > bear_threshold >= current_score
             if crossed_bullish:
                 msg = f"Confluence Score crossed into bullish territory: {prior_score:.0f} -> {current_score:.0f}"
-                new_alerts.append(_record(ticker, "score_threshold", msg, "bullish"))
+                new_alerts.append(_record(user_id, ticker, "score_threshold", msg, "bullish"))
             elif crossed_bearish:
                 msg = f"Confluence Score crossed into bearish territory: {prior_score:.0f} -> {current_score:.0f}"
-                new_alerts.append(_record(ticker, "score_threshold", msg, "bearish"))
+                new_alerts.append(_record(user_id, ticker, "score_threshold", msg, "bearish"))
 
         prior_price = prior.get("last_price")
         if prior_price and current_price is not None:
@@ -77,22 +85,22 @@ def evaluate_ticker(ticker: str, thresholds: dict) -> list[dict]:
             if abs(pct) >= price_move_threshold:
                 direction = "bullish" if pct > 0 else "bearish"
                 msg = f"Price moved {pct:+.1f}% since last check (${prior_price:.2f} -> ${current_price:.2f})"
-                new_alerts.append(_record(ticker, "price_move", msg, direction))
+                new_alerts.append(_record(user_id, ticker, "price_move", msg, direction))
 
         prior_high = prior.get("last_52w_high")
         if prior_high and current_price is not None and current_price > prior_high:
             msg = f"New 52-week high: ${current_price:.2f} (previous: ${prior_high:.2f})"
-            new_alerts.append(_record(ticker, "price_move", msg, "bullish"))
+            new_alerts.append(_record(user_id, ticker, "price_move", msg, "bullish"))
 
         prior_low = prior.get("last_52w_low")
         if prior_low and current_price is not None and current_price < prior_low:
             msg = f"New 52-week low: ${current_price:.2f} (previous: ${prior_low:.2f})"
-            new_alerts.append(_record(ticker, "price_move", msg, "bearish"))
+            new_alerts.append(_record(user_id, ticker, "price_move", msg, "bearish"))
 
         prior_insider = prior.get("last_insider_status")
         if prior_insider and prior_insider != "no_data" and insider_status not in (prior_insider, "no_data"):
             new_alerts.append(_record(
-                ticker, "insider",
+                user_id, ticker, "insider",
                 f"Insider activity signal changed: {prior_insider} -> {insider_status}",
                 insider_status if insider_status in ("bullish", "bearish") else None,
             ))
@@ -100,7 +108,7 @@ def evaluate_ticker(ticker: str, thresholds: dict) -> list[dict]:
         prior_si = prior.get("last_short_interest_status")
         if prior_si and prior_si != "no_data" and short_interest_status not in (prior_si, "no_data"):
             new_alerts.append(_record(
-                ticker, "short_interest",
+                user_id, ticker, "short_interest",
                 f"Short interest signal changed: {prior_si} -> {short_interest_status}",
                 short_interest_status if short_interest_status in ("bullish", "bearish") else None,
             ))
@@ -108,13 +116,13 @@ def evaluate_ticker(ticker: str, thresholds: dict) -> list[dict]:
         prior_13f = prior.get("last_13f_status")
         if prior_13f and prior_13f != "no_data" and thirteenf_status not in (prior_13f, "no_data"):
             new_alerts.append(_record(
-                ticker, "13f",
+                user_id, ticker, "13f",
                 f"13F institutional positioning changed: {prior_13f} -> {thirteenf_status}",
                 thirteenf_status if thirteenf_status in ("bullish", "bearish") else None,
             ))
 
     alerts_db.set_alert_state(
-        ticker,
+        user_id, ticker,
         last_score=current_score,
         last_price=current_price,
         last_52w_high=max(high_52w, current_price) if current_price is not None else high_52w,
@@ -127,28 +135,28 @@ def evaluate_ticker(ticker: str, thresholds: dict) -> list[dict]:
     return new_alerts
 
 
-def _record(ticker: str, alert_type: str, message: str, direction: str | None) -> dict:
-    alert_id = alerts_db.create_alert(ticker, alert_type, message, direction=direction)
+def _record(user_id: int, ticker: str, alert_type: str, message: str, direction: str | None) -> dict:
+    alert_id = alerts_db.create_alert(user_id, ticker, alert_type, message, direction=direction)
     return {"id": alert_id, "ticker": ticker, "alert_type": alert_type, "message": message, "direction": direction}
 
 
-def evaluate_watchlist() -> list[dict]:
+def evaluate_watchlist(user_id: int) -> list[dict]:
     """
-    Evaluate every ticker currently on the watchlist. Returns all newly-
-    created alerts across the whole watchlist (already persisted to the
-    alerts table) -- call this from the Alerts page or a manual refresh
-    action, not on every page in the app, since it re-runs the full scoring
+    Evaluate every ticker on THIS USER's watchlist. Returns all newly-
+    created alerts across that watchlist (already persisted to the alerts
+    table) -- call this from the Alerts page or a manual refresh action,
+    not on every page in the app, since it re-runs the full scoring
     pipeline (multiple network fetches) per watched ticker.
     """
     all_new_alerts = []
-    for row in alerts_db.get_watchlist():
+    for row in alerts_db.get_watchlist(user_id):
         thresholds = {
             "score_bull_threshold": row["score_bull_threshold"],
             "score_bear_threshold": row["score_bear_threshold"],
             "price_move_pct_threshold": row["price_move_pct_threshold"],
         }
         try:
-            all_new_alerts.extend(evaluate_ticker(row["ticker"], thresholds))
+            all_new_alerts.extend(evaluate_ticker(user_id, row["ticker"], thresholds))
         except Exception:
             # One ticker's data hiccup (network, bad ticker, etc.) must not
             # block evaluating the rest of the watchlist.

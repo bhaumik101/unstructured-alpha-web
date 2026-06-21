@@ -29,6 +29,7 @@ evidence it works.
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,17 @@ import pytest
 DASHBOARD_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(DASHBOARD_ROOT))
 os.chdir(DASHBOARD_ROOT)
+
+# Every AppTest-driven test runs the WHOLE app (app.py), which now calls
+# utils.db.init_db() and gates every page behind a login -- point that at a
+# throwaway file-based SQLite DB for the test session rather than the real
+# local ~/.unstructured_alpha/data/app.db a developer might have data in,
+# and rather than an in-memory DB (whose per-connection-pool semantics are
+# less predictable across AppTest's script-execution model than a real,
+# if temporary, file). Must be set before any test imports utils.db, since
+# that module resolves its connection string once at import time.
+_TEST_DB_FD, _TEST_DB_PATH = tempfile.mkstemp(suffix=".db", prefix="ua_test_")
+os.environ["UNSTRUCTURED_ALPHA_DATABASE_URL"] = f"sqlite:///{_TEST_DB_PATH}"
 
 # Every routed page, exactly as registered in app.py's st.navigation() call.
 # If this list and app.py drift apart, test_app_structure.py will fail loudly
@@ -67,6 +79,12 @@ def app_test():
     Returns a factory that gives back a *freshly run* AppTest already
     switched to the requested page.
 
+    Every page is now gated behind a login (utils.auth_ui.require_login()),
+    so before the first .run(), this injects a fake logged-in user directly
+    into session_state -- bypassing the actual login form, which is tested
+    on its own terms in tests/test_auth_and_multitenancy_unit.py. Without
+    this, every page-render test would just be testing the login screen.
+
     IMPORTANT: streamlit.testing.v1.AppTest.switch_page() does NOT
     automatically rerun the app — you must call .run() again after
     switching, or you're silently asserting against whatever page ran
@@ -78,6 +96,7 @@ def app_test():
 
     def _make(page_path: str = None, timeout: int = 120):
         at = AppTest.from_file(str(DASHBOARD_ROOT / "app.py"), default_timeout=timeout)
+        at.session_state["user"] = {"id": 1, "email": "test@example.com"}
         at.run()
         if page_path:
             at.switch_page(page_path)

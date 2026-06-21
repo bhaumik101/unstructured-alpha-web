@@ -1,100 +1,29 @@
 # utils/alerts_db.py
-# Unstructured Alpha — Persistent Watchlist + Alert Storage
+# Unstructured Alpha — Per-User Watchlist + Alert Storage
 #
-# Why this exists: every other piece of state in this app lives in
-# st.session_state, which is wiped on every browser refresh or new session --
-# fine for "what ticker am I looking at right now", wrong for "remember what
-# I'm watching and what I've already seen" across visits, which is the whole
-# point of alerting. This module is the one place that state is written to
-# disk (SQLite), so it survives restarts.
+# Every function here takes a user_id and only ever reads/writes that
+# user's own rows -- this is what makes the watchlist and alert feed
+# "per account" rather than the single shared instance this module used to
+# be (see git history before 2026-06-21 for that version). Built on
+# utils/db.py's SQLAlchemy engine, which resolves to Postgres in production
+# and SQLite for local dev/tests -- see that module's docstring for why.
 #
-# Known limitation, stated plainly: this is a single shared watchlist/alert
-# feed for the whole app instance, not a per-user account system -- there is
-# no login anywhere in this product. That's consistent with how the rest of
-# the app already works (one FRED/EIA key in session_state, not per-user
-# credentials), not a new compromise introduced here. If this product later
-# gets real user accounts, this schema would need a user_id column added to
-# every table.
-#
-# Also worth stating plainly: on Streamlit Community Cloud's free tier, the
-# filesystem is not guaranteed persistent across redeploys/restarts -- this
-# works reliably when self-hosted or run locally (this product's primary
-# deployment story per DEPLOY.md), but a cloud-hosted instance could lose
-# its watchlist on a redeploy. Worth a real database (e.g. a free-tier
-# Postgres) if/when this moves to a persistent cloud deployment.
-#
-# DB location is deliberately OUTSIDE the project folder, in the user's home
-# directory -- not a stylistic choice. Confirmed live (2026-06-21) that
-# putting the SQLite file inside this project's folder causes a hard
-# "disk I/O error" on every write: that folder lives under a cloud-synced
-# path (iCloud Drive's Desktop & Documents sync, in this case), and cloud
-# sync clients are a well-known source of SQLite locking/journal failures
-# regardless of OS or filesystem -- this is not specific to any one sandbox,
-# it would bite a real user running this locally just the same. Runtime
-# state like a watchlist database has no business living inside a folder
-# that's also being synced/version-controlled anyway.
+# DEFAULT_* threshold constants are unchanged from the pre-accounts version.
 
-import os
-import sqlite3
-from contextlib import contextmanager
 from datetime import datetime, timezone
 
-DB_DIR = os.path.join(os.path.expanduser("~"), ".unstructured_alpha", "data")
-DB_PATH = os.path.join(DB_DIR, "alerts.db")
+from sqlalchemy import select, delete
+
+from utils import db
+from utils.db import users, watchlist, alert_state, alerts, upsert_stmt
 
 DEFAULT_SCORE_BULL_THRESHOLD = 65.0
 DEFAULT_SCORE_BEAR_THRESHOLD = 35.0
 DEFAULT_PRICE_MOVE_PCT_THRESHOLD = 5.0
 
 
-@contextmanager
-def _conn():
-    os.makedirs(DB_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH, timeout=10)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-        conn.commit()
-    finally:
-        conn.close()
-
-
 def init_db() -> None:
-    """Create tables if they don't already exist. Safe to call on every page load."""
-    with _conn() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS watchlist (
-                ticker TEXT PRIMARY KEY,
-                score_bull_threshold REAL NOT NULL DEFAULT 65.0,
-                score_bear_threshold REAL NOT NULL DEFAULT 35.0,
-                price_move_pct_threshold REAL NOT NULL DEFAULT 5.0,
-                added_at TEXT NOT NULL
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS alert_state (
-                ticker TEXT PRIMARY KEY,
-                last_score REAL,
-                last_price REAL,
-                last_52w_high REAL,
-                last_52w_low REAL,
-                last_insider_status TEXT,
-                last_short_interest_status TEXT,
-                last_13f_status TEXT,
-                last_checked_at TEXT
-            )
-        """)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS alerts (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ticker TEXT NOT NULL,
-                alert_type TEXT NOT NULL,
-                direction TEXT,
-                message TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                is_read INTEGER NOT NULL DEFAULT 0
-            )
-        """)
+    db.init_db()
 
 
 def _now_iso() -> str:
@@ -104,107 +33,120 @@ def _now_iso() -> str:
 # ── Watchlist ────────────────────────────────────────────────────────────────
 
 def add_to_watchlist(
+    user_id: int,
     ticker: str,
     score_bull_threshold: float = DEFAULT_SCORE_BULL_THRESHOLD,
     score_bear_threshold: float = DEFAULT_SCORE_BEAR_THRESHOLD,
     price_move_pct_threshold: float = DEFAULT_PRICE_MOVE_PCT_THRESHOLD,
 ) -> None:
     ticker = ticker.upper().strip()
-    with _conn() as conn:
-        conn.execute(
-            """INSERT INTO watchlist (ticker, score_bull_threshold, score_bear_threshold,
-                                       price_move_pct_threshold, added_at)
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT(ticker) DO UPDATE SET
-                 score_bull_threshold=excluded.score_bull_threshold,
-                 score_bear_threshold=excluded.score_bear_threshold,
-                 price_move_pct_threshold=excluded.price_move_pct_threshold""",
-            (ticker, score_bull_threshold, score_bear_threshold, price_move_pct_threshold, _now_iso()),
-        )
+    stmt = upsert_stmt(watchlist, ["user_id", "ticker"]).values(
+        user_id=user_id, ticker=ticker,
+        score_bull_threshold=score_bull_threshold,
+        score_bear_threshold=score_bear_threshold,
+        price_move_pct_threshold=price_move_pct_threshold,
+        added_at=_now_iso(),
+    )
+    stmt = stmt.on_conflict_do_update(
+        index_elements=["user_id", "ticker"],
+        set_={
+            "score_bull_threshold": score_bull_threshold,
+            "score_bear_threshold": score_bear_threshold,
+            "price_move_pct_threshold": price_move_pct_threshold,
+        },
+    )
+    with db.engine.begin() as conn:
+        conn.execute(stmt)
 
 
-def remove_from_watchlist(ticker: str) -> None:
+def remove_from_watchlist(user_id: int, ticker: str) -> None:
     ticker = ticker.upper().strip()
-    with _conn() as conn:
-        conn.execute("DELETE FROM watchlist WHERE ticker = ?", (ticker,))
-        conn.execute("DELETE FROM alert_state WHERE ticker = ?", (ticker,))
+    with db.engine.begin() as conn:
+        conn.execute(delete(watchlist).where(watchlist.c.user_id == user_id, watchlist.c.ticker == ticker))
+        conn.execute(delete(alert_state).where(alert_state.c.user_id == user_id, alert_state.c.ticker == ticker))
 
 
-def get_watchlist() -> list[dict]:
-    with _conn() as conn:
-        rows = conn.execute("SELECT * FROM watchlist ORDER BY ticker").fetchall()
+def get_watchlist(user_id: int) -> list[dict]:
+    with db.engine.begin() as conn:
+        rows = conn.execute(
+            select(watchlist).where(watchlist.c.user_id == user_id).order_by(watchlist.c.ticker)
+        ).mappings().all()
         return [dict(r) for r in rows]
 
 
-def is_watched(ticker: str) -> bool:
+def is_watched(user_id: int, ticker: str) -> bool:
     ticker = ticker.upper().strip()
-    with _conn() as conn:
-        row = conn.execute("SELECT 1 FROM watchlist WHERE ticker = ?", (ticker,)).fetchone()
+    with db.engine.begin() as conn:
+        row = conn.execute(
+            select(watchlist.c.id).where(watchlist.c.user_id == user_id, watchlist.c.ticker == ticker)
+        ).first()
         return row is not None
 
 
 # ── Alert state (last-seen snapshot, used to compute deltas) ────────────────
 
-def get_alert_state(ticker: str) -> dict | None:
+def get_alert_state(user_id: int, ticker: str) -> dict | None:
     ticker = ticker.upper().strip()
-    with _conn() as conn:
-        row = conn.execute("SELECT * FROM alert_state WHERE ticker = ?", (ticker,)).fetchone()
+    with db.engine.begin() as conn:
+        row = conn.execute(
+            select(alert_state).where(alert_state.c.user_id == user_id, alert_state.c.ticker == ticker)
+        ).mappings().first()
         return dict(row) if row else None
 
 
-def set_alert_state(ticker: str, **fields) -> None:
+def set_alert_state(user_id: int, ticker: str, **fields) -> None:
     ticker = ticker.upper().strip()
     fields["last_checked_at"] = _now_iso()
-    cols = ", ".join(fields.keys())
-    placeholders = ", ".join("?" for _ in fields)
-    updates = ", ".join(f"{k}=excluded.{k}" for k in fields)
-    with _conn() as conn:
-        conn.execute(
-            f"""INSERT INTO alert_state (ticker, {cols}) VALUES (?, {placeholders})
-                ON CONFLICT(ticker) DO UPDATE SET {updates}""",
-            (ticker, *fields.values()),
-        )
+    stmt = upsert_stmt(alert_state, ["user_id", "ticker"]).values(user_id=user_id, ticker=ticker, **fields)
+    stmt = stmt.on_conflict_do_update(index_elements=["user_id", "ticker"], set_=fields)
+    with db.engine.begin() as conn:
+        conn.execute(stmt)
 
 
 # ── Alerts feed ──────────────────────────────────────────────────────────────
 
-def create_alert(ticker: str, alert_type: str, message: str, direction: str | None = None) -> int:
+def create_alert(user_id: int, ticker: str, alert_type: str, message: str, direction: str | None = None) -> int:
     ticker = ticker.upper().strip()
-    with _conn() as conn:
-        cur = conn.execute(
-            "INSERT INTO alerts (ticker, alert_type, direction, message, created_at) VALUES (?, ?, ?, ?, ?)",
-            (ticker, alert_type, direction, message, _now_iso()),
+    with db.engine.begin() as conn:
+        result = conn.execute(
+            alerts.insert().values(
+                user_id=user_id, ticker=ticker, alert_type=alert_type,
+                direction=direction, message=message, created_at=_now_iso(), is_read=0,
+            )
         )
-        return cur.lastrowid
+        return result.inserted_primary_key[0]
 
 
-def get_alerts(unread_only: bool = False, limit: int = 50) -> list[dict]:
-    query = "SELECT * FROM alerts"
+def get_alerts(user_id: int, unread_only: bool = False, limit: int = 50) -> list[dict]:
+    query = select(alerts).where(alerts.c.user_id == user_id)
     if unread_only:
-        query += " WHERE is_read = 0"
-    query += " ORDER BY created_at DESC LIMIT ?"
-    with _conn() as conn:
-        rows = conn.execute(query, (limit,)).fetchall()
+        query = query.where(alerts.c.is_read == 0)
+    query = query.order_by(alerts.c.created_at.desc()).limit(limit)
+    with db.engine.begin() as conn:
+        rows = conn.execute(query).mappings().all()
         return [dict(r) for r in rows]
 
 
-def count_unread() -> int:
-    with _conn() as conn:
-        row = conn.execute("SELECT COUNT(*) AS n FROM alerts WHERE is_read = 0").fetchone()
-        return row["n"] if row else 0
+def count_unread(user_id: int) -> int:
+    with db.engine.begin() as conn:
+        row = conn.execute(
+            select(alerts.c.id).where(alerts.c.user_id == user_id, alerts.c.is_read == 0)
+        ).all()
+        return len(row)
 
 
-def mark_all_read() -> None:
-    with _conn() as conn:
-        conn.execute("UPDATE alerts SET is_read = 1 WHERE is_read = 0")
+def mark_all_read(user_id: int) -> None:
+    with db.engine.begin() as conn:
+        conn.execute(alerts.update().where(alerts.c.user_id == user_id, alerts.c.is_read == 0).values(is_read=1))
 
 
-def mark_read(alert_id: int) -> None:
-    with _conn() as conn:
-        conn.execute("UPDATE alerts SET is_read = 1 WHERE id = ?", (alert_id,))
+def mark_read(user_id: int, alert_id: int) -> None:
+    """Scoped to user_id too -- a user must not be able to mark another
+    account's alert as read just by guessing an id."""
+    with db.engine.begin() as conn:
+        conn.execute(alerts.update().where(alerts.c.id == alert_id, alerts.c.user_id == user_id).values(is_read=1))
 
 
-def clear_all_alerts() -> None:
-    """Delete every alert record. Used by tests and an explicit 'clear feed' UI action."""
-    with _conn() as conn:
-        conn.execute("DELETE FROM alerts")
+def clear_all_alerts(user_id: int) -> None:
+    with db.engine.begin() as conn:
+        conn.execute(delete(alerts).where(alerts.c.user_id == user_id))

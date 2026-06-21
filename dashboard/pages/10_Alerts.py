@@ -28,6 +28,10 @@ render_sidebar_base()
 
 alerts_db.init_db()
 
+# app.py's login gate guarantees this exists before any page runs -- this
+# page's own watchlist/alerts are scoped entirely to this id, never global.
+user_id = st.session_state["user"]["id"]
+
 st.markdown("# Alerts")
 st.caption("Get notified when a watched ticker's Confluence Score crosses a threshold, its price moves "
            "sharply, or a differentiator signal (insider activity, short interest, 13F positioning) changes.")
@@ -74,7 +78,7 @@ with col_thresh:
 
 if st.button("Add to Watchlist", type="primary", disabled=not new_ticker):
     alerts_db.add_to_watchlist(
-        new_ticker,
+        user_id, new_ticker,
         score_bull_threshold=bull_thresh,
         score_bear_threshold=bear_thresh,
         price_move_pct_threshold=price_thresh,
@@ -82,7 +86,7 @@ if st.button("Add to Watchlist", type="primary", disabled=not new_ticker):
     st.success(f"{new_ticker} added to watchlist.")
     st.rerun()
 
-watchlist = alerts_db.get_watchlist()
+watchlist = alerts_db.get_watchlist(user_id)
 
 if not watchlist:
     st.info("Your watchlist is empty. Add a ticker above to start tracking it for alerts.")
@@ -102,13 +106,13 @@ else:
             st.caption(f"Move ≥ {row['price_move_pct_threshold']:.1f}%")
         with wc5:
             if st.button("Remove", key=f"remove_{ticker}"):
-                alerts_db.remove_from_watchlist(ticker)
+                alerts_db.remove_from_watchlist(user_id, ticker)
                 st.rerun()
 
     st.divider()
     if st.button("Check Watchlist Now", type="primary"):
         with st.spinner(f"Checking {len(watchlist)} watched ticker(s)…"):
-            new_alerts = evaluate_watchlist()
+            new_alerts = evaluate_watchlist(user_id)
         if new_alerts:
             st.success(f"{len(new_alerts)} new alert(s) generated — see the feed below.")
         else:
@@ -121,17 +125,17 @@ st.divider()
 # ── Alert feed ────────────────────────────────────────────────────────────────
 st.markdown('<div class="section-header">ALERT FEED</div>', unsafe_allow_html=True)
 
-unread_count = alerts_db.count_unread()
+unread_count = alerts_db.count_unread(user_id)
 fc1, fc2, fc3 = st.columns([2, 1, 1])
 with fc1:
     show_unread_only = st.checkbox(f"Show unread only ({unread_count} unread)", value=False)
 with fc2:
     if st.button("Mark All Read", disabled=unread_count == 0):
-        alerts_db.mark_all_read()
+        alerts_db.mark_all_read(user_id)
         st.rerun()
 with fc3:
     if st.button("Clear Feed"):
-        alerts_db.clear_all_alerts()
+        alerts_db.clear_all_alerts(user_id)
         st.rerun()
 
 DIRECTION_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010"}
@@ -143,7 +147,7 @@ TYPE_LABEL = {
     "13f": "13F Positioning",
 }
 
-alert_rows = alerts_db.get_alerts(unread_only=show_unread_only, limit=100)
+alert_rows = alerts_db.get_alerts(user_id, unread_only=show_unread_only, limit=100)
 
 if not alert_rows:
     st.info("No alerts yet. Add tickers to your watchlist and click \"Check Watchlist Now\" to evaluate them.")

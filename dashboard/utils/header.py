@@ -306,10 +306,28 @@ def render_header(page_subtitle: str = "") -> None:
 
 def render_sidebar_base() -> None:
     """
-    Render the standard sidebar content (FRED key input, AI assistant link, disclaimer).
-    Call inside a `with st.sidebar:` block or standalone.
+    Render the standard sidebar content (account info, FRED key input, AI
+    assistant link, disclaimer). Call inside a `with st.sidebar:` block or
+    standalone.
     """
     with st.sidebar:
+        # Account — only rendered once a user is actually logged in (every
+        # page is gated by utils.auth_ui.require_login() before this runs,
+        # so st.session_state["user"] should always exist here in practice,
+        # but checked defensively rather than assumed).
+        user = st.session_state.get("user")
+        if user:
+            st.markdown(
+                f'<div style="font-size:0.78rem;color:#C9A84C;margin-bottom:4px;">'
+                f'Logged in as<br><b style="color:#F0EBE1;">{user["email"]}</b></div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Log Out", key="sidebar_logout", use_container_width=True):
+                from utils.auth_ui import logout
+                logout()
+                st.rerun()
+            st.divider()
+
         # AI Assistant quick-access
         st.markdown(
             '<div style="background:rgba(184,134,11,0.15);border-radius:6px;padding:10px 12px;'
