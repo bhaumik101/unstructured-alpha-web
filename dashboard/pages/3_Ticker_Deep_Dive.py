@@ -241,8 +241,24 @@ if not price_series.empty and len(price_series.dropna()) >= 10:
     _blended_ret = _ret_1y * 0.6 + _ret_1m * 0.4
     _mom_score = float(np.clip(50.0 + _blended_ret * 83.3, 5.0, 95.0))
 
+# ── Blend in federal contract award velocity, when relevant ───────────────────
+# score_contract_velocity() already existed and was already being called below
+# for the "Federal Contract Awards" detail section -- but its result was only
+# ever used in an st.metric() display, never fed back into the Confluence
+# Score it was computed right next to. Fixed: fetch+score it here too (cached,
+# so this doesn't double the network cost) and blend it in, but ONLY when the
+# company actually has federal contract history -- most tickers (consumer
+# staples, regional banks, etc.) won't, and forcing a meaningless "no_data"
+# 50/neutral score into every ticker's confluence would just add noise.
+_contracts_df_early = fetch_federal_contracts(company_name_hint, years=2)
+_contract_vel = score_contract_velocity(_contracts_df_early)
+_has_contract_signal = _contract_vel.get("status") != "no_data" and _contract_vel.get("award_count", 0) >= 3
+
 _macro_score = confluence["overall_score"]
-_final_score = _macro_score * 0.80 + _mom_score * 0.20
+if _has_contract_signal:
+    _final_score = _macro_score * 0.70 + _mom_score * 0.15 + _contract_vel["score"] * 0.15
+else:
+    _final_score = _macro_score * 0.80 + _mom_score * 0.20
 confluence["overall_score"] = round(_final_score, 1)
 
 # Recompute case from blended score
@@ -282,7 +298,7 @@ with c_case:
         <div style="font-size:2.2rem;font-weight:800;color:{score_color};">{case}</div>
         <div style="font-size:0.95rem;color:#1A1612;">Conviction: <b>{conviction}</b></div>
         <div style="font-size:0.80rem;color:#6B6560;margin-top:6px;">
-            Based on {len(relevant_sig_ids)} independent signals
+            Based on {len(relevant_sig_ids)} independent signals + price momentum{" + federal contract award velocity" if _has_contract_signal else ""}
         </div>
     </div>
     """, unsafe_allow_html=True)

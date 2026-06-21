@@ -443,33 +443,15 @@ def fetch_insider_trades(ticker: str, days: int = 180) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Google Trends — Search Velocity as Narrative Validator
-# ─────────────────────────────────────────────────────────────────────────────
-
-@st.cache_data(ttl=14400, show_spinner=False)
-def fetch_google_trends(keywords: list, timeframe: str = "today 12-m") -> pd.DataFrame:
-    """
-    Fetch Google Trends data via pytrends (no API key required).
-    Use for validating whether a narrative is entering mainstream awareness.
-
-    Research basis: "refinance mortgage" searches tracked MBA applications
-    6-8 weeks early; "unemployment benefits how to apply" preceded the
-    March 2020 jobless claims spike.
-    """
-    try:
-        from pytrends.request import TrendReq
-        pt = TrendReq(hl="en-US", tz=300, timeout=(5, 25))
-        kws = keywords[:5]
-        pt.build_payload(kws, cat=0, timeframe=timeframe, geo="US")
-        df = pt.interest_over_time()
-        if df.empty:
-            return pd.DataFrame()
-        df = df.drop(columns=["isPartial"], errors="ignore")
-        df.index = pd.to_datetime(df.index).tz_localize(None)
-        return df
-    except Exception:
-        return pd.DataFrame()
+# NOTE: a Google Trends fetcher (via the unofficial "pytrends" scraper) used
+# to live here. Removed — confirmed via a full-codebase audit that it was
+# never called from anywhere (no page, no signal config, dead since it was
+# written). Not worth reviving as-is either: pytrends scrapes Google Trends'
+# internal endpoints with no official API or key, and is well documented to
+# break under CAPTCHA/rate-limit blocks for periods at a time — the same
+# fragility class as yfinance, but for a signal that wasn't wired to
+# anything in the first place. If search-velocity-as-signal is wanted later,
+# it should be re-evaluated with that fragility in mind, not just restored.
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -102,6 +102,44 @@ with st.spinner("Loading Power Supercycle signals…"):
 
     supercycle = compute_supercycle_score(sc_scores)
 
+    # ── Blend in nuclear-sector federal contract award velocity ─────────────
+    # score_contract_velocity() was already being computed for the 3 nuclear
+    # companies further down this page (Centrus Energy, Cameco, Uranium
+    # Energy) -- but, same issue as Ticker Deep Dive had, the result only
+    # ever fed an HTML display card, never the Supercycle Score itself, even
+    # though the page's own "Why it matters" text directly above describes
+    # contract velocity as "one of the most reliable leading indicators for
+    # nuclear equity performance." Fixed: compute it here too (cached, so
+    # the later display loop reuses these same calls, no extra network cost)
+    # and blend the average into the thesis-level score as an extra leg —
+    # only when at least one company actually has real contract history.
+    _nuclear_contract_companies = ["Centrus Energy", "Cameco", "Uranium Energy"]
+    _nuclear_vel_scores = []
+    for _name in _nuclear_contract_companies:
+        _c = fetch_federal_contracts(_name, years=2)
+        _v = score_contract_velocity(_c)
+        if _v.get("status") != "no_data" and _v.get("award_count", 0) >= 3:
+            _nuclear_vel_scores.append(_v["score"])
+
+    if _nuclear_vel_scores:
+        _avg_contract_score = sum(_nuclear_vel_scores) / len(_nuclear_vel_scores)
+        _blended = supercycle["overall_score"] * 0.85 + _avg_contract_score * 0.15
+        supercycle["overall_score"] = round(_blended, 1)
+        # Re-derive case from the blended score (same thresholds compute_confluence uses)
+        if _blended >= 62:
+            supercycle["case"] = "BULL"
+        elif _blended <= 38:
+            supercycle["case"] = "BEAR"
+        # Re-derive thesis_status with the same thresholds compute_supercycle_score uses internally
+        if _blended >= 72:
+            supercycle["thesis_status"] = "STRONGLY ALIGNED — Most legs of the Power Supercycle are reading bullish right now"
+        elif _blended >= 60:
+            supercycle["thesis_status"] = "ALIGNING — Some signals bullish, not yet a strong majority"
+        elif _blended >= 45:
+            supercycle["thesis_status"] = "MIXED — Signals are split between bullish and bearish readings"
+        else:
+            supercycle["thesis_status"] = "DIVERGING — Most signals are currently reading against the thesis"
+
 render_synthetic_data_banner(
     sum(1 for s in sc_data.values() if is_synthetic(s)),
     len(sc_data),

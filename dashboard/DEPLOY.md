@@ -141,8 +141,9 @@ git push origin main
 | CFTC COT | Weekly (Friday) | 24 hours |
 | USASpending.gov (federal contracts) | Real-time | 2 hours |
 | SEC EDGAR (insider trades) | Within 48h of filing | 1 hour |
-| Google Trends | Weekly | 4 hours |
 | arXiv paper velocity | Daily | 24 hours |
+| EIA (crude inventories, gas storage) | Weekly | 1 hour |
+| openFDA (drug approvals) | Real-time | 24 hours |
 
 Data is **cached** using `@st.cache_data` with these TTLs — the app won't re-fetch on every page load.
 Users can force a refresh by pressing Ctrl+R.
@@ -179,6 +180,7 @@ Or just link to it: *"Access the live dashboard at dashboard.unstructuredalpha.c
 | USASpending.gov API | **Free** |
 | SEC EDGAR | **Free** |
 | arXiv API | **Free** |
-| Google Trends (pytrends) | **Free** |
+| EIA API key | **Free** |
+| openFDA | **Free** |
 | Custom domain | ~$10–15/year |
 | **Total** | **~$0–15/year** |
