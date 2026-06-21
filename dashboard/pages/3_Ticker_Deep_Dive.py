@@ -28,17 +28,16 @@ from utils.analysis import (
     compute_quick_correlation_stats, compute_correlation,
     score_contract_velocity, build_narrative,
 )
+from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
 from utils.header import render_header, render_sidebar_base, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
 
 st.set_page_config(page_title="Ticker Deep Dive — UA", layout="wide")
 render_header("Ticker Deep Dive")
 render_sidebar_base()
 
-END   = datetime.now().strftime("%Y-%m-%d")
-START = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-# Price history needs a much longer lookback than the macro signals so the
-# "2Y" / "ALL" chart periods are genuinely different windows, not the same data.
-PRICE_START = (datetime.now() - timedelta(days=365 * 15)).strftime("%Y-%m-%d")
+# Note: signal/price date ranges (START/END/PRICE_START) now live inside
+# utils/ticker_score.compute_full_ticker_score() -- that's the single place
+# both this page and the alert engine fetch from, so they can't drift apart.
 STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355", "no_data": "#9E9E8E"}
 STATUS_EMOJI = {"bullish": "▲", "bearish": "▼", "neutral": "●", "no_data": "○"}
 
@@ -102,18 +101,9 @@ with col_top3:
             st.session_state.selected_ticker = t
             st.rerun()
 
-# Company name lookup — try universe first, then yfinance info for unknown tickers
-tkr_meta = TICKERS.get(ticker_input, {})
-if tkr_meta:
-    company_name_hint = tkr_meta.get("name", ticker_input)
-else:
-    # Try to get company name from yfinance for unknown tickers
-    try:
-        import yfinance as yf
-        _info = yf.Ticker(ticker_input).info or {}
-        company_name_hint = _info.get("longName") or _info.get("shortName") or ticker_input
-    except Exception:
-        company_name_hint = ticker_input
+# Company name + relevant signals lookup — shared with the alert engine via
+# utils/ticker_score.resolve_ticker_meta() so the two never diverge.
+tkr_meta, company_name_hint, _auto_sig_ids = resolve_ticker_meta(ticker_input)
 
 if ticker_input not in TICKERS:
     st.info(
@@ -124,37 +114,7 @@ if ticker_input not in TICKERS:
 
 st.markdown(f"### Analyzing: **{ticker_input}** — {company_name_hint}")
 
-# ── Determine relevant signals ─────────────────────────────────────────────────
-# For universe tickers: use configured signals. For unknown tickers: map by sector.
-SECTOR_SIGNAL_MAP = {
-    "Technology":              ["hyperscaler_capex", "semiconductor_etf", "ten_year_yield", "hy_spread", "vix"],
-    "Energy":                  ["crude_oil", "crude_inventories", "natural_gas", "gas_storage", "dollar_index"],
-    "Financial Services":      ["yield_curve", "hy_spread", "ten_year_yield", "vix", "bank_lending_standards", "credit_card_delinquency"],
-    "Healthcare":              ["jobless_claims", "consumer_sentiment", "hy_spread", "ten_year_yield", "fda_approval_velocity"],
-    "Consumer Cyclical":       ["retail_sales", "consumer_sentiment", "jobless_claims", "ata_trucking", "retail_job_openings", "ecommerce_share"],
-    "Consumer Defensive":      ["retail_sales", "food_cpi", "jobless_claims", "consumer_sentiment", "retail_job_openings"],
-    "Industrials":             ["ism_pmi", "ata_trucking", "rail_traffic", "durable_goods", "hy_spread", "construction_spending"],
-    "Basic Materials":         ["copper", "dollar_index", "ism_pmi", "crude_oil", "shipping_index"],
-    "Utilities":               ["ten_year_yield", "natural_gas", "uranium_proxy", "power_demand_growth", "vix"],
-    "Real Estate":             ["ten_year_yield", "housing_starts", "hy_spread", "vix"],
-    "Communication Services":  ["hyperscaler_capex", "jobless_claims", "ten_year_yield", "hy_spread"],
-}
-
-if tkr_meta.get("signals"):
-    relevant_sig_ids = tkr_meta["signals"]
-elif not tkr_meta:
-    # Unknown ticker — map by yfinance sector
-    try:
-        import yfinance as yf
-        _sector = (yf.Ticker(ticker_input).info or {}).get("sector", "")
-        relevant_sig_ids = SECTOR_SIGNAL_MAP.get(_sector, ["ata_trucking", "hy_spread", "ten_year_yield", "vix", "yield_curve"])
-    except Exception:
-        relevant_sig_ids = ["ata_trucking", "hy_spread", "ten_year_yield", "vix", "yield_curve"]
-else:
-    relevant_sig_ids = list(SIGNALS.keys())
-
-if not relevant_sig_ids:
-    relevant_sig_ids = list(SIGNALS.keys())
+relevant_sig_ids = _auto_sig_ids
 
 # Also let user add/remove signals
 with st.expander("Customize which signals to include"):
@@ -169,182 +129,37 @@ with st.expander("Customize which signals to include"):
     if selected_sig_ids:
         relevant_sig_ids = selected_sig_ids
 
-# ── Load Signal Data ───────────────────────────────────────────────────────────
+# ── Full Score Computation ──────────────────────────────────────────────────────
+# compute_full_ticker_score() is the SAME function the alert engine calls to
+# evaluate watched tickers in the background -- extracted from this page on
+# 2026-06-21 specifically so the score shown here and the score an alert
+# fires on can never silently diverge into two different numbers for the
+# same ticker (see utils/ticker_score.py's module docstring).
 with st.spinner(f"Loading signal data for {ticker_input}…"):
-    signal_scores = {}
-    signal_data   = {}
+    _full = compute_full_ticker_score(ticker_input, signal_ids=relevant_sig_ids)
 
-    for sig_id in relevant_sig_ids:
-        cfg = SIGNALS.get(sig_id)
-        if not cfg:
-            continue
-        try:
-            s = fetch_signal_series(cfg, START, END)
-            scored = score_signal(s, inverse=cfg.get("inverse", False))
-            signal_scores[sig_id] = scored
-            signal_data[sig_id]   = s
-        except Exception:
-            signal_scores[sig_id] = {"score": 50, "status": "neutral"}
-            signal_data[sig_id]   = pd.Series(dtype=float)
-
-    price_series = fetch_price(ticker_input, PRICE_START, END)
+signal_scores  = _full["signal_scores"]
+signal_data    = _full["signal_data"]
+price_series   = _full["price_series"]
+corr_info      = _full["corr_info"]
+confluence     = _full["confluence"]
+_mom_score     = _full["momentum_score"]
+_contract_vel  = _full["contract_velocity"]
+_has_contract_signal = _full["has_contract_signal"]
+_insider_score = _full["insider_score"]
+_has_insider_signal = _full["has_insider_signal"]
+_insider_tx_early = _full["insider_tx"]
+_short_interest_score = _full["short_interest_score"]
+_has_short_interest_signal = _full["has_short_interest_signal"]
+_si_df = _full["short_interest_df"]
+_thirteenf_score = _full["thirteenf_score"]
+_has_13f_signal = _full["has_13f_signal"]
+_fund_rows_13f = _full["thirteenf_fund_rows"]
 
 render_synthetic_data_banner(
     sum(1 for s in signal_data.values() if is_synthetic(s)),
     len(signal_data),
 )
-
-# ── Per-Ticker Correlation Weights + Statistical Significance ─────────────────
-# Weight each signal by its historical Pearson r with THIS ticker's price, and
-# also run an actual significance test (p < 0.05) so the page can separate
-# signals that are genuinely statistically correlated with this ticker from
-# ones that merely share a sector label. Significance is always relative to
-# one ticker's price — a signal can be significant for CCJ and not for LEU.
-corr_info: dict[str, dict] = {}   # {sig_id: {"r", "weight", "p_value", "significant", "n"}}
-
-if not price_series.empty:
-    for sig_id in relevant_sig_ids:
-        cfg = SIGNALS.get(sig_id, {})
-        lag = cfg.get("lag_weeks", 0)
-        raw_series = signal_data.get(sig_id, pd.Series(dtype=float))
-        if len(raw_series.dropna()) >= 20:
-            stat = compute_quick_correlation_stats(raw_series, price_series, lag_weeks=lag)
-        else:
-            stat = {"r": 0.0, "p_value": 1.0, "significant": False, "n": 0}
-        pcs = cfg.get("pcs", 5)
-        r = stat["r"]
-        # Weight = |r| × (PCS/10), floored at 0.15 so no valid signal is fully silenced
-        weight = max(0.15, abs(r)) * (pcs / 10.0)
-        corr_info[sig_id] = {
-            "r": r, "weight": round(weight, 4),
-            "p_value": stat["p_value"], "significant": stat["significant"], "n": stat["n"],
-        }
-else:
-    # No price data — fall back to PCS-only weights, can't test significance
-    for sig_id in relevant_sig_ids:
-        cfg = SIGNALS.get(sig_id, {})
-        pcs = cfg.get("pcs", 5)
-        corr_info[sig_id] = {
-            "r": 0.0, "weight": pcs / 10.0,
-            "p_value": 1.0, "significant": False, "n": 0,
-        }
-
-# Build the weighted confluence using per-ticker correlation weights
-corr_weights_flat = {sid: ci["weight"] for sid, ci in corr_info.items()}
-confluence = compute_confluence(signal_scores, weights=corr_weights_flat)
-
-# ── Blend in price momentum (20%) so each ticker's score is unique ─────────────
-# Even two tickers sharing the same macro signals will differ based on recent price action.
-_mom_score = 50.0
-if not price_series.empty and len(price_series.dropna()) >= 10:
-    _ps = price_series.dropna()
-    _ret_1y = (_ps.iloc[-1] / _ps.iloc[-252] - 1) if len(_ps) >= 252 else 0.0
-    _ret_1m = (_ps.iloc[-1] / _ps.iloc[-22]  - 1) if len(_ps) >= 22  else 0.0
-    _blended_ret = _ret_1y * 0.6 + _ret_1m * 0.4
-    _mom_score = float(np.clip(50.0 + _blended_ret * 83.3, 5.0, 95.0))
-
-# ── Blend in federal contract award velocity, when relevant ───────────────────
-# score_contract_velocity() already existed and was already being called below
-# for the "Federal Contract Awards" detail section -- but its result was only
-# ever used in an st.metric() display, never fed back into the Confluence
-# Score it was computed right next to. Fixed: fetch+score it here too (cached,
-# so this doesn't double the network cost) and blend it in, but ONLY when the
-# company actually has federal contract history -- most tickers (consumer
-# staples, regional banks, etc.) won't, and forcing a meaningless "no_data"
-# 50/neutral score into every ticker's confluence would just add noise.
-_contracts_df_early = fetch_federal_contracts(company_name_hint, years=2)
-_contract_vel = score_contract_velocity(_contracts_df_early)
-_has_contract_signal = _contract_vel.get("status") != "no_data" and _contract_vel.get("award_count", 0) >= 3
-
-# ── Blend in real insider buy/sell activity, when relevant ────────────────────
-# fetch_insider_transactions_detail() parses actual Form 4 XML (transaction
-# code, shares, price) -- unlike fetch_insider_trades() below, which only
-# has filing metadata. score_insider_activity() scores on insider COUNT and
-# clustering (see its docstring for why, not dollar value). Only blended in
-# when there's at least one real open-market P/S transaction on record --
-# most tickers in a 180-day window won't have any, and a "no_data" 50 would
-# just add noise.
-_insider_tx_early = fetch_insider_transactions_detail(ticker_input, days=180)
-_insider_score = score_insider_activity(_insider_tx_early)
-_has_insider_signal = _insider_score.get("status") != "no_data"
-
-# ── Blend in real short interest trend, when relevant ──────────────────────────
-# fetch_short_interest() pulls real FINRA consolidated short interest (see
-# its docstring for the verification story -- bi-monthly, exchange-listed).
-# Only blended in when there are at least 2 reporting periods on record
-# (need at least one period-over-period comparison to read a trend from).
-_short_interest_df_early = fetch_short_interest(ticker_input, years=1.5)
-_short_interest_score = score_short_interest(_short_interest_df_early)
-_has_short_interest_signal = _short_interest_score.get("status") != "no_data" and _short_interest_score.get("periods", 0) >= 2
-
-# ── Blend in real curated-fund 13F institutional positioning, when relevant ───
-# fetch_13f_holdings() pulls real Form 13F filings for a small, hand-verified
-# whitelist of funds (see utils/config.CURATED_FUNDS and its docstring for
-# why this is a whitelist, not algorithmic CUSIP/name matching -- 13F filings
-# report holdings by CUSIP + abbreviated company name, never by ticker).
-# Only blended in when at least one curated fund actually holds (or held
-# last quarter) this ticker -- true for a small minority of tickers, by
-# design, since the whitelist trades coverage for verified correctness.
-_ticker_cusips = {c for c, t in THIRTEENF_CUSIP_TO_TICKER.items() if t == ticker_input.upper()}
-_fund_rows_13f = []
-if _ticker_cusips:
-    _direction_sign = {"long": 1, "short": -1}
-    for _fund in CURATED_FUNDS:
-        _fund_df = fetch_13f_holdings(_fund["cik"], _fund["name"])
-        if _fund_df.empty:
-            continue
-        _periods = sorted(_fund_df["period"].dropna().unique(), reverse=True)
-        if not _periods:
-            continue
-        _latest_period, _prior_period = _periods[0], (_periods[1] if len(_periods) > 1 else None)
-
-        def _signed_shares(_period):
-            _rows = _fund_df[(_fund_df["period"] == _period) & (_fund_df["cusip"].isin(_ticker_cusips))]
-            if _rows.empty:
-                return 0.0
-            return float((_rows["shares"] * _rows["direction"].map(_direction_sign)).sum())
-
-        _latest_signed = _signed_shares(_latest_period)
-        _prior_signed = _signed_shares(_prior_period) if _prior_period is not None else None
-        if _latest_signed == 0.0 and not _prior_signed:
-            continue  # this fund never held this ticker in either available period
-        _fund_rows_13f.append({
-            "fund": _fund["name"], "style": _fund["style"],
-            "latest_shares": _latest_signed, "latest_period": _latest_period,
-            "prior_shares": _prior_signed, "prior_period": _prior_period,
-        })
-
-_thirteenf_score = score_13f_positioning(_fund_rows_13f)
-_has_13f_signal = _thirteenf_score.get("status") != "no_data"
-
-# Generic blend: macro + momentum always present (80/20 base split); each
-# active optional signal takes a fixed 12% slice, with macro+momentum's
-# combined weight shrinking proportionally to make room -- scales cleanly
-# as more optional signals are added, rather than hardcoding a weight
-# combination per possible count of active signals.
-_optional_signals = [
-    (_has_contract_signal, _contract_vel.get("score") if _has_contract_signal else None),
-    (_has_insider_signal, _insider_score.get("score") if _has_insider_signal else None),
-    (_has_short_interest_signal, _short_interest_score.get("score") if _has_short_interest_signal else None),
-    (_has_13f_signal, _thirteenf_score.get("score") if _has_13f_signal else None),
-]
-_active_optional = [score for active, score in _optional_signals if active]
-_n_optional = len(_active_optional)
-_OPTIONAL_SLICE = 0.12
-_remaining = 1.0 - _OPTIONAL_SLICE * _n_optional
-
-_macro_score = confluence["overall_score"]
-_final_score = _macro_score * (_remaining * 0.80) + _mom_score * (_remaining * 0.20)
-for _opt_score in _active_optional:
-    _final_score += _opt_score * _OPTIONAL_SLICE
-confluence["overall_score"] = round(_final_score, 1)
-
-# Recompute case from blended score
-if _final_score >= 65:
-    confluence["case"] = "BULL"
-elif _final_score <= 35:
-    confluence["case"] = "BEAR"
-# (neutral/mixed stays from macro confluence)
 
 # ── Confluence Score Banner ────────────────────────────────────────────────────
 score_val  = confluence["overall_score"]
@@ -1339,7 +1154,6 @@ with st.expander("How short interest works and what this score means"):
     securities, not just OTC, verified directly against real data before this was built.
     """)
 
-_si_df = fetch_short_interest(ticker_input, years=1.5)
 if _has_short_interest_signal:
     si_color = "#1B5E20" if _short_interest_score["status"] == "bullish" else ("#7B1010" if _short_interest_score["status"] == "bearish" else "#8B7355")
     s1, s2, s3, s4 = st.columns(4)
