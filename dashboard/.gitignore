@@ -19,7 +19,14 @@ venv/
 # Persistent app data (watchlist/alerts) lives in ~/.unstructured_alpha/,
 # deliberately outside this project folder (see utils/alerts_db.py's module
 # docstring — writing a frequently-updated SQLite file inside a cloud-synced
-# project folder causes real disk I/O errors) — nothing to ignore here.
+# project folder causes real disk I/O errors). Defensive rule below in case
+# an old DB file (from before that fix) or a future regression ever lands
+# back inside this folder — it must never be committed.
+/data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # OS / editor noise
 .DS_Store
