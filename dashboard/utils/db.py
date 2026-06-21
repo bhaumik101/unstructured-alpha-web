@@ -35,7 +35,7 @@ import os
 
 import streamlit as st
 from sqlalchemy import (
-    create_engine, MetaData, Table, Column, Integer, String, Float, Text,
+    create_engine, inspect, text, MetaData, Table, Column, Integer, String, Float, Text, Boolean,
     ForeignKey, UniqueConstraint, select, insert, update, delete, func,
 )
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -74,6 +74,12 @@ users = Table(
     Column("email", String(255), nullable=False, unique=True),
     Column("password_hash", Text, nullable=False),
     Column("created_at", String(64), nullable=False),
+    # Email verification (added 2026-06-21, after accounts already existed
+    # in the running local DB -- see _migrate_users_table() below for why
+    # this needs an explicit ALTER TABLE step, not just create_all()).
+    Column("email_verified", Boolean, nullable=False, server_default="0"),
+    Column("verification_code_hash", Text),
+    Column("verification_code_expires_at", String(64)),
 )
 
 watchlist = Table(
@@ -117,9 +123,51 @@ alerts = Table(
 )
 
 
+def _migrate_users_table() -> None:
+    """
+    metadata.create_all() only creates tables that don't exist yet -- it
+    does NOT add new columns to a table that's already there. The
+    email_verified / verification_code_* columns were added to the `users`
+    Table definition above AFTER real accounts already existed in the
+    running local database (and will exist in production once real users
+    sign up there too), so a plain create_all() would silently leave those
+    columns missing on every already-deployed database, and every
+    is_verified check would then KeyError instead of working.
+
+    This runs a one-time, idempotent ALTER TABLE for any column present in
+    the Python Table definition but missing from the real database, then
+    backfills existing rows: any account that existed BEFORE email
+    verification was added is grandfathered in as already verified --
+    locking out every pre-existing account the next time they log in,
+    just because a feature was added after they signed up, would be a
+    real, self-inflicted regression.
+    """
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return  # brand new database -- create_all() already created this table with every column
+
+    existing_cols = {c["name"] for c in inspector.get_columns("users")}
+    new_cols = [c for c in users.columns if c.name not in existing_cols]
+    if not new_cols:
+        return
+
+    bool_type = "BOOLEAN" if not IS_SQLITE else "INTEGER"
+    with engine.begin() as conn:
+        for col in new_cols:
+            if col.name == "email_verified":
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} {bool_type} DEFAULT 0"))
+            else:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} TEXT"))
+        if any(c.name == "email_verified" for c in new_cols):
+            # Grandfather in every account that existed before this column did.
+            conn.execute(update(users).values(email_verified=True))
+
+
 def init_db() -> None:
-    """Create every table if it doesn't already exist. Safe to call on every page load."""
+    """Create every table if it doesn't already exist, then apply any
+    pending column migrations. Safe to call on every page load."""
     metadata.create_all(engine)
+    _migrate_users_table()
 
 
 def upsert_stmt(table: Table, index_elements: list):

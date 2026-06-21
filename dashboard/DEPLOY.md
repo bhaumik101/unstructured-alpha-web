@@ -45,16 +45,52 @@ Your app will be live at:
 https://YOUR_USERNAME-unstructured-alpha-dashboard-app-XXXX.streamlit.app
 ```
 
-### Step 3 — Add API Keys (for real data)
+### Step 3 — Set up a hosted database (required for accounts)
+
+Streamlit Community Cloud's filesystem is **not** persistent across redeploys/restarts —
+every account, watchlist, and alert would vanish the next time the app restarts if it lived
+on local disk there. A free hosted Postgres database fixes this. [Neon](https://neon.tech)
+and [Supabase](https://supabase.com) both have generous free tiers; either works the same way:
+
+1. Create an account at your chosen provider (this is a step only you can do — account
+   creation isn't something this assistant can do on your behalf).
+2. Create a new Postgres project/database.
+3. Copy the connection string it gives you (looks like
+   `postgresql://user:password@host/dbname`).
+
+### Step 4 — Set up email verification (optional, but recommended)
+
+New accounts get a 6-digit code emailed via [Resend](https://resend.com) before they can log
+in. Without this configured, signup still works but the verification email silently fails to
+send (the app tells the user this and lets them retry once it's fixed) — meaning nobody can
+actually finish signing up. To enable real verification emails:
+
+1. Create a free Resend account (3,000 emails/month free tier).
+2. Get your API key from the Resend dashboard.
+3. For real signups (not just testing), verify a sending domain in Resend and use an address
+   on that domain as `RESEND_FROM_EMAIL` below — Resend's default test sender
+   (`onboarding@resend.dev`) only delivers to the email address on your own Resend account,
+   not to arbitrary recipients.
+
+### Step 5 — Add secrets
 
 In Streamlit Cloud dashboard → **⋮ Settings → Secrets**:
 
 ```toml
+DATABASE_URL = "postgresql://user:password@host/dbname"
+RESEND_API_KEY = "re_your_key_here"
+RESEND_FROM_EMAIL = "Unstructured Alpha <noreply@yourdomain.com>"
+
 FRED_API_KEY = "your_key_here"
+EIA_API_KEY = "your_key_here"
 ```
 
 Get a free FRED API key at: https://fred.stlouisfed.org/docs/api/api_key.html
-(Takes 2 minutes, completely free, no credit card)
+Get a free EIA API key at: https://www.eia.gov/opendata/register.php
+(Both take about 2 minutes, completely free, no credit card)
+
+Locally, none of these are required — the app falls back to a local SQLite database (for
+accounts/watchlists) and synthetic demo data (for FRED/EIA signals) when they're not set.
 
 ---
 
@@ -184,5 +220,7 @@ Or just link to it: *"Access the live dashboard at dashboard.unstructuredalpha.c
 | EIA API key | **Free** |
 | openFDA | **Free** |
 | FINRA API | **Free** |
+| Hosted Postgres (Neon/Supabase, accounts) | **Free** tier (low usage) |
+| Resend (verification emails) | **Free** tier (3,000/mo) |
 | Custom domain | ~$10–15/year |
-| **Total** | **~$0–15/year** |
+| **Total** | **~$0–15/year**, until usage outgrows the free tiers above |
