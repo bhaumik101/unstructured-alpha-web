@@ -8,3 +8,4 @@ requests>=2.31.0
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 bcrypt>=4.0.0
+streamlit-cookies-manager-v2>=0.3.1

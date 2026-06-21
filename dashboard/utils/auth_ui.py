@@ -8,21 +8,40 @@
 # every page require a verified account, not just the Alerts page where
 # per-user data actually lives.
 #
-# st.session_state["user"] is the source of truth for "who's logged in" --
-# Streamlit session_state lives only for the current browser session/tab,
-# so logging in does NOT persist across a real browser restart (see
-# utils/auth.py's module docstring for why a "remember me" cookie isn't
-# built into this version). st.session_state["pending_verification_email"]
+# st.session_state["user"] is the source of truth for "who's logged in"
+# WITHIN the current browser tab session -- but that alone resets on
+# every browser restart, which is the exact "log in over and over" problem
+# the "remember me" cookie below fixes. Streamlit itself still has no
+# built-in cookie API (st.login()/st.user are OIDC-only, delegating to an
+# external identity provider like Google -- a different mechanism
+# entirely from this app's own email+password accounts, not a drop-in fit
+# here), so this uses the third-party streamlit-cookies-manager-v2
+# component instead. st.session_state["pending_verification_email"]
 # tracks an account that exists but hasn't entered its emailed code yet --
 # set right after signup, or when login() reports EmailNotVerifiedError.
+#
+# Cookie component lifecycle, the part that's easy to get wrong: the
+# CookieManager's underlying browser component needs one render round-trip
+# before cookies.ready() is True. require_login() checks ready() BEFORE
+# checking for a remember-me cookie and calls st.stop() if not ready yet --
+# skipping that check would mean treating "cookie data hasn't arrived yet"
+# the same as "no cookie exists," which would show the login form for a
+# split second to someone who's actually already remembered, on every
+# single fresh page load.
 
 import streamlit as st
+from streamlit_cookies_manager import CookieManager
 
-from utils.auth import signup, login, verify_email, resend_verification_code, AuthError, EmailNotVerifiedError
+from utils.auth import (
+    signup, login, verify_email, resend_verification_code, AuthError, EmailNotVerifiedError,
+    issue_remember_token, verify_remember_token, revoke_remember_token,
+)
 from utils.email import EmailSendError
 
+_REMEMBER_COOKIE_NAME = "ua_remember_token"
 
-def _render_verification_form() -> None:
+
+def _render_verification_form(cookies: CookieManager) -> None:
     email = st.session_state["pending_verification_email"]
 
     # A message queued by the signup handler before routing here (e.g. "the
@@ -49,6 +68,15 @@ def _render_verification_form() -> None:
             try:
                 user = verify_email(email, code)
                 st.session_state["user"] = user
+                # Auto-remember right after verification, no checkbox shown
+                # here -- the device that just typed in the emailed code is,
+                # by construction, the account owner's own device, so
+                # defaulting to "remember this device" is the helpful
+                # choice rather than logging them out again moments later.
+                token = issue_remember_token(user["id"])
+                cookies[_REMEMBER_COOKIE_NAME] = token
+                cookies.save()
+                st.session_state["_remember_token"] = token
                 st.session_state.pop("pending_verification_email", None)
                 st.rerun()
             except AuthError as e:
@@ -75,9 +103,30 @@ def require_login() -> dict:
     (or the email-verification step, if mid-signup) and calls st.stop() --
     this function never returns None; it either returns a real, verified
     user or halts the script.
+
+    Checks, in order: (1) already logged in this tab session -- the fast
+    path, no cookie component touched at all; (2) a valid "remember me"
+    cookie from a past session -- auto-logs in with no form shown; (3)
+    falls through to the actual login/signup form.
     """
     if "user" in st.session_state:
         return st.session_state["user"]
+
+    cookies = CookieManager()
+    if not cookies.ready():
+        st.stop()
+
+    remember_token = cookies.get(_REMEMBER_COOKIE_NAME)
+    if remember_token:
+        remembered_user = verify_remember_token(remember_token)
+        if remembered_user:
+            st.session_state["user"] = remembered_user
+            st.session_state["_remember_token"] = remember_token
+            return remembered_user
+        # Stale, expired, or already-revoked -- clear it so this same dead
+        # cookie isn't re-checked (and re-found invalid) on every page load.
+        del cookies[_REMEMBER_COOKIE_NAME]
+        cookies.save()
 
     st.markdown("""
     <div style="text-align:center; margin-top:40px; margin-bottom:20px;">
@@ -93,7 +142,7 @@ def require_login() -> dict:
     _, center, _ = st.columns([1, 2, 1])
     with center:
         if "pending_verification_email" in st.session_state:
-            _render_verification_form()
+            _render_verification_form(cookies)
             st.stop()
 
         tab_login, tab_signup = st.tabs(["Log In", "Create Account"])
@@ -102,6 +151,9 @@ def require_login() -> dict:
             with st.form("login_form"):
                 email = st.text_input("Email", key="login_email")
                 password = st.text_input("Password", type="password", key="login_password")
+                remember_me = st.checkbox(
+                    "Remember me on this device", value=True, key="login_remember_me",
+                )
                 submitted = st.form_submit_button("Log In", type="primary", use_container_width=True)
             if submitted:
                 if not email or not password:
@@ -110,6 +162,11 @@ def require_login() -> dict:
                     try:
                         user = login(email, password)
                         st.session_state["user"] = user
+                        if remember_me:
+                            token = issue_remember_token(user["id"])
+                            cookies[_REMEMBER_COOKIE_NAME] = token
+                            cookies.save()
+                            st.session_state["_remember_token"] = token
                         st.rerun()
                     except EmailNotVerifiedError:
                         st.session_state["pending_verification_email"] = email.strip().lower()
@@ -152,13 +209,28 @@ def require_login() -> dict:
                         st.error(str(e))
 
         st.caption(
-            "Note: you'll need to log in again each time you start a new browser session — "
-            "there's no \"remember me\" yet."
+            "\"Remember me\" keeps you logged in on this device for 30 days. "
+            "Uncheck it on a shared or public computer."
         )
 
     st.stop()
 
 
 def logout() -> None:
-    """Clear the current session's login. Caller is responsible for st.rerun()."""
+    """
+    Clear the current session's login, and revoke + clear any "remember
+    me" cookie too -- so logging out actually ends the persistent session,
+    not just the in-tab one. The DB-side revoke always runs regardless of
+    cookie-component readiness (it's a plain DB call with no browser
+    round-trip dependency); the browser-side cookie deletion is
+    best-effort if the component isn't ready, since the token is already
+    dead server-side either way. Caller is responsible for st.rerun().
+    """
+    token = st.session_state.pop("_remember_token", None)
+    if token:
+        revoke_remember_token(token)
+        cookies = CookieManager()
+        if cookies.ready():
+            del cookies[_REMEMBER_COOKIE_NAME]
+            cookies.save()
     st.session_state.pop("user", None)

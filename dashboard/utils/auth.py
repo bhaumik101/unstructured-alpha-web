@@ -19,29 +19,41 @@
 # an offline hash crack), so a fast hash is the right tool here, not a
 # slow one applied out of habit.
 #
-# Known limitation, stated plainly: there is no "remember me" / persistent
-# session across browser restarts in this version. Streamlit has no
-# built-in cookie API, so a logged-in session lives only in
-# st.session_state, which is cleared when the browser tab/session ends --
-# every new visit requires logging in again. Also stated plainly: no
-# password reset flow and no rate-limiting on login/code-verification
-# attempts -- real gaps for a production system, the most obvious next
-# hardening steps if this app gets real outside users.
+# "Remember me" persistent login (added 2026-06-21, per explicit user
+# request, via utils/auth_ui.py + the streamlit-cookies-manager-v2
+# component -- Streamlit itself still has no built-in cookie API, so this
+# is bolted on with a third-party browser-cookie component, not a core
+# Streamlit feature). issue_remember_token()/verify_remember_token()/
+# revoke_remember_token() below implement it: a high-entropy random token
+# goes in the user's browser cookie; only its SHA-256 hash is ever stored
+# server-side (utils/db.py's remember_tokens table), so a database leak
+# alone can't be used to forge a session -- the same reasoning already
+# applied to verification_code_hash. Stated plainly, this is NOT
+# token-rotation-on-each-use (a real refresh-token system would reissue a
+# new token every time the old one is redeemed, limiting how long a
+# stolen cookie value stays useful) -- a fixed-expiry, non-rotating token
+# is a deliberate simplification for this project's scale, not an
+# oversight. Also stated plainly: still no password reset flow and no
+# rate-limiting on login/code-verification attempts -- real gaps for a
+# production system, the most obvious next hardening steps if this app
+# gets real outside users.
 
 import hashlib
 import random
 import re
+import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
 from sqlalchemy import select
 
 from utils import db, email as email_module
-from utils.db import users
+from utils.db import users, remember_tokens
 from utils.email import EmailSendError
 
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _CODE_VALID_MINUTES = 15
+_REMEMBER_ME_DAYS = 30
 
 
 def _now_iso() -> str:
@@ -208,3 +220,57 @@ def login(email: str, password: str) -> dict:
         raise EmailNotVerifiedError("Please verify your email before logging in.")
 
     return {"id": row["id"], "email": row["email"]}
+
+
+def issue_remember_token(user_id: int) -> str:
+    """
+    Generate a fresh "remember me" token for user_id, store its hash, and
+    return the RAW token -- the caller (utils/auth_ui.py) puts this raw
+    value in a browser cookie. secrets.token_urlsafe(32) gives 256 bits of
+    randomness, the same order of magnitude as a bcrypt hash itself --
+    intentionally overkill for guessing resistance, since the actual
+    constraint here is "don't make this the weak link," not minimizing
+    bytes. Reuses _hash_code()'s SHA-256-hexdigest logic: hashing a random
+    token and hashing a 6-digit code are the same operation, just applied
+    to different kinds of secret.
+    """
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=_REMEMBER_ME_DAYS)).isoformat()
+    with db.engine.begin() as conn:
+        conn.execute(
+            remember_tokens.insert().values(
+                user_id=user_id, token_hash=_hash_code(token), created_at=_now_iso(), expires_at=expires_at,
+            )
+        )
+    return token
+
+
+def verify_remember_token(token: str) -> dict | None:
+    """
+    Look up a raw token (as read back from the browser cookie) by its
+    hash. Returns the user dict ({"id", "email"}) if it matches a
+    non-expired row, else None -- callers treat None as "fall through to
+    the normal login form," not as an error, since an expired or
+    already-revoked cookie is an entirely expected, non-exceptional case.
+    """
+    with db.engine.begin() as conn:
+        row = conn.execute(
+            select(remember_tokens.c.user_id, remember_tokens.c.expires_at, users.c.email)
+            .join(users, users.c.id == remember_tokens.c.user_id)
+            .where(remember_tokens.c.token_hash == _hash_code(token))
+        ).mappings().first()
+
+    if row is None:
+        return None
+    if datetime.now(timezone.utc) > datetime.fromisoformat(row["expires_at"]):
+        return None
+
+    return {"id": row["user_id"], "email": row["email"]}
+
+
+def revoke_remember_token(token: str) -> None:
+    """Delete a remember-me token by its raw value (called at logout).
+    Deleting by hash, not by user_id, so logging out in one browser
+    doesn't invalidate a "remember me" session left active in another."""
+    with db.engine.begin() as conn:
+        conn.execute(remember_tokens.delete().where(remember_tokens.c.token_hash == _hash_code(token)))

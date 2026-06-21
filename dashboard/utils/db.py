@@ -139,6 +139,22 @@ alerts = Table(
     Column("is_read", Integer, nullable=False, server_default="0"),
 )
 
+# "Remember me" persistent login (added 2026-06-21, per explicit user
+# request). Only the SHA-256 HASH of the token lives here -- same
+# reasoning as verification_code_hash above: the raw token is the actual
+# bearer secret (it lives in the user's browser cookie), so a database
+# leak alone must not be enough to forge a session. A brand-new table, so
+# plain create_all() is sufficient -- no ALTER TABLE migration needed
+# the way users.email_verified needed one.
+remember_tokens = Table(
+    "remember_tokens", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("token_hash", String(64), nullable=False, unique=True),
+    Column("created_at", String(64), nullable=False),
+    Column("expires_at", String(64), nullable=False),
+)
+
 
 def _migrate_users_table() -> None:
     """

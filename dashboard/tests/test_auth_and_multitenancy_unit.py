@@ -299,3 +299,88 @@ def test_remove_from_watchlist_only_affects_that_user():
 
     assert alerts_db.get_watchlist(user1["id"]) == []
     assert len(alerts_db.get_watchlist(user2["id"])) == 1
+
+
+# ── "remember me" persistent login ──────────────────────────────────────────
+#
+# These three functions (issue/verify/revoke) are pure DB operations -- no
+# Streamlit, no browser, no cookie component involved -- so they're fully
+# unit-testable here. What CANNOT be tested this way, and isn't tested
+# anywhere in this suite, is the actual browser cookie round-trip: the
+# streamlit-cookies-manager-v2 component's cookies.ready() requires a real
+# browser executing its JS side to ever become True. Under AppTest (no real
+# browser attached), require_login()'s not-logged-in path will always see
+# cookies.ready() == False and call st.stop() -- meaning AppTest can confirm
+# that path doesn't crash, but tells you NOTHING about whether a real
+# "remember me" cookie actually gets set, read back, or survives a browser
+# restart. That part requires checking against a live, deployed app in a
+# real browser, not this suite. Same category of blind spot as the
+# st.fragment one documented in conftest.py's module docstring.
+
+def test_issue_remember_token_returns_a_usable_token_and_verify_succeeds():
+    user = auth.signup("remember1@example.com", "password123")
+    auth.verify_email("remember1@example.com", _latest_code("remember1@example.com"))
+
+    token = auth.issue_remember_token(user["id"])
+    assert isinstance(token, str) and len(token) > 20  # secrets.token_urlsafe(32) -- a real, long token
+
+    verified = auth.verify_remember_token(token)
+    assert verified == {"id": user["id"], "email": "remember1@example.com"}
+
+
+def test_verify_remember_token_rejects_garbage_token():
+    assert auth.verify_remember_token("not-a-real-token-at-all") is None
+
+
+def test_verify_remember_token_rejects_expired_token():
+    user = auth.signup("remember2@example.com", "password123")
+    auth.verify_email("remember2@example.com", _latest_code("remember2@example.com"))
+    token = auth.issue_remember_token(user["id"])
+
+    # Force the stored expiry into the past, simulating 30+ days passing.
+    with db.engine.begin() as conn:
+        from sqlalchemy import select
+        from datetime import datetime, timedelta, timezone
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        conn.execute(db.remember_tokens.update().where(
+            db.remember_tokens.c.token_hash == auth._hash_code(token)
+        ).values(expires_at=past))
+
+    assert auth.verify_remember_token(token) is None
+
+
+def test_revoke_remember_token_invalidates_it():
+    user = auth.signup("remember3@example.com", "password123")
+    auth.verify_email("remember3@example.com", _latest_code("remember3@example.com"))
+    token = auth.issue_remember_token(user["id"])
+    assert auth.verify_remember_token(token) is not None  # works before revoking
+
+    auth.revoke_remember_token(token)
+
+    assert auth.verify_remember_token(token) is None  # dead after revoking
+
+
+def test_revoke_remember_token_is_safe_to_call_on_unknown_token():
+    """Logging out with no remember-me cookie ever set must not raise --
+    revoke_remember_token() is called unconditionally by utils/auth_ui.py's
+    logout() whenever a token happens to be in session_state."""
+    auth.revoke_remember_token("a-token-that-was-never-issued")  # no exception
+
+
+def test_each_login_can_issue_an_independent_remember_token():
+    """Two separate 'remember me' tokens for the same user (e.g. one
+    per device) must both work independently -- logging out one device
+    must not be implemented as "delete by user_id", which would silently
+    kill the other device's session too (see revoke_remember_token's
+    docstring: it deletes by hash, specifically to avoid this)."""
+    user = auth.signup("remember4@example.com", "password123")
+    auth.verify_email("remember4@example.com", _latest_code("remember4@example.com"))
+
+    token_device_a = auth.issue_remember_token(user["id"])
+    token_device_b = auth.issue_remember_token(user["id"])
+    assert token_device_a != token_device_b
+
+    auth.revoke_remember_token(token_device_a)
+
+    assert auth.verify_remember_token(token_device_a) is None
+    assert auth.verify_remember_token(token_device_b) is not None

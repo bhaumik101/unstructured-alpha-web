@@ -25,6 +25,19 @@ trusting it, the same way it had to be caught here. Currently two fragments
 exist in this codebase: Ticker Deep Dive's and Market Overview's live-price
 auto-refresh. If you add another, verify it live; pytest passing is not
 evidence it works.
+
+KNOWN BLIND SPOT — the "remember me" cookie round-trip is NOT exercised by
+AppTest, for the same underlying reason: streamlit-cookies-manager-v2's
+CookieManager.ready() only becomes True after a real browser executes the
+component's JS side and reports back. AppTest has no browser attached, so
+cookies.ready() is always False there -- require_login()'s not-logged-in
+path will reliably call st.stop() in tests without ever reaching the
+remember-token check. tests/test_auth_and_multitenancy_unit.py unit-tests
+issue_remember_token()/verify_remember_token()/revoke_remember_token()
+directly (pure DB functions, no Streamlit involved), which is real
+coverage -- but whether a cookie actually gets set in a browser, survives
+a restart, and gets read back correctly has to be checked against a live,
+deployed app in a real browser; this suite cannot confirm it.
 """
 
 import os

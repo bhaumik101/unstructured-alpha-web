@@ -36,3 +36,30 @@ def test_about_page_backtest_button_runs_without_exception(app_test):
     assert not at.exception, (
         "Backtest button raised: " + "\n".join(str(e) for e in at.exception)
     )
+
+
+def test_not_logged_in_path_renders_without_exception():
+    """
+    Every test above uses the app_test fixture, which injects a fake
+    logged-in user into session_state BEFORE the first .run() -- meaning
+    none of them ever exercise require_login()'s actual not-logged-in
+    branch, the one that now also instantiates a CookieManager() for the
+    "remember me" check (utils/auth_ui.py). This test runs app.py fresh,
+    with no session_state injected at all, specifically to confirm that
+    branch doesn't raise now that the cookie component is wired in.
+
+    What this does NOT confirm: AppTest has no real browser attached, so
+    cookies.ready() is always False here, and require_login() calls
+    st.stop() immediately after that check -- this test only proves the
+    script doesn't crash before reaching that point. It says nothing
+    about whether a real "remember me" cookie round-trip works; that
+    requires a live browser (see tests/conftest.py's module docstring).
+    """
+    from streamlit.testing.v1 import AppTest
+    from tests.conftest import DASHBOARD_ROOT
+
+    at = AppTest.from_file(str(DASHBOARD_ROOT / "app.py"), default_timeout=60)
+    at.run()
+    assert not at.exception, (
+        "Not-logged-in path raised: " + "\n".join(str(e) for e in at.exception)
+    )
