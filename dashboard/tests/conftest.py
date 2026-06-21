@@ -50,6 +50,7 @@ ROUTED_PAGES = [
     "pages/6_Stock_Screener.py",
     "pages/8_About.py",
     "pages/9_AI_Assistant.py",
+    "pages/10_Alerts.py",
 ]
 
 # Pages that exist as files but are intentionally retired redirect stubs,

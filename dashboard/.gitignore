@@ -16,6 +16,11 @@ venv/
 # Streamlit
 .streamlit/cache/
 
+# Persistent app data (watchlist/alerts) lives in ~/.unstructured_alpha/,
+# deliberately outside this project folder (see utils/alerts_db.py's module
+# docstring — writing a frequently-updated SQLite file inside a cloud-synced
+# project folder causes real disk I/O errors) — nothing to ignore here.
+
 # OS / editor noise
 .DS_Store
 .vscode/

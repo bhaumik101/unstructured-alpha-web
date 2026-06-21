@@ -26,6 +26,9 @@ pg = st.navigation(
             st.Page("pages/5_Market_Overview.py",  title="Market Overview"),
             st.Page("pages/6_Stock_Screener.py",   title="Stock Screener"),
         ],
+        "Alerts": [
+            st.Page("pages/10_Alerts.py",           title="Alerts"),
+        ],
         "Info": [
             st.Page("pages/8_About.py",            title="About"),
             st.Page("pages/9_AI_Assistant.py",     title="AI Assistant"),
