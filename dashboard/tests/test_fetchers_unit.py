@@ -230,34 +230,28 @@ def test_fetch_short_interest_empty_on_request_exception():
 # ── 13F institutional holdings (curated fund whitelist) ───────────────────────
 #
 # All fixture shapes below are simplified but structurally exact copies of
-# real responses fetched live, 2026-06-21, from Berkshire Hathaway's actual
-# CIK/filings: the atom feed (browse-edgar, type=13F-HR), a filing's
-# /index.json, primary_doc.xml's periodOfReport, and a real infoTable XML
-# entry. The 13F-HR/A amendment entry in the atom fixture is there
+# real responses fetched live from Berkshire Hathaway's actual CIK/filings:
+# data.sec.gov/submissions/CIK....json (filing history with reportDate
+# already included), a filing's /index.json, and a real infoTable XML entry.
+# The 13F-HR/A amendment entry in the submissions fixture is there
 # specifically to verify it gets excluded -- confirmed live that Berkshire
 # files those (e.g. accession 0000950123-25-008361) and they must not be
 # treated as a distinct reporting period.
-THIRTEENF_ATOM_FIXTURE = b"""<?xml version="1.0" encoding="ISO-8859-1"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
-  <entry>
-    <category term="13F-HR" label="form type"/>
-    <content type="text/xml">
-      <accession-number>0001193125-26-226661</accession-number>
-    </content>
-  </entry>
-  <entry>
-    <category term="13F-HR/A" label="form type"/>
-    <content type="text/xml">
-      <accession-number>0000950123-25-008361</accession-number>
-    </content>
-  </entry>
-  <entry>
-    <category term="13F-HR" label="form type"/>
-    <content type="text/xml">
-      <accession-number>0000950123-25-008343</accession-number>
-    </content>
-  </entry>
-</feed>"""
+#
+# This endpoint replaced an earlier version that used the legacy
+# cgi-bin/browse-edgar atom feed plus a separate primary_doc.xml fetch per
+# filing -- switched after that atom feed intermittently returned empty
+# responses on valid CIK lookups during live testing (data.sec.gov returned
+# correct results for the exact same CIKs moments later).
+THIRTEENF_SUBMISSIONS_FIXTURE = {
+    "filings": {
+        "recent": {
+            "form": ["13F-HR", "13F-HR/A", "13F-HR"],
+            "accessionNumber": ["0001193125-26-226661", "0000950123-25-008361", "0000950123-25-008343"],
+            "reportDate": ["2026-03-31", "2025-06-30", "2025-06-30"],
+        }
+    }
+}
 
 THIRTEENF_INDEX_JSON_FIXTURE_1 = {
     "directory": {"item": [
@@ -273,15 +267,6 @@ THIRTEENF_INDEX_JSON_FIXTURE_2 = {
         {"name": "infotable.xml"},
     ]}
 }
-
-THIRTEENF_PRIMARY_DOC_FIXTURE_1 = b"""<?xml version="1.0" encoding="UTF-8"?>
-<edgarSubmission xmlns="http://www.sec.gov/edgar/thirteenffiler">
-  <headerData><filerInfo><periodOfReport>03-31-2026</periodOfReport></filerInfo></headerData>
-</edgarSubmission>"""
-THIRTEENF_PRIMARY_DOC_FIXTURE_2 = b"""<?xml version="1.0" encoding="UTF-8"?>
-<edgarSubmission xmlns="http://www.sec.gov/edgar/thirteenffiler">
-  <headerData><filerInfo><periodOfReport>12-31-2025</periodOfReport></filerInfo></headerData>
-</edgarSubmission>"""
 
 # Real shape confirmed live: a plain long stock position (no putCall field)
 # and a Put options position (Scion's actual NVIDIA holding) in the same
@@ -322,16 +307,14 @@ def _xml_mock(content_bytes):
 
 def test_fetch_13f_holdings_excludes_amendments_and_parses_put_options():
     fetch_13f_holdings.clear()
-    atom_resp = _xml_mock(THIRTEENF_ATOM_FIXTURE)
+    sub_resp = _mock_response(THIRTEENF_SUBMISSIONS_FIXTURE)
     idx1 = _mock_response(THIRTEENF_INDEX_JSON_FIXTURE_1)
-    pdoc1 = _xml_mock(THIRTEENF_PRIMARY_DOC_FIXTURE_1)
     tbl1 = _xml_mock(THIRTEENF_INFOTABLE_FIXTURE_1)
     idx2 = _mock_response(THIRTEENF_INDEX_JSON_FIXTURE_2)
-    pdoc2 = _xml_mock(THIRTEENF_PRIMARY_DOC_FIXTURE_2)
     tbl2 = _xml_mock(THIRTEENF_INFOTABLE_FIXTURE_2)
 
     with patch("utils.fetchers.requests.get",
-               side_effect=_mock_get_sequence(atom_resp, idx1, pdoc1, tbl1, idx2, pdoc2, tbl2)):
+               side_effect=_mock_get_sequence(sub_resp, idx1, tbl1, idx2, tbl2)):
         df = fetch_13f_holdings("1067983", "Berkshire Hathaway", max_filings=2)
 
     # Only 2 filing periods worth of rows (3 infoTable rows total across both

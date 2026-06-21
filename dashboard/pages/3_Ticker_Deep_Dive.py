@@ -1366,7 +1366,8 @@ st.divider()
 st.markdown("### 13F Institutional Positioning")
 
 with st.expander("What is a 13F filing, and why is this section limited to a few funds?"):
-    st.markdown("""
+    _curated_funds_list_str = ", ".join(f"{_f['name']} ({_f['style'].lower()})" for _f in CURATED_FUNDS)
+    st.markdown(f"""
     **A 13F is a quarterly disclosure the SEC requires** from any institutional investment manager
     overseeing more than $100 million in U.S. equities — hedge funds, mutual funds, pension funds,
     and similar. It lists every U.S.-listed stock (and certain options) the manager held at quarter-end.
@@ -1383,10 +1384,9 @@ with st.expander("What is a 13F filing, and why is this section limited to a few
     small, well-known set of funds' actual filings against its own ticker list, fund by fund, position
     by position. That trades breadth for being right.
 
-    **Curated funds currently tracked:** Berkshire Hathaway (value/conglomerate), Pershing Square
-    Capital Management (concentrated activist), and Scion Asset Management — Michael Burry's fund
-    (contrarian). These were chosen because their filings are small and concentrated enough to fully
-    read and verify by hand, not because they're "the best" funds to follow.
+    **Curated funds currently tracked:** {_curated_funds_list_str}. These were chosen because their
+    filings are small and concentrated enough to fully read and verify by hand, not because they're
+    "the best" funds to follow.
 
     **A note on Put and Call options:** some 13F lines aren't plain stock ownership — they're options.
     A Call position is a bullish bet; a Put position is a bearish one (or a hedge). This product reads
@@ -1418,7 +1418,8 @@ if _has_13f_signal:
     st.dataframe(pd.DataFrame(_fund_display_rows), use_container_width=True, hide_index=True)
     st.caption("Source: SEC EDGAR Form 13F-HR, fetched live from each fund's actual filing. \"As of\" is the real reporting period, not the filing date — those can be ~45 days apart.")
 else:
-    st.info(f"None of the curated funds (Berkshire Hathaway, Pershing Square, Scion Asset Management) currently hold {ticker_input} in their most recent 13F filing. This reflects only those 3 funds, not the full universe of institutional holders — for broader 13F coverage, check a dedicated 13F aggregator like WhaleWisdom.")
+    _curated_fund_names_str = ", ".join(_f["name"] for _f in CURATED_FUNDS)
+    st.info(f"None of the curated funds ({_curated_fund_names_str}) currently hold {ticker_input} in their most recent 13F filing. This reflects only those {len(CURATED_FUNDS)} funds, not the full universe of institutional holders — for broader 13F coverage, check a dedicated 13F aggregator like WhaleWisdom.")
 
 st.divider()
 

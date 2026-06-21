@@ -1248,14 +1248,29 @@ CURATED_FUNDS = [
     {"cik": "1067983",  "name": "Berkshire Hathaway",          "style": "Value / conglomerate"},
     {"cik": "1336528",  "name": "Pershing Square Capital Mgmt", "style": "Concentrated activist"},
     {"cik": "1649339",  "name": "Scion Asset Management",       "style": "Contrarian (Michael Burry)"},
+    {"cik": "1167483",  "name": "Tiger Global Management",      "style": "Growth / tech-focused"},
+    {"cik": "1536411",  "name": "Duquesne Family Office",        "style": "Macro (Stanley Druckenmiller)"},
 ]
+# Funds investigated and deliberately NOT added, for the record:
+#   - Bridgewater Associates: too large/diversified to hand-verify (see note
+#     in fetch_13f_holdings' docstring).
+#   - Greenlight Capital (David Einhorn): most recent 13F-HR on file is
+#     2024-02-14 -- over 2 years stale as of this writing, likely
+#     deregistered or restructured its filer entity. Stale data presented
+#     as current would be worse than no data.
+#   - Third Point, Appaloosa Management: could not resolve a working CIK via
+#     EDGAR's company-name search at the time this was built (that search
+#     endpoint was intermittently returning empty results live, separate
+#     from these specific funds' actual filing status -- worth retrying
+#     later rather than concluding they don't exist on EDGAR).
 
 # CUSIP -> ticker, hand-verified against each curated fund's most recent
-# real 13F-HR information table (periods: Berkshire & Pershing Square
-# 2026-03-31 filed 2026-05-15; Scion 2025-09-30 filed 2025-11-03 -- Scion's
-# is the most recent filing that fund has on record as of 2026-06-21, so
-# their data is genuinely older/staler than the other two; this is
-# disclosed in the UI, not hidden).
+# real 13F-HR information table. As of 2026-06-21: Berkshire & Pershing
+# Square & Tiger Global period 2026-03-31 (filed 2026-05-15); Duquesne
+# period 2025-12-31 (filed 2026-02-17); Scion period 2025-09-30 (filed
+# 2025-11-03) -- Scion's is the most recent filing that fund has on record,
+# so their data is genuinely older/staler than the others; this is
+# disclosed in the UI, not hidden.
 THIRTEENF_CUSIP_TO_TICKER = {
     "02079K305": "GOOGL",   # Alphabet Inc Class A
     "02079K107": "GOOGL",   # Alphabet Inc Class C
@@ -1276,6 +1291,16 @@ THIRTEENF_CUSIP_TO_TICKER = {
     "406216101": "HAL",     # Halliburton Co
     "67066G104": "NVDA",    # NVIDIA Corporation
     "717081103": "PFE",     # Pfizer Inc
+    # Added from Tiger Global Management's filing:
+    "11135F101": "AVGO",    # Broadcom Inc
+    "038222105": "AMAT",    # Applied Materials Inc
+    "512807306": "LRCX",    # Lam Research Corp
+    "98980G102": "ZS",      # Zscaler Inc
+    # Added from Duquesne Family Office's filing:
+    "38141G104": "GS",      # Goldman Sachs Group Inc
+    "84265V105": "SCCO",    # Southern Copper Corp
+    "185899101": "CLF",     # Cleveland-Cliffs Inc
+    "78462F103": "SPY",     # SPDR S&P 500 ETF Trust
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
