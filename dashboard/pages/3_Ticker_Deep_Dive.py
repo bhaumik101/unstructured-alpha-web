@@ -380,105 +380,106 @@ if section == "Overview":
     st.markdown(f"### {ticker_input} Price — {price_period}")
 
     if not price_series.empty:
-        # Trim to the selected period
-        pd_days = _PERIOD_DAYS[price_period]
-        if pd_days is None:   # YTD
-            _yr_start = pd.Timestamp(datetime.now().year, 1, 1, tz=price_series.index.tz
-                                      if price_series.index.tz else None)
-            price_view = price_series[price_series.index >= _yr_start]
-        elif pd_days == 0:    # ALL
-            price_view = price_series
-        else:
-            price_view = price_series.iloc[-min(pd_days, len(price_series)):]
+        price_chart_box = st.container(border=True)
+        with price_chart_box:
+            # Trim to the selected period
+            pd_days = _PERIOD_DAYS[price_period]
+            if pd_days is None:   # YTD
+                _yr_start = pd.Timestamp(datetime.now().year, 1, 1, tz=price_series.index.tz
+                                          if price_series.index.tz else None)
+                price_view = price_series[price_series.index >= _yr_start]
+            elif pd_days == 0:    # ALL
+                price_view = price_series
+            else:
+                price_view = price_series.iloc[-min(pd_days, len(price_series)):]
 
-        if price_view.empty:
-            price_view = price_series
+            if price_view.empty:
+                price_view = price_series
 
-        use_candle = len(price_view) > 5 and price_period not in ("1D", "5D")
-        if use_candle:
-            fig_price = go.Figure(go.Candlestick(
-                x=price_view.index,
-                open=price_view.values * 0.998,
-                high=price_view.values * 1.005,
-                low=price_view.values * 0.995,
-                close=price_view.values,
-                name=ticker_input,
-                increasing_line_color="#1B5E20",
-                decreasing_line_color="#7B1010",
-            ))
-        else:
+            # A clean, solid, Webull-style line chart -- deliberately NOT a
+            # candlestick. The previous version fabricated fake open/high/low
+            # values as a fixed +/-0.2%-0.5% offset from the single Close
+            # price we actually have (fetch_price() only returns daily Close,
+            # no real OHLC data), which at any real zoom level renders as a
+            # scattered cloud of barely-visible dots, not a clean candle --
+            # confirmed directly against the live site, not assumed. A
+            # smooth, gap-free, solid line plotted from the same real Close
+            # series is both more honest about what data this actually is
+            # AND the more professional-looking choice.
             fig_price = go.Figure(go.Scatter(
                 x=price_view.index, y=price_view.values,
-                mode="lines", line=dict(color="#B8860B", width=2.5),
+                mode="lines", line=dict(color="#B8860B", width=2.5, shape="spline", smoothing=0.3),
                 fill="tozeroy", fillcolor="rgba(184,134,11,0.08)",
                 name=ticker_input,
             ))
 
-        # Add 50-day and 200-day MAs (from full series, trimmed to view window).
-        # Dotted, distinct colors — so they read as overlays/context, while the
-        # actual price line (solid, gold, drawn first above) stays the visual anchor.
-        if len(price_series) >= 50 and price_period not in ("1D", "5D"):
-            ma50 = price_series.rolling(50).mean()
-            ma50_view = ma50[ma50.index >= price_view.index[0]]
-            fig_price.add_trace(go.Scatter(
-                x=ma50_view.index, y=ma50_view.values, name="50-day MA",
-                line=dict(color="#1C2B4A", width=2, dash="dot"),
-            ))
-        if len(price_series) >= 200 and price_period in ("1Y", "2Y", "YTD", "ALL"):
-            ma200 = price_series.rolling(200).mean()
-            ma200_view = ma200[ma200.index >= price_view.index[0]]
-            fig_price.add_trace(go.Scatter(
-                x=ma200_view.index, y=ma200_view.values, name="200-day MA",
-                line=dict(color="#7B1010", width=2, dash="dot"),
-            ))
+            # 50-day and 200-day MAs (from full series, trimmed to view window).
+            # Solid, thin, distinct colors -- a dashed/dotted overlay reads as
+            # "less real" than the data; Webull-style charts use solid lines
+            # for moving averages too, just thinner and a different color than
+            # the price line itself, which is enough to tell them apart.
+            if len(price_series) >= 50 and price_period not in ("1D", "5D"):
+                ma50 = price_series.rolling(50).mean()
+                ma50_view = ma50[ma50.index >= price_view.index[0]]
+                fig_price.add_trace(go.Scatter(
+                    x=ma50_view.index, y=ma50_view.values, name="50-day MA",
+                    mode="lines", line=dict(color="#1C2B4A", width=1.5, shape="spline", smoothing=0.3),
+                ))
+            if len(price_series) >= 200 and price_period in ("1Y", "2Y", "YTD", "ALL"):
+                ma200 = price_series.rolling(200).mean()
+                ma200_view = ma200[ma200.index >= price_view.index[0]]
+                fig_price.add_trace(go.Scatter(
+                    x=ma200_view.index, y=ma200_view.values, name="200-day MA",
+                    mode="lines", line=dict(color="#7B1010", width=1.5, shape="spline", smoothing=0.3),
+                ))
 
-        fig_price.update_layout(
-            height=360, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-            font=dict(size=13, color="#1A1612"),
-            xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=11), rangeslider_visible=False),
-            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=11), title="Price (USD)"),
-            legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.9)"),
-            margin=dict(l=0, r=0, t=10, b=0),
-        )
-        st.plotly_chart(fig_price, use_container_width=True)
+            fig_price.update_layout(
+                height=360, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+                font=dict(size=13, color="#1A1612"),
+                xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=11), rangeslider_visible=False),
+                yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=11), title="Price (USD)"),
+                legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.9)"),
+                margin=dict(l=0, r=0, t=10, b=0),
+            )
+            st.plotly_chart(fig_price, use_container_width=True)
 
-        # Price stats
-        if len(price_series) > 50:
-            current_p  = float(price_series.iloc[-1])
-            high_52w   = float(price_series.tail(252).max())
-            low_52w    = float(price_series.tail(252).min())
-            pct_from_high = (current_p - high_52w) / high_52w * 100
-            pct_from_low  = (current_p - low_52w)  / low_52w  * 100
-            ytd_base   = price_series.resample("YE").first()
-            ret_ytd    = (current_p / ytd_base.iloc[-1] - 1) * 100 if (len(price_series) > 50 and not ytd_base.empty) else float("nan")
+            # Price stats
+            if len(price_series) > 50:
+                current_p  = float(price_series.iloc[-1])
+                high_52w   = float(price_series.tail(252).max())
+                low_52w    = float(price_series.tail(252).min())
+                pct_from_high = (current_p - high_52w) / high_52w * 100
+                pct_from_low  = (current_p - low_52w)  / low_52w  * 100
+                ytd_base   = price_series.resample("YE").first()
+                ret_ytd    = (current_p / ytd_base.iloc[-1] - 1) * 100 if (len(price_series) > 50 and not ytd_base.empty) else float("nan")
 
-            p1, p2, p3, p4 = st.columns(4)
+                p1, p2, p3, p4 = st.columns(4)
 
-            @st.fragment(run_every="60s")
-            def _render_live_price(ticker: str, fallback_price: float) -> None:
-                """
-                Auto-refreshes every 60s independent of the rest of the page —
-                only this fragment re-runs on the timer, not the full script, so
-                the expensive historical chart/signal fetches above don't re-fire
-                every minute. Falls back to the last historical close (from the
-                already-fetched daily series) if the live quote is unavailable
-                (after hours, network hiccup, etc.) rather than showing nothing.
-                """
-                q = fetch_live_quote(ticker)
-                if q["price"] is not None:
-                    delta = f"{q['pct_change']:+.2f}%" if q["pct_change"] is not None else None
-                    st.metric("Current Price", f"${q['price']:.2f}", delta=delta)
-                    st.caption("LIVE · updates every 60s")
-                else:
-                    st.metric("Current Price", f"${fallback_price:.2f}")
-                    st.caption("Last close (live quote unavailable)")
+                @st.fragment(run_every="60s")
+                def _render_live_price(ticker: str, fallback_price: float) -> None:
+                    """
+                    Auto-refreshes every 60s independent of the rest of the page —
+                    only this fragment re-runs on the timer, not the full script, so
+                    the expensive historical chart/signal fetches above don't re-fire
+                    every minute. Falls back to the last historical close (from the
+                    already-fetched daily series) if the live quote is unavailable
+                    (after hours, network hiccup, etc.) rather than showing nothing.
+                    """
+                    q = fetch_live_quote(ticker)
+                    if q["price"] is not None:
+                        delta = f"{q['pct_change']:+.2f}%" if q["pct_change"] is not None else None
+                        st.metric("Current Price", f"${q['price']:.2f}", delta=delta)
+                        st.caption("LIVE · updates every 60s")
+                    else:
+                        st.metric("Current Price", f"${fallback_price:.2f}")
+                        st.caption("Last close (live quote unavailable)")
 
-            with p1:
-                _render_live_price(ticker_input, current_p)
+                with p1:
+                    _render_live_price(ticker_input, current_p)
 
-            p2.metric("52-Week High",  f"${high_52w:.2f}", delta=f"{pct_from_high:+.1f}%")
-            p3.metric("52-Week Low",   f"${low_52w:.2f}",  delta=f"{pct_from_low:+.1f}%")
-            p4.metric("YTD Return",    f"{ret_ytd:+.1f}%")
+                p2.metric("52-Week High",  f"${high_52w:.2f}", delta=f"{pct_from_high:+.1f}%")
+                p3.metric("52-Week Low",   f"${low_52w:.2f}",  delta=f"{pct_from_low:+.1f}%")
+                p4.metric("YTD Return",    f"{ret_ytd:+.1f}%")
 
         # ── Volume + RSI ─────────────────────────────────────────────────────────
         # Same `price_period` selector and `price_view` window as the price
@@ -490,7 +491,11 @@ if section == "Overview":
 
         vol_col, rsi_col = st.columns(2)
 
-        with vol_col:
+        # Native bordered containers (st.container(border=True)) around
+        # each chart -- per explicit user request for a more professional,
+        # boxed look, matching the same treatment given to the price chart
+        # above and each Watchlist row.
+        with vol_col, st.container(border=True):
             st.markdown("##### Volume")
             if not volume_series.empty:
                 vol_view = volume_series[volume_series.index >= price_view.index[0]]
@@ -518,7 +523,7 @@ if section == "Overview":
             else:
                 st.info(f"Volume data unavailable for {ticker_input}.")
 
-        with rsi_col:
+        with rsi_col, st.container(border=True):
             st.markdown("##### RSI (14-day)")
             if len(price_series.dropna()) >= 15:
                 rsi_full = compute_rsi(price_series, period=14)
@@ -527,7 +532,7 @@ if section == "Overview":
                     rsi_view = rsi_full
                 fig_rsi = go.Figure(go.Scatter(
                     x=rsi_view.index, y=rsi_view.values, mode="lines",
-                    line=dict(color="#B8860B", width=2),
+                    line=dict(color="#B8860B", width=2, shape="spline", smoothing=0.3),
                     hovertemplate="%{x|%Y-%m-%d}: RSI=%{y:.1f}<extra></extra>",
                 ))
                 fig_rsi.add_hline(y=70, line_dash="dot", line_color="#7B1010", opacity=0.6,

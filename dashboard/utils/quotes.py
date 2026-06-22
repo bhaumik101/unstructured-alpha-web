@@ -113,13 +113,38 @@ def get_quote(ticker: str, _v: int = 5) -> dict:
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def get_batch_quotes(tickers: list, _v: int = 5) -> dict:
-    """{ticker: get_quote(ticker) result} for every ticker in `tickers`.
-    Still one yfinance call per ticker under the hood (get_quote isn't
-    vectorized across tickers) -- the win here is the shared 15-minute
-    cache, so screening/watchlist pages don't each pay for their own
-    redundant fetch of the same ticker."""
-    return {t: get_quote(t) for t in tickers}
+def get_batch_quotes(tickers: list, _v: int = 6) -> dict:
+    """
+    {ticker: get_quote(ticker) result} for every ticker in `tickers`.
+
+    FIXED 2026-06-22, caught live: the first version of this function
+    called get_quote() in a plain sequential loop -- harmless for a
+    handful of watchlist tickers, but Stock Screener can pass ~80 of
+    them, and each get_quote() is a real network round-trip (a yfinance
+    .history() call). Sequentially, that stacked into 30+ seconds of pure
+    waiting on top of the page's existing signal-loading work, confirmed
+    directly against the live deployed site, not assumed from reading the
+    code. get_quote() is itself @st.cache_data-decorated, and Streamlit's
+    cache is safe to read/write from multiple threads, so running these
+    concurrently with a thread pool is a safe, surgical fix: same
+    per-ticker logic and fallback behavior as before, just not waiting
+    for each network round-trip to finish before starting the next one.
+    """
+    if not tickers:
+        return {}
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    results: dict = {}
+    with ThreadPoolExecutor(max_workers=min(16, len(tickers))) as pool:
+        futures = {pool.submit(get_quote, t): t for t in tickers}
+        for future in futures:
+            ticker = futures[future]
+            try:
+                results[ticker] = future.result()
+            except Exception:
+                results[ticker] = {}
+    return results
 
 
 def get_return(q: dict, period: str) -> float | None:
@@ -137,10 +162,19 @@ def period_label(period: str) -> str:
     return labels.get(period, period)
 
 
-def mini_sparkline(series: pd.Series, color: str, period: str) -> go.Figure:
-    """A small, axis-free Plotly line chart over the given period window
-    -- built for inline use next to a ticker row (Watchlist, Market
-    Overview's index cards), not as a standalone full chart."""
+def mini_sparkline(series: pd.Series, color: str, period: str, show_axes: bool = False) -> go.Figure:
+    """
+    A small Plotly line chart over the given period window -- built for
+    inline use next to a ticker row (Watchlist, Market Overview's index
+    cards), not as a standalone full chart.
+
+    `show_axes=False` (the default, unchanged from before) keeps Market
+    Overview's existing minimal index-card look exactly as it was --
+    axis-free, the classic compact-sparkline style. `show_axes=True`
+    (used by Watchlist as of 2026-06-22, per explicit user request to see
+    actual prices/times on the watchlist charts, not just a bare shape)
+    shows real tick labels on both axes instead.
+    """
     n = PERIOD_DAYS.get(period, 22)
     if period == "YTD":
         yr_start = pd.Timestamp(datetime.now().year, 1, 1, tz=series.index.tz)
@@ -155,14 +189,24 @@ def mini_sparkline(series: pd.Series, color: str, period: str) -> go.Figure:
 
     fig = go.Figure(go.Scatter(
         x=spark.index, y=spark.values,
-        mode="lines", line=dict(color=color, width=1.5),
+        mode="lines", line=dict(color=color, width=1.5, shape="spline", smoothing=0.3),
         fill="tozeroy", fillcolor="rgba(28,43,74,0.09)",
-        hovertemplate="%{y:,.2f}<extra></extra>",
+        hovertemplate="%{x|%b %d}: $%{y:,.2f}<extra></extra>",
     ))
-    fig.update_layout(
-        height=55, margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(visible=False), yaxis=dict(visible=False),
-        showlegend=False,
-    )
+    if show_axes:
+        fig.update_layout(
+            height=90, margin=dict(l=0, r=0, t=4, b=18),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(visible=True, showgrid=False, tickfont=dict(color="#8B7355", size=8), nticks=4),
+            yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(0,0,0,0.06)",
+                       tickfont=dict(color="#8B7355", size=8), tickprefix="$", nticks=3),
+            showlegend=False,
+        )
+    else:
+        fig.update_layout(
+            height=55, margin=dict(l=0, r=0, t=0, b=0),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(visible=False), yaxis=dict(visible=False),
+            showlegend=False,
+        )
     return fig

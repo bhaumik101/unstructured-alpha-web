@@ -120,7 +120,11 @@ else:
         chg_pct = q.get("chg_1d_pct")
         series = q.get("series")
 
-        wc1, wc2, wc3, wc4 = st.columns([2.2, 1, 1.8, 0.8])
+        # Native bordered container (st.container(border=True), not a CSS
+        # hack) -- one clean card per watched ticker, per explicit user
+        # request for a more professional, boxed look around prices/charts.
+        _row_box = st.container(border=True)
+        wc1, wc2, wc3, wc4 = _row_box.columns([2.2, 1, 1.8, 0.8])
         with wc1:
             # Clicking the ticker jumps straight to Ticker Deep Dive with
             # this ticker pre-filled (same session_state.selected_ticker +
@@ -144,17 +148,19 @@ else:
                     unsafe_allow_html=True,
                 )
         with wc3:
-            # Small inline sparkline -- 3-month window, no axes, matching
-            # the same mini_sparkline() Market Overview already uses for
-            # its index cards (utils/quotes.py). Watched tickers always
-            # have years of history (get_quote() pulls "max" period), so
-            # 3M is a real, deliberate choice here, not a fallback: long
-            # enough to show a real trend, short enough not to flatten a
-            # recent move into invisibility next to a multi-year history.
+            # Small inline chart -- 3-month window, WITH real price/time
+            # axis labels (show_axes=True, per explicit user request --
+            # Market Overview's index cards keep the bare, axis-free
+            # style via the same mini_sparkline(), utils/quotes.py).
+            # Watched tickers always have years of history (get_quote()
+            # pulls "max" period), so 3M is a real, deliberate choice
+            # here, not a fallback: long enough to show a real trend,
+            # short enough not to flatten a recent move into invisibility
+            # next to a multi-year history.
             if series is not None and not series.empty:
                 _spark_color = "#1B5E20" if (chg_pct or 0) >= 0 else "#7B1010"
                 st.plotly_chart(
-                    mini_sparkline(series, _spark_color, "3M"),
+                    mini_sparkline(series, _spark_color, "3M", show_axes=True),
                     use_container_width=True,
                     config={"displayModeBar": False},
                     key=f"watch_spark_{ticker}",
