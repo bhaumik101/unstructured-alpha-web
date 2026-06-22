@@ -64,19 +64,27 @@ def send_verification_email(to_email: str, code: str) -> None:
 
     TEMPORARY DIAGNOSTIC LOGGING (added 2026-06-22, remove once the "emails
     aren't arriving for arbitrary recipients" issue is confirmed fixed):
-    Render's own stdout logs showed NOTHING for a real failed-to-arrive
-    signup attempt -- neither a request log nor an exception -- which is
-    only possible if this function is silently returning success without
-    Resend ever actually receiving/logging the request, or if something
-    upstream of this call never reaches it at all. print() output here
-    shows up in Render's Logs tab directly, unlike anything raised purely
-    inside Streamlit's own UI layer.
+    the FIRST version of this logging never showed up in Render's logs at
+    all, even though a fresh, fully-observed incognito test confirmed
+    signup() really was completing successfully (the "We emailed a code"
+    UI message only renders when no exception was raised) -- and the
+    GitHub source for the exact deployed commit was checked directly and
+    does contain these print() calls. That combination only makes sense
+    as a well-known Python/Docker gotcha: stdout is FULLY buffered (not
+    line-buffered) when it's not an interactive terminal, which is always
+    true for a containerized process whose stdout is piped into a log
+    collector -- so print() output can sit in an internal buffer
+    indefinitely in a long-running server process that never naturally
+    exits, instead of ever reaching the log stream. flush=True on every
+    print() below forces each line out immediately rather than waiting
+    on Python's buffer to fill.
     """
     api_key, from_email = _get_resend_config()
     print(f"[email] send_verification_email called: to={to_email!r} from={from_email!r} "
-          f"api_key_present={bool(api_key)} api_key_prefix={api_key[:6] if api_key else None!r}")
+          f"api_key_present={bool(api_key)} api_key_prefix={api_key[:6] if api_key else None!r}",
+          flush=True)
     if not api_key:
-        print("[email] aborting: no RESEND_API_KEY configured")
+        print("[email] aborting: no RESEND_API_KEY configured", flush=True)
         raise EmailSendError(
             "No RESEND_API_KEY configured -- add one in Streamlit secrets to send real verification emails."
         )
@@ -104,9 +112,9 @@ def send_verification_email(to_email: str, code: str) -> None:
             },
             timeout=15,
         )
-        print(f"[email] Resend API responded: status={resp.status_code} body={resp.text[:500]!r}")
+        print(f"[email] Resend API responded: status={resp.status_code} body={resp.text[:500]!r}", flush=True)
         resp.raise_for_status()
-        print(f"[email] send succeeded for to={to_email!r}")
+        print(f"[email] send succeeded for to={to_email!r}", flush=True)
     except requests.RequestException as e:
-        print(f"[email] send FAILED for to={to_email!r}: {type(e).__name__}: {e}")
+        print(f"[email] send FAILED for to={to_email!r}: {type(e).__name__}: {e}", flush=True)
         raise EmailSendError(f"Failed to send verification email: {e}") from e
