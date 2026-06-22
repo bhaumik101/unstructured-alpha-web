@@ -59,6 +59,7 @@ pg = st.navigation(
         ],
         "Info": [
             st.Page("pages/8_About.py",            title="About"),
+            st.Page("pages/11_Model_Validation.py", title="Model Validation"),
             st.Page("pages/9_AI_Assistant.py",     title="AI Assistant"),
         ],
     },

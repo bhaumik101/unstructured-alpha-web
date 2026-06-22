@@ -96,6 +96,7 @@ ROUTED_PAGES = [
     "pages/5_Market_Overview.py",
     "pages/6_Stock_Screener.py",
     "pages/8_About.py",
+    "pages/11_Model_Validation.py",
     "pages/9_AI_Assistant.py",
     "pages/10_Watchlist.py",
 ]

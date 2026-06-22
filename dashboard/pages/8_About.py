@@ -150,9 +150,7 @@ st.markdown('<div class="section-header">SIGNAL LIBRARY</div>', unsafe_allow_htm
 st.caption(f"Current library: {len(SIGNALS)} signals across {len(CATEGORIES)} categories.")
 
 import pandas as pd
-from datetime import datetime, timedelta
-from utils.fetchers import fetch_signal_series, fetch_price
-from utils.analysis import compute_backtested_pcs
+from utils.validation_status import backtest_all_macro_signals
 
 st.markdown("""
 <div style="background:#FFF8E7;border-radius:6px;padding:12px 16px;border:1px solid #E8D9A8;
@@ -168,36 +166,10 @@ predictive power. Where they disagree, trust the backtested number.
 
 run_backtest = st.button("Run Live Backtest (tests real correlation + significance)", key="run_pcs_backtest")
 
-BT_END   = datetime.now().strftime("%Y-%m-%d")
-BT_START = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def _backtest_all_signals(_v: int = 2) -> dict:
-    """Backtest every signal's PCS against up to 5 of its relevant tickers
-    (not just the first one) so a signal that only correlates with one
-    ticker doesn't get an inflated, falsely-broad PCS. Cached for 24h since
-    this is a real-data validation pass, not a live score."""
-    out = {}
-    for sig_id, cfg in SIGNALS.items():
-        try:
-            sig_series = fetch_signal_series(cfg, BT_START, BT_END)
-            test_tickers = (cfg.get("relevant_tickers") or [])[:5]
-            price_series_list = [fetch_price(t, BT_START, BT_END) for t in test_tickers]
-            out[sig_id] = compute_backtested_pcs(
-                sig_series, price_series_list,
-                lag_weeks=cfg.get("lag_weeks", 0), tickers=test_tickers,
-            )
-        except Exception:
-            out[sig_id] = {"pcs": None, "backtested": False, "n_tested": 0,
-                            "significance_rate": 0.0, "avg_abs_r": 0.0, "details": []}
-    return out
-
-
 backtest_results = {}
 if run_backtest:
     with st.spinner("Backtesting every signal against real price history — this fetches live data, may take a minute…"):
-        backtest_results = _backtest_all_signals()
+        backtest_results = backtest_all_macro_signals()
     n_validated = sum(1 for r in backtest_results.values() if r["backtested"])
     st.success(
         f"Backtest complete: {n_validated} of {len(SIGNALS)} signals had enough overlapping data "
