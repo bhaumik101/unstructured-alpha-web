@@ -210,7 +210,7 @@ st.divider()
 
 section = st.segmented_control(
     "View",
-    ["Overview", "Insider & Short Interest", "13F & Federal Contracts", "Deep Correlation Scan"],
+    ["Overview", "Deep Correlation Scan", "Insider & Short Interest", "13F & Federal Contracts"],
     default="Overview",
     key="dive_section",
 )
@@ -1341,7 +1341,32 @@ elif section == "Deep Correlation Scan":
         **r > 0.3 with p < 0.05** is generally considered a useful signal; r > 0.5 is strong.
         """)
 
-    deep_sig_options = {sid: SIGNALS[sid]["name"] for sid in relevant_sig_ids if sid in SIGNALS}
+    # Sort signals by correlation strength so the selectbox defaults to the
+    # MOST correlated signal rather than whichever happened to be listed first
+    # in the config. corr_info is already computed for all ~40 signals above
+    # (via compute_full_ticker_score, which now evaluates the full library
+    # thanks to the resolve_ticker_meta fix) -- no extra work here, just
+    # reordering the keys before building the options dict.
+    # Sort key: significant signals first (p<0.05), then by |r| descending
+    # within each group so the strongest relationship surfaces automatically.
+    _corr_ranked_sids = sorted(
+        [sid for sid in relevant_sig_ids if sid in SIGNALS],
+        key=lambda s: (
+            0 if corr_info.get(s, {}).get("significant") else 1,
+            -abs(corr_info.get(s, {}).get("r", 0.0)),
+        ),
+    )
+    # Label significant signals with their r value so the user can see
+    # correlation strength at a glance while browsing the dropdown.
+    def _sig_label(sid: str) -> str:
+        ci = corr_info.get(sid, {})
+        name = SIGNALS[sid]["name"]
+        r = ci.get("r", 0.0)
+        if ci.get("significant"):
+            return f"{name}  (r={r:+.2f} ✓)"
+        return name
+
+    deep_sig_options = {sid: _sig_label(sid) for sid in _corr_ranked_sids}
     if _has_insider_signal:
         deep_sig_options["_insider_activity"] = "Insider Activity — validated lead-time scan"
     if _has_short_interest_signal:
@@ -1352,7 +1377,7 @@ elif section == "Deep Correlation Scan":
         dc1, dc2 = st.columns([2, 1])
         with dc1:
             deep_sig_id = st.selectbox(
-                "Signal to deep-scan:",
+                "Signal to deep-scan (sorted by correlation strength):",
                 list(deep_sig_options.keys()),
                 format_func=lambda x: deep_sig_options[x],
                 key="deep_scan_sig",

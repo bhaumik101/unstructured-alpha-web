@@ -113,38 +113,29 @@ def get_quote(ticker: str, _v: int = 5) -> dict:
 
 
 @st.cache_data(ttl=900, show_spinner=False)
-def get_batch_quotes(tickers: list, _v: int = 6) -> dict:
+def get_batch_quotes(tickers: list, _v: int = 7) -> dict:
     """
     {ticker: get_quote(ticker) result} for every ticker in `tickers`.
 
-    FIXED 2026-06-22, caught live: the first version of this function
-    called get_quote() in a plain sequential loop -- harmless for a
-    handful of watchlist tickers, but Stock Screener can pass ~80 of
-    them, and each get_quote() is a real network round-trip (a yfinance
-    .history() call). Sequentially, that stacked into 30+ seconds of pure
-    waiting on top of the page's existing signal-loading work, confirmed
-    directly against the live deployed site, not assumed from reading the
-    code. get_quote() is itself @st.cache_data-decorated, and Streamlit's
-    cache is safe to read/write from multiple threads, so running these
-    concurrently with a thread pool is a safe, surgical fix: same
-    per-ticker logic and fallback behavior as before, just not waiting
-    for each network round-trip to finish before starting the next one.
+    REVERTED 2026-06-22 to sequential after the ThreadPoolExecutor version
+    caused "Event loop is closed" errors in production (confirmed in Render
+    logs immediately after that deploy). yfinance's underlying HTTP client
+    (curl_cffi in recent versions) doesn't reliably tolerate being called
+    from arbitrary worker threads spawned outside Streamlit's own managed
+    script-run context -- the same kind of issue documented repeatedly in
+    conftest.py for sandbox tests that have no real network access, and
+    something I couldn't safely test before shipping since this sandbox
+    genuinely has no outbound network. The sequential loop is slower for
+    large screener use (~80 tickers) but is correct and proven.
+
+    The real fix for screener performance is yfinance's own native multi-
+    ticker batch fetch (yf.download(tickers=[...]) with its INTERNAL thread
+    pool, which is designed and tested for this exact use case), not a
+    naive external ThreadPoolExecutor wrapping its single-ticker API.
+    That rewrite is deferred until it can be properly tested against a
+    real network, rather than shipped blindly to production again.
     """
-    if not tickers:
-        return {}
-
-    from concurrent.futures import ThreadPoolExecutor
-
-    results: dict = {}
-    with ThreadPoolExecutor(max_workers=min(16, len(tickers))) as pool:
-        futures = {pool.submit(get_quote, t): t for t in tickers}
-        for future in futures:
-            ticker = futures[future]
-            try:
-                results[ticker] = future.result()
-            except Exception:
-                results[ticker] = {}
-    return results
+    return {t: get_quote(t) for t in tickers}
 
 
 def get_return(q: dict, period: str) -> float | None:

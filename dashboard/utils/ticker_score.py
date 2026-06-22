@@ -57,15 +57,36 @@ _DEFAULT_SIGNAL_IDS = ["ata_trucking", "hy_spread", "ten_year_yield", "vix", "yi
 def resolve_ticker_meta(ticker: str) -> tuple[dict, str, list]:
     """
     Resolve (tkr_meta, company_name_hint, relevant_sig_ids) for a ticker.
-    Universe tickers use their configured signal list; unknown tickers are
-    mapped by yfinance sector, falling back to a generic macro set.
+
+    FIXED 2026-06-23: tickers with a short manually-configured "signals"
+    list (e.g. VRT only had ["hyperscaler_capex", "copper"]) were only
+    ever evaluated against those 2 signals -- the per-ticker correlation
+    weighting and significance filtering that the rest of the platform
+    applies were running on an artificially tiny dataset, hiding many
+    signals that are genuinely relevant for that ticker. The manual
+    "signals" list was originally intended as a CURATION hint (domain
+    knowledge of which signals MATTER for the stock's thesis), not as a
+    RESTRICTION on which signals are ever tested.
+
+    Now: the manually-configured signals are ALWAYS INCLUDED (as a
+    guaranteed starting set reflecting domain knowledge), and the full
+    signal library is appended after them so the significance-based
+    scoring, table filtering, and Deep Correlation Scan selectbox all
+    have access to every signal in the universe. Signals the manual
+    curation already covers stay first in the list so the multiselect
+    default shows them prominently.
     """
     ticker = ticker.upper().strip()
     tkr_meta = TICKERS.get(ticker, {})
 
     if tkr_meta:
         company_name_hint = tkr_meta.get("name", ticker)
-        relevant_sig_ids = tkr_meta.get("signals") or list(SIGNALS.keys())
+        # Priority signals (manually curated for this ticker's thesis),
+        # PLUS all remaining signals from the full library.
+        priority_sigs = tkr_meta.get("signals") or []
+        all_sigs = list(SIGNALS.keys())
+        # Union: priority first, then everything else not already in the list.
+        relevant_sig_ids = priority_sigs + [s for s in all_sigs if s not in priority_sigs]
         return tkr_meta, company_name_hint, relevant_sig_ids
 
     try:
@@ -73,10 +94,14 @@ def resolve_ticker_meta(ticker: str) -> tuple[dict, str, list]:
         info = yf.Ticker(ticker).info or {}
         company_name_hint = info.get("longName") or info.get("shortName") or ticker
         sector = info.get("sector", "")
-        relevant_sig_ids = SECTOR_SIGNAL_MAP.get(sector, _DEFAULT_SIGNAL_IDS)
+        # Sector-mapped signals FIRST (most relevant by domain knowledge),
+        # then everything else so significance filtering has the full library.
+        sector_sigs = SECTOR_SIGNAL_MAP.get(sector, _DEFAULT_SIGNAL_IDS)
+        all_sigs = list(SIGNALS.keys())
+        relevant_sig_ids = sector_sigs + [s for s in all_sigs if s not in sector_sigs]
     except Exception:
         company_name_hint = ticker
-        relevant_sig_ids = _DEFAULT_SIGNAL_IDS
+        relevant_sig_ids = list(SIGNALS.keys())
 
     return tkr_meta, company_name_hint, relevant_sig_ids
 
