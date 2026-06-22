@@ -10,7 +10,7 @@
 #
 # DEFAULT_* threshold constants are unchanged from the pre-accounts version.
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, delete
 
@@ -150,3 +150,25 @@ def mark_read(user_id: int, alert_id: int) -> None:
 def clear_all_alerts(user_id: int) -> None:
     with db.engine.begin() as conn:
         conn.execute(delete(alerts).where(alerts.c.user_id == user_id))
+
+
+def cleanup_old_read_alerts(retention_days: int = 90) -> int:
+    """
+    Delete alerts that are both read AND older than retention_days.
+    clear_all_alerts() above already lets a user wipe their own feed
+    manually (wired to a button on the Watchlist page), but a user who
+    never bothers to is a real, unbounded-growth case: the alert engine
+    keeps inserting rows on every watchlist evaluation and nothing ever
+    removes them. Read alerts only, deliberately -- an unread alert
+    should never silently disappear before the user has even seen it,
+    no matter how old it is. Called probabilistically from
+    utils.db.run_periodic_maintenance(), not on every request.
+
+    Returns the number of rows deleted.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat()
+    with db.engine.begin() as conn:
+        result = conn.execute(
+            delete(alerts).where(alerts.c.is_read == 1, alerts.c.created_at < cutoff)
+        )
+        return result.rowcount

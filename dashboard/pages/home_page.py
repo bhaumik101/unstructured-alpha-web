@@ -81,6 +81,15 @@ with btn3:
     if st.button("Open Market Overview →", use_container_width=True, key="cta_market"):
         st.switch_page("pages/5_Market_Overview.py")
 
+# ── Secondary row: Watchlist + Model Validation ───────────────────────────────
+sec1, sec2 = st.columns(2)
+with sec1:
+    if st.button("⭐ My Watchlist — track your own tickers", use_container_width=True, key="cta_watchlist"):
+        st.switch_page("pages/10_Watchlist.py")
+with sec2:
+    if st.button("How validated is each score? — Model Validation Dashboard", use_container_width=True, key="cta_validation"):
+        st.switch_page("pages/11_Model_Validation.py")
+
 st.markdown("")
 st.divider()
 
@@ -123,8 +132,14 @@ with exp2:
 
     **Step 4 — Go deeper**
     The **Power Supercycle** page tracks the AI → Power → Nuclear thesis specifically.
-    The **Deep Correlation Scan** on Ticker Deep Dive lets you measure the exact lead time
-    for any signal/ticker pair.
+    The **Deep Correlation Scan** section on Ticker Deep Dive lets you measure the exact
+    lead time for any signal/ticker pair.
+
+    **Step 5 — Save tickers & check the receipts**
+    Create a free account to build a **Watchlist** with quick-add alert presets (bullish,
+    bearish, drastic moves). Curious how validated any of this actually is? The
+    **Model Validation Dashboard** shows the real backtest result — or honest "not
+    validated yet" status — for every score on the site, not just the ones that look good.
     """)
 
 st.divider()

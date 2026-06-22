@@ -32,10 +32,11 @@ now: the sidebar should never depend on auth state to render correctly.
 
 import streamlit as st
 
-from utils.db import init_db
+from utils.db import init_db, run_periodic_maintenance
 from utils.auth_ui import init_cookies_for_this_run, try_restore_session
 
 init_db()
+run_periodic_maintenance()  # low-probability hygiene pass -- see utils/db.py
 _cookies = init_cookies_for_this_run()
 
 pg = st.navigation(

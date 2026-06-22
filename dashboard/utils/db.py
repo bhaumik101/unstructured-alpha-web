@@ -203,6 +203,58 @@ def init_db() -> None:
     _migrate_users_table()
 
 
+# Probability that any single page load triggers run_periodic_maintenance()
+# below. This app has no background scheduler/cron -- it's a Streamlit app,
+# driven entirely by page loads -- so periodic cleanup has to piggyback on
+# a request somehow. Running it on every single load would mean every user
+# pays for 2 DELETE statements on every page view, for the sake of a
+# low-urgency hygiene task (expired remember-tokens, old read alerts) that
+# doesn't need second-by-second freshness. A ~1-in-200 chance means it
+# still runs many times a day under any real traffic, without adding
+# measurable overhead to the typical request.
+_MAINTENANCE_PROBABILITY = 0.005
+
+
+def run_periodic_maintenance(force: bool = False) -> dict:
+    """
+    Probabilistically purge rows that exist only because nothing has ever
+    deleted them: expired "remember me" tokens (utils.auth) and old, ALREADY
+    -READ alerts (utils.alerts_db). Neither is urgent at this app's current
+    scale -- both are real, unbounded-growth gaps that were flagged in a
+    2026-06-22 UI/usage audit and are cheap to fix now rather than as an
+    emergency later.
+
+    `force=True` bypasses the probability gate -- used by tests and by a
+    caller that wants a guaranteed run (e.g. a manual admin trigger), never
+    by the normal per-page-load call site.
+
+    Returns {"ran": bool, "remember_tokens_deleted": int, "alerts_deleted": int}
+    so a caller/test can confirm this did something real, not just that it
+    didn't raise. Deliberately swallows any single cleanup's exception
+    rather than letting a maintenance hiccup take down a page load --
+    this is hygiene, not a page requirement.
+    """
+    import random
+
+    if not force and random.random() >= _MAINTENANCE_PROBABILITY:
+        return {"ran": False, "remember_tokens_deleted": 0, "alerts_deleted": 0}
+
+    from utils.auth import cleanup_expired_remember_tokens
+    from utils.alerts_db import cleanup_old_read_alerts
+
+    tokens_deleted, alerts_deleted = 0, 0
+    try:
+        tokens_deleted = cleanup_expired_remember_tokens()
+    except Exception:
+        pass
+    try:
+        alerts_deleted = cleanup_old_read_alerts()
+    except Exception:
+        pass
+
+    return {"ran": True, "remember_tokens_deleted": tokens_deleted, "alerts_deleted": alerts_deleted}
+
+
 def upsert_stmt(table: Table, index_elements: list):
     """
     Return the dialect-correct "INSERT ... ON CONFLICT DO UPDATE" statement

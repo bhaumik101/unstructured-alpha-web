@@ -274,3 +274,25 @@ def revoke_remember_token(token: str) -> None:
     doesn't invalidate a "remember me" session left active in another."""
     with db.engine.begin() as conn:
         conn.execute(remember_tokens.delete().where(remember_tokens.c.token_hash == _hash_code(token)))
+
+
+def cleanup_expired_remember_tokens() -> int:
+    """
+    Delete remember_tokens rows past their expires_at that were never used
+    or explicitly revoked. verify_remember_token() already treats an
+    expired row as "not logged in" -- correct from a security standpoint
+    -- but it never deletes that row, so a token nobody ever logs back in
+    with (browser cleared, cookie never read again, etc.) sits in the
+    table forever. Harmless at small scale, genuinely unbounded growth
+    over years at real scale. Called probabilistically from
+    utils.db.run_periodic_maintenance(), not on every request -- a DELETE
+    with an indexed comparison is cheap, but there's no reason to run it
+    on every single page load across every user.
+
+    Returns the number of rows deleted (mainly so a caller/test can
+    confirm this actually did something, not just that it didn't crash).
+    """
+    now_iso = datetime.now(timezone.utc).isoformat()
+    with db.engine.begin() as conn:
+        result = conn.execute(remember_tokens.delete().where(remember_tokens.c.expires_at < now_iso))
+        return result.rowcount

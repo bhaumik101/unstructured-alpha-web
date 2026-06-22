@@ -384,3 +384,102 @@ def test_each_login_can_issue_an_independent_remember_token():
 
     assert auth.verify_remember_token(token_device_a) is None
     assert auth.verify_remember_token(token_device_b) is not None
+
+
+# ── periodic maintenance / retention cleanup (added 2026-06-22, per UI/usage
+# audit: expired remember-tokens and old read alerts were never purged) ──────
+
+def test_cleanup_expired_remember_tokens_deletes_only_expired_rows():
+    from datetime import datetime, timedelta, timezone
+
+    user = auth.signup("cleanup1@example.com", "password123")
+    auth.verify_email("cleanup1@example.com", _latest_code("cleanup1@example.com"))
+
+    live_token = auth.issue_remember_token(user["id"])
+    expired_token = auth.issue_remember_token(user["id"])
+    past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    with db.engine.begin() as conn:
+        conn.execute(db.remember_tokens.update().where(
+            db.remember_tokens.c.token_hash == auth._hash_code(expired_token)
+        ).values(expires_at=past))
+
+    deleted = auth.cleanup_expired_remember_tokens()
+
+    assert deleted == 1
+    assert auth.verify_remember_token(live_token) is not None  # untouched
+    # The expired row is actually gone from the table now, not just treated
+    # as expired by a date check -- verify_remember_token already returned
+    # None for it before cleanup ran, so check the row itself disappeared.
+    with db.engine.begin() as conn:
+        from sqlalchemy import select
+        remaining = conn.execute(
+            select(db.remember_tokens.c.id).where(
+                db.remember_tokens.c.token_hash == auth._hash_code(expired_token)
+            )
+        ).first()
+    assert remaining is None
+
+
+def test_cleanup_expired_remember_tokens_is_safe_with_no_expired_rows():
+    user = auth.signup("cleanup2@example.com", "password123")
+    auth.verify_email("cleanup2@example.com", _latest_code("cleanup2@example.com"))
+    auth.issue_remember_token(user["id"])
+
+    assert auth.cleanup_expired_remember_tokens() == 0
+
+
+def test_cleanup_old_read_alerts_deletes_only_old_and_read():
+    user = auth.signup("cleanup3@example.com", "password123")
+    auth.verify_email("cleanup3@example.com", _latest_code("cleanup3@example.com"))
+    uid = user["id"]
+
+    old_read_id   = alerts_db.create_alert(uid, "CCJ", "score_change", "old, read -- should be deleted")
+    old_unread_id = alerts_db.create_alert(uid, "CCJ", "score_change", "old, unread -- must survive")
+    new_read_id   = alerts_db.create_alert(uid, "CCJ", "score_change", "recent, read -- must survive")
+
+    alerts_db.mark_read(uid, old_read_id)
+    alerts_db.mark_read(uid, new_read_id)
+
+    from datetime import datetime, timedelta, timezone
+    old_ts = (datetime.now(timezone.utc) - timedelta(days=120)).isoformat()
+    with db.engine.begin() as conn:
+        conn.execute(db.alerts.update().where(db.alerts.c.id.in_([old_read_id, old_unread_id]))
+                     .values(created_at=old_ts))
+
+    deleted = alerts_db.cleanup_old_read_alerts(retention_days=90)
+
+    assert deleted == 1
+    remaining_ids = {row["id"] for row in alerts_db.get_alerts(uid, limit=50)}
+    assert old_read_id not in remaining_ids        # old AND read -- gone
+    assert old_unread_id in remaining_ids           # old but UNREAD -- never auto-deleted
+    assert new_read_id in remaining_ids             # read but recent -- not old enough yet
+
+
+def test_run_periodic_maintenance_force_runs_both_cleanups():
+    user = auth.signup("cleanup4@example.com", "password123")
+    auth.verify_email("cleanup4@example.com", _latest_code("cleanup4@example.com"))
+    token = auth.issue_remember_token(user["id"])
+
+    from datetime import datetime, timedelta, timezone
+    past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    with db.engine.begin() as conn:
+        conn.execute(db.remember_tokens.update().where(
+            db.remember_tokens.c.token_hash == auth._hash_code(token)
+        ).values(expires_at=past))
+
+    result = db.run_periodic_maintenance(force=True)
+
+    assert result["ran"] is True
+    assert result["remember_tokens_deleted"] == 1
+
+
+def test_run_periodic_maintenance_without_force_usually_skips(monkeypatch):
+    """
+    Without force=True, this should almost never run -- pin random.random()
+    to always return a value above the probability gate, deterministically
+    proving the gate actually gates rather than relying on it being
+    statistically unlikely to trigger in a single test run.
+    """
+    monkeypatch.setattr("random.random", lambda: 0.999)
+    result = db.run_periodic_maintenance()
+    assert result == {"ran": False, "remember_tokens_deleted": 0, "alerts_deleted": 0}
