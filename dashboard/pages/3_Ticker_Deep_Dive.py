@@ -60,6 +60,7 @@ from utils.lead_time_research import (
     compute_signal_reliability_score, compute_rolling_best_lag,
 )
 from utils.lead_time_ui import render_validated_lag_scan, render_lag_decay_chart
+from utils.score_history import record_score_snapshot, get_score_history, compute_sector_percentile
 
 st.set_page_config(page_title="Ticker Deep Dive — UA", layout="wide")
 render_header("Ticker Deep Dive")
@@ -191,6 +192,20 @@ render_synthetic_data_banner(
     len(signal_data),
 )
 
+# Opportunistic score snapshot -- runs once per ticker view, regardless of
+# which segmented_control section a visitor lands on, since the score
+# itself is computed in compute_full_ticker_score() above either way (see
+# utils/score_history.py's module docstring for why this is the
+# foundation the Score History chart, future track-record page, and real
+# alert deltas all sit on). Wrapped defensively: a DB hiccup here must
+# never break the page someone is just trying to look at a score on.
+try:
+    record_score_snapshot(
+        ticker_input, confluence["overall_score"], confluence["case"], confluence["conviction"],
+    )
+except Exception:
+    pass
+
 st.divider()
 
 section = st.segmented_control(
@@ -288,6 +303,65 @@ if section == "Overview":
         that out to noise. Treat conviction as agreement among signals today, not a guarantee about
         tomorrow. Full methodology and numbers: About → Methodology.
         """)
+
+    # ── Score History ─────────────────────────────────────────────────────────────
+    _score_hist = get_score_history(ticker_input, days=180)
+    if len(_score_hist) >= 2:
+        st.markdown("##### Score History")
+        _hist_dates  = [row["snapshot_date"] for row in _score_hist]
+        _hist_scores = [row["score"] for row in _score_hist]
+        _fig_hist = go.Figure(go.Scatter(
+            x=_hist_dates, y=_hist_scores, mode="lines+markers",
+            line=dict(color="#1C2B4A", width=2.5),
+            marker=dict(size=6, color="#B8860B"),
+            hovertemplate="%{x}: score=%{y:.1f}<extra></extra>",
+        ))
+        _fig_hist.add_hline(y=65, line_dash="dot", line_color="#1B5E20", opacity=0.4)
+        _fig_hist.add_hline(y=35, line_dash="dot", line_color="#7B1010", opacity=0.4)
+        _fig_hist.update_layout(
+            height=200, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+            xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560")),
+            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+                       title="Confluence Score", range=[0, 100]),
+            margin=dict(l=0, r=0, t=10, b=0),
+        )
+        st.plotly_chart(_fig_hist, use_container_width=True)
+        st.caption(
+            f"{len(_score_hist)} recorded day(s) for {ticker_input} — built up only from actual visits to "
+            "this page (this app has no scheduler to snapshot every ticker daily), so a short or gappy "
+            "history reflects real traffic, not a bug."
+        )
+    else:
+        st.caption(
+            f"Score history for {ticker_input}: {len(_score_hist)} day(s) recorded so far — comes back "
+            "and builds over time as this ticker gets viewed; today's view was just recorded."
+        )
+
+    # ── Sector-Relative Percentile ────────────────────────────────────────────────
+    _sector_pct = compute_sector_percentile(ticker_input, score_val)
+    if _sector_pct.get("error") is None:
+        _pct = _sector_pct["percentile"]
+        _pct_color = "#1B5E20" if _pct >= 65 else ("#7B1010" if _pct <= 35 else "#8B7355")
+        st.markdown(
+            f'<div style="padding:10px 16px;border-left:4px solid {_pct_color};background:#FAF7F0;margin:8px 0;">'
+            f'<span style="font-weight:700;color:{_pct_color};">{ticker_input} sits at the '
+            f'{_pct:.0f}th percentile among {_sector_pct["n_peers"]} sector peers</span> '
+            f'<span style="color:#6B6560;">(score {score_val:.0f} vs. sector peer average '
+            f'{_sector_pct["sector_avg"]:.0f})</span></div>',
+            unsafe_allow_html=True,
+        )
+        with st.expander("Which peers, and as of when?"):
+            st.caption(
+                "Peer scores are each peer's MOST RECENTLY RECORDED score, not a live recomputation "
+                "(see utils/score_history.py) -- two peers shown here may be from different days, "
+                "since this site has no scheduler to re-score every ticker daily, only what's actually "
+                "been viewed."
+            )
+            st.dataframe(
+                pd.DataFrame(_sector_pct["peer_scores"]), use_container_width=True, hide_index=True,
+            )
+    else:
+        st.caption(f"Sector percentile not yet available for {ticker_input}: {_sector_pct['error']}.")
 
     st.divider()
 

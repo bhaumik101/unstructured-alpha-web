@@ -252,6 +252,43 @@ def ticker_chips(tickers: list, key_prefix: str, per_row: int = 3) -> None:
                 go_to_ticker(t, key=f"chip_{key_prefix}_{t}")
 
 
+def render_global_ticker_search() -> None:
+    """
+    Persistent, type-to-filter ticker search shown in the header on every
+    page — jumps straight to Ticker Deep Dive on selection. Plain
+    st.selectbox over every tracked ticker; Streamlit's selectbox already
+    supports typing to filter a long option list, so this needed no
+    custom component or JS.
+
+    NAVIGATION-LOOP GUARD, verified live (not assumed) before shipping:
+    a naive "if picked: switch_page()" would redirect every single time
+    the header re-renders afterward, forever -- the selectbox's own
+    session_state value persists across reruns, so `picked` stays truthy
+    on every subsequent page load too. The fix is NOT to del the widget's
+    session_state key after navigating -- that was tried first and
+    crashes Streamlit's own widget-state bookkeeping on the next rerun
+    (confirmed against a real AppTest run, not a guess). Instead, this
+    compares the picked value against the last value actually acted on
+    and only navigates when it's genuinely new.
+    """
+    options = sorted(TICKERS.keys())
+    _, search_col, _ = st.columns([3, 2.2, 1.4])
+    with search_col:
+        picked = st.selectbox(
+            "Jump to a ticker",
+            options,
+            index=None,
+            placeholder="🔍 Search any ticker…",
+            key="global_ticker_search",
+            label_visibility="collapsed",
+            format_func=ticker_label,
+        )
+    if picked and picked != st.session_state.get("_last_global_ticker_search"):
+        st.session_state["_last_global_ticker_search"] = picked
+        st.session_state["selected_ticker"] = picked
+        st.switch_page("pages/3_Ticker_Deep_Dive.py")
+
+
 def render_header(page_subtitle: str = "") -> None:
     """
     Inject global CSS and render the Unstructured Alpha masthead.
@@ -302,6 +339,12 @@ def render_header(page_subtitle: str = "") -> None:
     </div>
     <div class="gold-rule"></div>
     """, unsafe_allow_html=True)
+
+    # Global ticker search -- same reasoning as the account widget below:
+    # a real Streamlit widget can't live inside the markdown block above,
+    # so it's rendered here in its own row, automatically on every page
+    # that calls render_header() (all of them).
+    render_global_ticker_search()
 
     # Top-right Sign In / account widget -- a real Streamlit popover, not
     # raw HTML, so it can't live inside the markdown block above (Streamlit

@@ -29,6 +29,47 @@ def _all_markdown_text(at):
     return " ".join(md.value for md in at.markdown)
 
 
+def test_viewing_a_ticker_records_a_score_snapshot(app_test):
+    """
+    The score-snapshot write (utils/score_history.py, wired in right
+    after compute_full_ticker_score()) must actually happen on a normal
+    page view, not just exist as dead code. Uses get_score_history()
+    directly rather than asserting an exact count -- this suite's tests
+    share one real (temp, file-based) SQLite DB for the whole session
+    (see tests/conftest.py), not a fresh in-memory one per test, so other
+    tests may have already visited the same default ticker (CCJ) earlier
+    in the run. "At least one row now exists" is what's actually
+    guaranteed; an exact count would be testing test-execution order, not
+    the feature.
+    """
+    from utils.score_history import get_score_history
+
+    at = app_test("pages/3_Ticker_Deep_Dive.py")
+    assert not at.exception, (
+        "Ticker Deep Dive view raised: " + "\n".join(str(e) for e in at.exception)
+    )
+    history = get_score_history("CCJ")
+    assert len(history) >= 1, "Expected at least one score snapshot row for CCJ after viewing it"
+    assert history[-1]["score"] is not None
+
+
+def test_sector_percentile_section_renders_without_exception(app_test):
+    """
+    compute_sector_percentile() (utils/score_history.py) is called
+    unconditionally on every Overview render -- confirms it handles
+    BOTH outcomes cleanly within the real page: peers with no recorded
+    score yet (the honest "not yet available" caption) and, after
+    snapshots exist from this same test session's earlier ticker views,
+    a real percentile render. Either branch must not raise.
+    """
+    at = app_test("pages/3_Ticker_Deep_Dive.py")
+    assert not at.exception, (
+        "Ticker Deep Dive view raised: " + "\n".join(str(e) for e in at.exception)
+    )
+    text = _all_markdown_text(at) + " ".join(c.value for c in at.caption)
+    assert "sector peers" in text or "Sector percentile not yet available" in text
+
+
 def test_default_load_shows_overview_not_other_sections(app_test):
     """
     On first load (default section = "Overview"), Overview-only content

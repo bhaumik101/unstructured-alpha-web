@@ -156,6 +156,29 @@ remember_tokens = Table(
 )
 
 
+# Historical score snapshots (added 2026-06-22, per the agreed roadmap:
+# search bar -> score history -> sector percentile). Deliberately NOT
+# user-scoped -- a ticker's Confluence Score at a given moment is the
+# same number for every visitor, so one row per (ticker, day) is correct,
+# not one per user. Upserted on (ticker, snapshot_date) every time
+# anyone views that ticker's Deep Dive page (utils/score_history.py),
+# which means history only accumulates for tickers people actually look
+# at -- there is no background scheduler in this Streamlit app to sweep
+# the whole universe daily, so coverage is organic/traffic-driven by
+# design, not a guaranteed daily record for every tracked ticker.
+score_snapshots = Table(
+    "score_snapshots", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("ticker", String(16), nullable=False),
+    Column("snapshot_date", String(10), nullable=False),  # YYYY-MM-DD, local calendar date of the snapshot
+    Column("score", Float, nullable=False),
+    Column("case", String(16)),         # "BULL" / "BEAR" / "NEUTRAL"
+    Column("conviction", String(32)),
+    Column("created_at", String(64), nullable=False),
+    UniqueConstraint("ticker", "snapshot_date", name="uq_score_snapshot_ticker_date"),
+)
+
+
 def _migrate_users_table() -> None:
     """
     metadata.create_all() only creates tables that don't exist yet -- it
