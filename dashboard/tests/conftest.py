@@ -60,6 +60,22 @@ What is NOT tested: that wiring those functions together behind a real
 button click, with real fetcher data, doesn't raise. That needs either a
 careful multi-module mock or a live check against a real ticker with
 actual insider/short-interest history before trusting it in production.
+
+KNOWN GAP — Ticker Deep Dive's Volume + RSI section (added 2026-06-22)
+hits the SAME "from module import name" footgun as above, but even more
+directly: utils/ticker_score.py's compute_full_ticker_score() (which
+produces price_series, gating the entire price chart/stats/Volume/RSI
+block behind `if not price_series.empty:`) keeps its own bound reference
+to fetch_price from whenever it was first imported in the test session.
+On top of that, this sandbox genuinely has no live network access at all
+for yfinance (confirmed directly: every fetch attempt fails with a
+blocked-outbound-proxy error, not a code bug) -- so price_series is
+empty in EVERY AppTest run here, for EVERY ticker, regardless of any
+monkeypatch. compute_rsi() itself is thoroughly unit-tested with
+synthetic ground truth (tests/test_technical_indicators_unit.py); the
+on-page rendering of real Volume/RSI charts has not been seen render
+with real data in any environment yet and needs a live-browser check
+before trusting it, the same as this page's price/index fragments.
 """
 
 import os

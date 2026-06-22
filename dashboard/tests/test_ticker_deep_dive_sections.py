@@ -70,6 +70,38 @@ def test_sector_percentile_section_renders_without_exception(app_test):
     assert "sector peers" in text or "Sector percentile not yet available" in text
 
 
+def test_volume_and_rsi_section_does_not_crash_with_no_price_data(app_test, monkeypatch):
+    """
+    Volume + RSI (added 2026-06-22, per explicit user request for "basic
+    indicators" on Ticker Deep Dive) is gated behind `if not
+    price_series.empty:`, same as the existing price chart/stats it sits
+    alongside.
+
+    KNOWN GAP, same root cause already documented in conftest.py's module
+    docstring for the insider/short-interest validated-scan button: this
+    sandbox has no real network access (confirmed live -- yfinance calls
+    fail with a blocked-proxy error here), AND utils/ticker_score.py
+    already holds its own bound reference to fetch_price from an earlier
+    import in this test session, so monkeypatching
+    utils.fetchers.fetch_price at this point would not reach it. That
+    means price_series is genuinely empty in every AppTest run in this
+    environment, and the actual Volume/RSI rendering with REAL data
+    cannot be exercised here -- compute_rsi() itself is thoroughly unit-
+    tested directly with synthetic ground truth instead (see
+    tests/test_technical_indicators_unit.py), and the on-page wiring
+    needs a live-browser check before trusting it, the same as this
+    page's two st.fragment price tickers already do.
+
+    What THIS test actually confirms: the empty-price-series path (every
+    ticker, in this sandbox) renders without raising, which is real
+    coverage even though it can't reach the non-empty branch.
+    """
+    at = app_test("pages/3_Ticker_Deep_Dive.py")
+    assert not at.exception, (
+        "Ticker Deep Dive raised: " + "\n".join(str(e) for e in at.exception)
+    )
+
+
 def test_default_load_shows_overview_not_other_sections(app_test):
     """
     On first load (default section = "Overview"), Overview-only content

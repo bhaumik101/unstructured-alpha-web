@@ -27,6 +27,7 @@ from utils import alerts_db
 from utils.alerts import evaluate_watchlist
 from utils.header import render_header, render_sidebar_base, go_to_ticker
 from utils.auth_ui import require_login
+from utils.quotes import get_batch_quotes, mini_sparkline
 
 # "Quick add" presets (per explicit user request: most people adding a
 # ticker don't want to hand-tune 3 threshold numbers every time). Each
@@ -106,22 +107,61 @@ watchlist = alerts_db.get_watchlist(user_id)
 if not watchlist:
     st.info("Your watchlist is empty. Add a ticker above to start tracking it.")
 else:
+    # Batched, cached (utils/quotes.py, 15 min) -- one fetch per watched
+    # ticker, not per page render; the same module Stock Screener now uses,
+    # so price/% displays can't silently disagree between the two pages.
+    with st.spinner(f"Loading prices for {len(watchlist)} watched ticker(s)…"):
+        _watch_quotes = get_batch_quotes([row["ticker"] for row in watchlist])
+
     for row in watchlist:
         ticker = row["ticker"]
-        wc1, wc2, wc3, wc4, wc5 = st.columns([2, 1, 1, 1, 1])
+        q = _watch_quotes.get(ticker, {})
+        price = q.get("last")
+        chg_pct = q.get("chg_1d_pct")
+        series = q.get("series")
+
+        wc1, wc2, wc3, wc4 = st.columns([2.2, 1, 1.8, 0.8])
         with wc1:
             # Clicking the ticker jumps straight to Ticker Deep Dive with
             # this ticker pre-filled (same session_state.selected_ticker +
             # switch_page mechanism used everywhere else tickers are
             # clickable on this site -- Stock Screener, ticker chips, etc.)
             go_to_ticker(ticker, key=f"watchlist_goto_{ticker}")
+            st.caption(
+                f"Bull ≥ {row['score_bull_threshold']:.0f} · Bear ≤ {row['score_bear_threshold']:.0f} "
+                f"· Move ≥ {row['price_move_pct_threshold']:.1f}%"
+            )
         with wc2:
-            st.caption(f"Bull ≥ {row['score_bull_threshold']:.0f}")
+            if price is not None:
+                st.markdown(f"**${price:,.2f}**")
+            else:
+                st.caption("Price unavailable")
+            if chg_pct is not None:
+                _chg_color = "#1B5E20" if chg_pct > 0 else ("#7B1010" if chg_pct < 0 else "#8B7355")
+                _chg_arrow = "▲" if chg_pct > 0 else ("▼" if chg_pct < 0 else "●")
+                st.markdown(
+                    f'<span style="color:{_chg_color};font-size:0.85rem;">{_chg_arrow} {chg_pct:+.2f}%</span>',
+                    unsafe_allow_html=True,
+                )
         with wc3:
-            st.caption(f"Bear ≤ {row['score_bear_threshold']:.0f}")
+            # Small inline sparkline -- 3-month window, no axes, matching
+            # the same mini_sparkline() Market Overview already uses for
+            # its index cards (utils/quotes.py). Watched tickers always
+            # have years of history (get_quote() pulls "max" period), so
+            # 3M is a real, deliberate choice here, not a fallback: long
+            # enough to show a real trend, short enough not to flatten a
+            # recent move into invisibility next to a multi-year history.
+            if series is not None and not series.empty:
+                _spark_color = "#1B5E20" if (chg_pct or 0) >= 0 else "#7B1010"
+                st.plotly_chart(
+                    mini_sparkline(series, _spark_color, "3M"),
+                    use_container_width=True,
+                    config={"displayModeBar": False},
+                    key=f"watch_spark_{ticker}",
+                )
+            else:
+                st.caption("Chart unavailable")
         with wc4:
-            st.caption(f"Move ≥ {row['price_move_pct_threshold']:.1f}%")
-        with wc5:
             if st.button("Remove", key=f"remove_{ticker}"):
                 alerts_db.remove_from_watchlist(user_id, ticker)
                 st.rerun()

@@ -262,6 +262,56 @@ def compute_backtested_pcs(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# BASIC TECHNICAL INDICATORS (Ticker Deep Dive, 2026-06-22 per explicit
+# user request for "volume, RSI and other basic indicators")
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_rsi(price: pd.Series, period: int = 14) -> pd.Series:
+    """
+    Wilder's Relative Strength Index -- the standard, textbook RSI
+    formula (Wilder's own exponential smoothing with alpha=1/period, NOT
+    a plain rolling-mean approximation, which some simplified
+    implementations substitute and which produces visibly different
+    values). Returns a Series of the same index as `price`, with NaN for
+    the first `period` points where there isn't enough history yet.
+
+    RSI = 100 - (100 / (1 + RS)), RS = avg_gain / avg_loss over `period`
+    bars, where avg_gain/avg_loss use Wilder's smoothing (equivalent to
+    an EMA with alpha = 1/period, adjust=False -- confirmed against
+    pandas' own ewm() semantics, not assumed).
+
+    Bounded in [0, 100] by construction: 100 when there have been zero
+    losses in the lookback (textbook convention for "RS = infinity"), 0
+    when there have been zero gains -- both verified directly with
+    synthetic monotonic series in tests/test_technical_indicators_unit.py,
+    not just trusted from the formula on paper.
+    """
+    if price.empty or len(price) < 2:
+        return pd.Series(dtype=float, index=price.index)
+
+    delta = price.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+
+    avg_gain = gain.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1.0 / period, min_periods=period, adjust=False).mean()
+
+    rs = avg_gain / avg_loss
+    rsi = 100 - (100 / (1 + rs))
+
+    # avg_loss == 0 (no losses at all in the lookback) makes rs = inf,
+    # which already correctly evaluates to rsi = 100 via the formula
+    # above -- EXCEPT when avg_gain is also 0 (a perfectly flat price),
+    # where 0/0 = NaN rather than a meaningful "neutral" reading. Treat
+    # that specific case as RSI = 50 (textbook convention: no movement
+    # at all means no momentum in either direction).
+    flat = (avg_gain == 0) & (avg_loss == 0)
+    rsi = rsi.where(~flat, 50.0)
+
+    return rsi
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # SIGNAL SCORING
 # ─────────────────────────────────────────────────────────────────────────────
 

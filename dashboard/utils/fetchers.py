@@ -191,6 +191,28 @@ def fetch_price(ticker: str, start: str, end: str) -> pd.Series:
         return pd.Series(dtype=float, name=ticker)
 
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_volume(ticker: str, start: str, end: str) -> pd.Series:
+    """
+    Fetch daily trading volume -- a separate function from fetch_price()
+    above rather than returning a DataFrame with both columns, since
+    fetch_price() is already called throughout this codebase expecting a
+    plain Series; changing its return shape would mean auditing and
+    updating every existing call site. A second yfinance .history() call
+    for the same ticker/date range is a real, small redundant cost, but
+    it's cached the same 30 minutes as fetch_price(), and far lower risk
+    than reshaping an already-widely-used function.
+    """
+    try:
+        hist = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True)
+        if hist.empty or "Volume" not in hist.columns:
+            return pd.Series(dtype=float, name=ticker)
+        s = hist["Volume"].rename(ticker)
+        return _tz_strip(s)
+    except Exception:
+        return pd.Series(dtype=float, name=ticker)
+
+
 @st.cache_data(ttl=60, show_spinner=False)
 def fetch_live_quote(ticker: str) -> dict:
     """

@@ -17,6 +17,7 @@ from utils.config import SIGNALS, TICKERS, CATEGORIES
 from utils.fetchers import fetch_signal_series, is_synthetic
 from utils.analysis import score_signal, compute_confluence
 from utils.header import render_header, render_sidebar_base, render_synthetic_data_banner
+from utils.quotes import get_batch_quotes
 
 st.set_page_config(page_title="Stock Screener — UA", layout="wide")
 render_header("Stock Screener")
@@ -328,6 +329,25 @@ if not rows:
 
 screen_df = pd.DataFrame(rows).sort_values("Score", ascending=False).reset_index(drop=True)
 
+# ── Price + daily % change ───────────────────────────────────────────────────
+# Fetched AFTER filtering, not for the full ~80-ticker universe up front --
+# get_batch_quotes() is cached (utils/quotes.py, 15 min), but there's no
+# reason to pay for quotes on tickers the current filters already excluded.
+with st.spinner(f"Loading live prices for {len(screen_df)} ticker(s)…"):
+    _quotes = get_batch_quotes(list(screen_df["Ticker"]))
+
+
+def _quote_price(ticker: str) -> float | None:
+    return _quotes.get(ticker, {}).get("last")
+
+
+def _quote_chg_1d(ticker: str) -> float | None:
+    return _quotes.get(ticker, {}).get("chg_1d_pct")
+
+
+screen_df["Price"] = screen_df["Ticker"].map(_quote_price)
+screen_df["1D %"] = screen_df["Ticker"].map(_quote_chg_1d)
+
 # ── Summary stats ─────────────────────────────────────────────────────────────
 tot    = len(screen_df)
 n_bull = (screen_df["Case"] == "BULL").sum()
@@ -368,7 +388,7 @@ st.markdown('<div class="section-header">SCREENER RESULTS</div>', unsafe_allow_h
 screen_df["Signal"] = screen_df["Case"].map({"BULL": "▲ BULL", "BEAR": "▼ BEAR"}).fillna("● " + screen_df["Case"])
 
 display_df = screen_df[[
-    "Ticker", "Company", "Sector", "Score", "Signal",
+    "Ticker", "Company", "Sector", "Price", "1D %", "Score", "Signal",
     "Conviction", "Bull Sigs", "Bear Sigs", "Signals"
 ]].copy()
 
@@ -382,6 +402,8 @@ event = st.dataframe(
         "Ticker":     st.column_config.TextColumn("Ticker", width="small"),
         "Company":    st.column_config.TextColumn("Company", width="medium"),
         "Sector":     st.column_config.TextColumn("Sector", width="small"),
+        "Price":      st.column_config.NumberColumn("Price", format="$%.2f", width="small"),
+        "1D %":       st.column_config.NumberColumn("1D %", format="%+.2f%%", width="small"),
         "Score":      st.column_config.ProgressColumn(
                           "Confluence Score", min_value=0, max_value=100, format="%.1f"
                       ),

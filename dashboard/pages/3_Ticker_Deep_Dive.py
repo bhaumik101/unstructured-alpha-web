@@ -41,7 +41,7 @@ import streamlit as st
 
 from utils.config import SIGNALS, TICKERS, CATEGORIES, CURATED_FUNDS, THIRTEENF_CUSIP_TO_TICKER
 from utils.fetchers import (
-    fetch_price, fetch_signal_series, is_synthetic,
+    fetch_price, fetch_signal_series, is_synthetic, fetch_volume,
     fetch_federal_contracts, fetch_insider_trades, fetch_live_quote,
     fetch_insider_transactions_detail, fetch_short_interest, fetch_13f_holdings,
 )
@@ -49,7 +49,7 @@ from utils.analysis import (
     score_signal, compute_confluence, compute_quick_correlation,
     score_insider_activity, score_short_interest, score_13f_positioning,
     compute_quick_correlation_stats, compute_correlation,
-    score_contract_velocity, build_narrative,
+    score_contract_velocity, build_narrative, compute_rsi,
 )
 from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
 from utils.header import render_header, render_sidebar_base, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
@@ -479,6 +479,80 @@ if section == "Overview":
             p2.metric("52-Week High",  f"${high_52w:.2f}", delta=f"{pct_from_high:+.1f}%")
             p3.metric("52-Week Low",   f"${low_52w:.2f}",  delta=f"{pct_from_low:+.1f}%")
             p4.metric("YTD Return",    f"{ret_ytd:+.1f}%")
+
+        # ── Volume + RSI ─────────────────────────────────────────────────────────
+        # Same `price_period` selector and `price_view` window as the price
+        # chart above -- deliberately not a second, separate timeframe
+        # control, so switching one switches all three charts together.
+        _vol_end = datetime.now().strftime("%Y-%m-%d")
+        _vol_start = (datetime.now() - timedelta(days=365 * 15)).strftime("%Y-%m-%d")
+        volume_series = fetch_volume(ticker_input, _vol_start, _vol_end)
+
+        vol_col, rsi_col = st.columns(2)
+
+        with vol_col:
+            st.markdown("##### Volume")
+            if not volume_series.empty:
+                vol_view = volume_series[volume_series.index >= price_view.index[0]]
+                if vol_view.empty:
+                    vol_view = volume_series
+                _vol_avg = volume_series.tail(50).mean() if len(volume_series) >= 50 else volume_series.mean()
+                _vol_colors = ["#1B5E20" if v >= _vol_avg else "#8B7355" for v in vol_view.values]
+                fig_vol = go.Figure(go.Bar(
+                    x=vol_view.index, y=vol_view.values, marker_color=_vol_colors,
+                    hovertemplate="%{x|%Y-%m-%d}: %{y:,.0f}<extra></extra>",
+                ))
+                fig_vol.add_hline(y=_vol_avg, line_dash="dot", line_color="#1C2B4A", opacity=0.5,
+                                   annotation_text="50-day avg", annotation_font_size=10)
+                fig_vol.update_layout(
+                    height=220, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+                    xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560", size=10)),
+                    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=10)),
+                    margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                )
+                st.plotly_chart(fig_vol, use_container_width=True)
+                st.caption(
+                    f"Bars colored green when above the trailing 50-day average volume "
+                    f"({_vol_avg:,.0f}), tan when below — a rough proxy for unusually active days."
+                )
+            else:
+                st.info(f"Volume data unavailable for {ticker_input}.")
+
+        with rsi_col:
+            st.markdown("##### RSI (14-day)")
+            if len(price_series.dropna()) >= 15:
+                rsi_full = compute_rsi(price_series, period=14)
+                rsi_view = rsi_full[rsi_full.index >= price_view.index[0]]
+                if rsi_view.dropna().empty:
+                    rsi_view = rsi_full
+                fig_rsi = go.Figure(go.Scatter(
+                    x=rsi_view.index, y=rsi_view.values, mode="lines",
+                    line=dict(color="#B8860B", width=2),
+                    hovertemplate="%{x|%Y-%m-%d}: RSI=%{y:.1f}<extra></extra>",
+                ))
+                fig_rsi.add_hline(y=70, line_dash="dot", line_color="#7B1010", opacity=0.6,
+                                   annotation_text="Overbought (70)", annotation_font_size=10)
+                fig_rsi.add_hline(y=30, line_dash="dot", line_color="#1B5E20", opacity=0.6,
+                                   annotation_text="Oversold (30)", annotation_font_size=10)
+                fig_rsi.update_layout(
+                    height=220, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+                    xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560", size=10)),
+                    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=10),
+                               range=[0, 100]),
+                    margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
+                )
+                st.plotly_chart(fig_rsi, use_container_width=True)
+                _latest_rsi = rsi_full.dropna()
+                if not _latest_rsi.empty:
+                    _rsi_val = _latest_rsi.iloc[-1]
+                    _rsi_read = "Overbought" if _rsi_val >= 70 else ("Oversold" if _rsi_val <= 30 else "Neutral")
+                    st.caption(
+                        f"Latest reading: {_rsi_val:.1f} ({_rsi_read}). Wilder's standard RSI — a "
+                        "momentum indicator, not a buy/sell signal on its own; extreme readings can "
+                        "persist during strong trends rather than immediately reversing."
+                    )
+            else:
+                st.info(f"Not enough price history yet to compute RSI for {ticker_input}.")
 
     st.divider()
 
