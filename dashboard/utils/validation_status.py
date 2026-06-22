@@ -24,11 +24,15 @@
 from datetime import datetime, timedelta
 from typing import Dict
 
+import pandas as pd
 import streamlit as st
 
 from utils.config import SIGNALS
 from utils.fetchers import fetch_signal_series, fetch_price
 from utils.analysis import compute_backtested_pcs
+from utils.lead_time_research import (
+    lag_scan_with_validation, pooled_lag_scan_across_sector, compute_signal_reliability_score,
+)
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -61,6 +65,86 @@ def backtest_all_macro_signals(_v: int = 2) -> Dict[str, dict]:
         except Exception:
             out[sig_id] = {"pcs": None, "backtested": False, "n_tested": 0,
                             "significance_rate": 0.0, "avg_abs_r": 0.0, "details": []}
+    return out
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def validate_all_macro_signals(_v: int = 1) -> Dict[str, dict]:
+    """
+    The universal lag-validation rollout (2026-06-22): every macro/FRED-
+    style signal now gets the SAME rigorous treatment that was previously
+    only built for insider activity and short interest --
+    lag_scan_with_validation()'s out-of-sample split + Bonferroni
+    correction, pooled_lag_scan_across_sector()'s cross-ticker
+    confirmation, and compute_signal_reliability_score()'s transparent
+    0-100 score with full component breakdown. This is a NEW, more
+    rigorous validation pass alongside (not a replacement for)
+    backtest_all_macro_signals() above -- that simpler same-sample
+    significance test still backs the "Static PCS" backtest column on the
+    About page, and nothing about live confluence-score weighting
+    (utils/ticker_score.py) changes here. This function exists
+    specifically for the Model Validation Dashboard's headline claim:
+    every signal, validated the same rigorous way, no exceptions.
+
+    Design: for each signal, the FIRST relevant ticker is the "primary"
+    validation (mirrors how a ticker's own Deep Dive page treats insider/
+    short-interest -- current ticker = primary), and up to 4 more relevant
+    tickers form the pooled cross-ticker confirmation set -- mirroring
+    sector-peer pooling exactly, just using the signal's own hand-curated
+    relevant_tickers instead of utils.config.TICKERS sector groupings
+    (more appropriate here: a signal's relevant_tickers were chosen
+    specifically because the signal is thought to apply to them).
+
+    Returns {signal_id: {"validation": ..., "pooled": ..., "reliability": ...}}.
+    Every signal gets an entry, even with zero testable tickers or a fetch
+    failure -- never silently omitted, so a caller's "N of M validated"
+    count is never quietly wrong.
+    """
+    end = datetime.now().strftime("%Y-%m-%d")
+    start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+
+    out: Dict[str, dict] = {}
+    for sig_id, cfg in SIGNALS.items():
+        test_tickers = (cfg.get("relevant_tickers") or [])[:5]
+        if not test_tickers:
+            out[sig_id] = {
+                "validation": {"error": "No relevant tickers configured for this signal", "n": 0},
+                "pooled": None,
+                "reliability": {"score": 0, "label": "Insufficient data to assess", "components": {}},
+            }
+            continue
+
+        try:
+            sig_series = fetch_signal_series(cfg, start, end)
+        except Exception:
+            sig_series = pd.Series(dtype=float)
+
+        primary_ticker, pool_tickers = test_tickers[0], test_tickers[1:]
+
+        try:
+            primary_price = fetch_price(primary_ticker, start, end)
+        except Exception:
+            primary_price = pd.Series(dtype=float)
+
+        if sig_series.empty or primary_price.empty:
+            validation = {"error": "Insufficient overlapping data for the primary ticker", "n": 0}
+        else:
+            validation = lag_scan_with_validation(sig_series, primary_price, scan_max_lag=16)
+
+        pooled = None
+        if pool_tickers and not validation.get("error"):
+            signal_per_ticker = {t: sig_series for t in pool_tickers}
+            price_per_ticker = {}
+            for t in pool_tickers:
+                try:
+                    price_per_ticker[t] = fetch_price(t, start, end)
+                except Exception:
+                    price_per_ticker[t] = pd.Series(dtype=float)
+            pooled = pooled_lag_scan_across_sector(signal_per_ticker, price_per_ticker, scan_max_lag=16)
+
+        reliability = compute_signal_reliability_score(validation, pooled)
+        out[sig_id] = {"validation": validation, "pooled": pooled, "reliability": reliability}
+
     return out
 
 

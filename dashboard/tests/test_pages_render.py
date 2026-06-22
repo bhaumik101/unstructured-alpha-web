@@ -63,18 +63,19 @@ def test_model_validation_page_shows_all_five_categories_with_no_overclaim(app_t
     assert "NOT validated" in all_text
 
 
-def test_model_validation_page_backtest_button_runs_without_exception(app_test):
+def test_model_validation_page_universal_validation_button_runs_without_exception(app_test):
     """
-    Mirrors test_about_page_backtest_button_runs_without_exception -- this
-    page has its OWN button (distinct key, so the two pages' widget state
-    can't collide) wired to the same shared backtest_all_macro_signals().
+    Exercises the universal lag-validation button -- the one that calls
+    validate_all_macro_signals() (utils/validation_status.py), the
+    2026-06-22 rollout of the out-of-sample/Bonferroni-corrected
+    methodology to every macro signal, not just insider/short-interest.
     """
     at = app_test("pages/11_Model_Validation.py")
-    btn = next((b for b in at.button if b.key == "run_pcs_backtest_validation_page"), None)
-    assert btn is not None, "Run Live Backtest button not found on Model Validation page"
+    btn = next((b for b in at.button if b.key == "run_validated_lag_scan_all_signals"), None)
+    assert btn is not None, "Run Universal Lag Validation button not found on Model Validation page"
     btn.click().run()
     assert not at.exception, (
-        "Backtest button raised: " + "\n".join(str(e) for e in at.exception)
+        "Universal lag validation button raised: " + "\n".join(str(e) for e in at.exception)
     )
 
 

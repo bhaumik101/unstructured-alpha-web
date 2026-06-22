@@ -331,3 +331,123 @@ def compute_signal_reliability_score(validation: dict, pooled: Optional[dict] = 
         label = "Weak — likely noise"
 
     return {"score": score, "label": label, "components": components}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LAG DECAY TRACKING — is a signal's lead time stable, shrinking, or lengthening?
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# WHY THIS IS SEPARATE FROM lag_scan_with_validation() ABOVE: that function
+# answers "is there a real lead-time relationship, validated once, on the
+# whole history available." This function asks a different question --
+# institutional quants call it "alpha decay": once a signal becomes well
+# known, the market tends to price it in faster, so a lead time that was
+# genuinely 8 weeks two years ago can compress to 2 weeks today as more
+# people watch the same data. Comparing the best-fitting lag across a
+# SEQUENCE of trailing windows, rather than once across all of history,
+# is how you'd actually notice that happening.
+#
+# THIS IS DELIBERATELY NOT TREATED AS ANOTHER "VALIDATED" FINDING. Each
+# window's best lag is an in-sample pick with no out-of-sample check of
+# its own -- doing a full OOS split inside every rolling window would
+# need far more history than almost any signal here has. Adjacent windows
+# also overlap heavily by construction (a 13-week step inside a 104-week
+# window shares ~88% of its data with the previous window), so this is a
+# descriptive/exploratory view of a trend, not a statistically independent
+# sequence of tests. The UI built on this must say so, every time.
+
+def compute_rolling_best_lag(
+    signal: pd.Series,
+    price: pd.Series,
+    window_weeks: int = 104,
+    step_weeks: int = 13,
+    scan_max_lag: int = 16,
+    min_window_n: int = 20,
+) -> dict:
+    """
+    Track how the best-correlating lag for `signal` vs `price` moves
+    across a sequence of trailing windows (each `window_weeks` long,
+    stepping forward `step_weeks` at a time -- defaults: ~2-year windows,
+    ~1-quarter steps).
+
+    Returns {"error": ...} if there isn't enough history to form at least
+    3 windows -- 3 is the minimum to describe a first-half-vs-second-half
+    trend at all, and even that is a thin basis; callers should weigh a
+    3-5 window result very differently from a 10+ window one (n_windows
+    is always returned so they can).
+
+    On success:
+        windows              : [{"window_end", "best_lag", "best_r", "n"}, ...]
+        n_windows             : how many windows were actually computed
+        first_half_avg_lag    : mean best_lag across the earlier half of windows
+        second_half_avg_lag   : mean best_lag across the later half of windows
+        lag_trend             : "shrinking" | "lengthening" | "stable"
+                                 (>=1 week average difference between halves)
+    """
+    base = align_series(signal, price, 0)
+    total_weeks = len(base)
+    min_needed = window_weeks + 2 * step_weeks
+    if total_weeks < min_needed:
+        return {
+            "error": (
+                f"Need at least {min_needed} weeks of overlapping history to track lag "
+                f"decay over time (have {total_weeks}) -- this view needs much more history "
+                f"than a single validated lag-scan does, since it has to fit that scan "
+                f"separately inside several different time windows."
+            )
+        }
+
+    windows: List[dict] = []
+    for end_idx in range(window_weeks, total_weeks + 1, step_weeks):
+        window_start_date = base.index[end_idx - window_weeks]
+        window_end_date = base.index[end_idx - 1]
+
+        best_lag, best_r, best_n = None, 0.0, 0
+        for lag in range(0, scan_max_lag + 1):
+            al = align_series(signal, price, lag)
+            al_w = al[(al.index >= window_start_date) & (al.index <= window_end_date)]
+            if len(al_w) < min_window_n:
+                continue
+            sr = al_w["signal"].pct_change().dropna()
+            pr = al_w["price"].pct_change().dropna()
+            cb = pd.DataFrame({"s": sr, "p": pr}).dropna()
+            if len(cb) < min_window_n:
+                continue
+            r, _ = stats.pearsonr(cb["s"], cb["p"])
+            if best_lag is None or abs(r) > abs(best_r):
+                best_lag, best_r, best_n = lag, float(r), len(cb)
+
+        if best_lag is not None:
+            windows.append({
+                "window_end": window_end_date, "best_lag": best_lag,
+                "best_r": round(best_r, 4), "n": best_n,
+            })
+
+    if len(windows) < 3:
+        return {
+            "error": (
+                f"Only {len(windows)} usable window(s) with enough data in each -- need at "
+                f"least 3 to describe a trend at all."
+            )
+        }
+
+    half = len(windows) // 2
+    first_half_avg = sum(w["best_lag"] for w in windows[:half]) / half
+    second_half_avg = sum(w["best_lag"] for w in windows[half:]) / (len(windows) - half)
+    diff = second_half_avg - first_half_avg
+
+    if diff <= -1.0:
+        trend = "shrinking"
+    elif diff >= 1.0:
+        trend = "lengthening"
+    else:
+        trend = "stable"
+
+    return {
+        "error": None,
+        "windows": windows,
+        "n_windows": len(windows),
+        "first_half_avg_lag": round(first_half_avg, 1),
+        "second_half_avg_lag": round(second_half_avg, 1),
+        "lag_trend": trend,
+    }

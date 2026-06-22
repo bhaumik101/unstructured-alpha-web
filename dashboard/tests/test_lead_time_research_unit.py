@@ -27,6 +27,7 @@ from utils.lead_time_research import (
     pooled_lag_scan_across_sector,
     compute_signal_reliability_score,
     get_sector_peers,
+    compute_rolling_best_lag,
 )
 
 
@@ -205,3 +206,104 @@ def test_get_sector_peers_excludes_self_and_etfs():
 
 def test_get_sector_peers_unknown_ticker_returns_empty():
     assert get_sector_peers("NOT_A_REAL_TICKER_XYZ") == []
+
+
+# ── lag decay tracking (compute_rolling_best_lag) ────────────────────────────
+# Same philosophy as the tests above: a synthetic series with a KNOWN,
+# injected regime change (the true lag genuinely shrinks partway through)
+# must actually be detected, and a series with a stable lag throughout
+# must NOT be reported as decaying just because of estimation noise.
+
+def _make_regime_switch_signal_and_price(
+    seed: int, n: int = 160, lag_before: int = 10, lag_after: int = 3, strength: float = 0.05,
+):
+    """First half of history: price return driven by signal's change
+    `lag_before` weeks earlier. Second half: same signal series, but price
+    now driven by the signal's change `lag_after` weeks earlier instead --
+    simulating a lead time that has genuinely compressed partway through
+    the available history."""
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range("2018-01-07", periods=n, freq="W")
+    signal_diffs = rng.normal(0, 1, n)
+    signal = pd.Series(np.cumsum(signal_diffs) + 50, index=dates)
+
+    halfway = n // 2
+    price_vals = np.zeros(n)
+    price_vals[0] = 100.0
+    for i in range(1, n):
+        lag = lag_before if i < halfway else lag_after
+        driver = signal_diffs[i - lag] if i >= lag else 0.0
+        ret = strength * driver + rng.normal(0, 0.015)
+        price_vals[i] = price_vals[i - 1] * (1 + ret)
+    price = pd.Series(price_vals, index=dates)
+    return signal, price
+
+
+def _make_stable_lag_signal_and_price(seed: int, n: int = 160, true_lag: int = 6, strength: float = 0.05):
+    """Same true lag for the ENTIRE history -- the decay function must
+    report this as "stable", not invent a trend out of estimation noise."""
+    return _make_signal_and_lagged_price(seed=seed, n=n, true_lag=true_lag, strength=strength)
+
+
+def test_rolling_best_lag_detects_genuine_shrinking_trend():
+    signal, price = _make_regime_switch_signal_and_price(seed=3, lag_before=10, lag_after=3)
+    result = compute_rolling_best_lag(signal, price, window_weeks=52, step_weeks=13, scan_max_lag=16)
+
+    assert result["error"] is None
+    assert result["n_windows"] >= 3
+    assert result["lag_trend"] == "shrinking"
+    assert result["second_half_avg_lag"] < result["first_half_avg_lag"]
+    # Directionally sane, not just "any decrease" -- the early windows should
+    # sit noticeably closer to the true early lag than the late windows do.
+    assert result["first_half_avg_lag"] > result["second_half_avg_lag"] + 1.0
+
+
+def test_rolling_best_lag_detects_genuine_lengthening_trend():
+    signal, price = _make_regime_switch_signal_and_price(seed=4, lag_before=3, lag_after=12)
+    result = compute_rolling_best_lag(signal, price, window_weeks=52, step_weeks=13, scan_max_lag=16)
+
+    assert result["error"] is None
+    assert result["lag_trend"] == "lengthening"
+    assert result["second_half_avg_lag"] > result["first_half_avg_lag"]
+
+
+def test_rolling_best_lag_reports_stable_for_unchanging_lag():
+    signal, price = _make_stable_lag_signal_and_price(seed=5, true_lag=6)
+    result = compute_rolling_best_lag(signal, price, window_weeks=52, step_weeks=13, scan_max_lag=16)
+
+    assert result["error"] is None
+    assert result["lag_trend"] == "stable"
+    assert abs(result["second_half_avg_lag"] - result["first_half_avg_lag"]) < 1.0
+
+
+def test_rolling_best_lag_rejects_pure_noise_as_stable_not_a_fake_trend():
+    """Pure noise has no real lag at all -- the windows will bounce around
+    somewhat randomly, but across enough windows the average should not
+    show a clean, large directional trend; this is a sanity check that
+    noise doesn't masquerade as a confident "shrinking"/"lengthening" call
+    every time, not a guarantee of "stable" on every single seed (some
+    noise realizations legitimately will drift by chance)."""
+    signal, price = _make_pure_noise(seed=6, n=160)
+    result = compute_rolling_best_lag(signal, price, window_weeks=52, step_weeks=13, scan_max_lag=16)
+    assert result["error"] is None
+    # Whatever it reports, the windows themselves must be well-formed.
+    assert result["n_windows"] >= 3
+    for w in result["windows"]:
+        assert 0 <= w["best_lag"] <= 16
+
+
+def test_rolling_best_lag_errors_with_insufficient_history():
+    signal, price = _make_signal_and_lagged_price(seed=8, n=60, true_lag=6)
+    result = compute_rolling_best_lag(signal, price, window_weeks=104, step_weeks=13)
+    assert result["error"] is not None
+    assert "windows" not in result
+
+
+def test_rolling_best_lag_window_entries_have_expected_shape():
+    signal, price = _make_regime_switch_signal_and_price(seed=9)
+    result = compute_rolling_best_lag(signal, price, window_weeks=52, step_weeks=13)
+    assert result["error"] is None
+    for w in result["windows"]:
+        assert set(w.keys()) == {"window_end", "best_lag", "best_r", "n"}
+        assert isinstance(w["best_lag"], int)
+        assert -1.0 <= w["best_r"] <= 1.0

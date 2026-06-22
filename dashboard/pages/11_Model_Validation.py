@@ -21,7 +21,7 @@ import streamlit as st
 
 from utils.header import render_header, render_sidebar_base
 from utils.config import SIGNALS, CATEGORIES
-from utils.validation_status import backtest_all_macro_signals, get_static_validation_summary
+from utils.validation_status import validate_all_macro_signals, get_static_validation_summary
 
 st.set_page_config(page_title="Model Validation — UA", layout="wide")
 render_header("Model Validation Dashboard")
@@ -62,64 +62,95 @@ for entry in get_static_validation_summary():
 
 st.divider()
 
-# ── Macro signal library backtest ────────────────────────────────────────────
-st.markdown('<div class="section-header">MACRO SIGNAL LIBRARY — REAL BACKTEST RESULTS</div>', unsafe_allow_html=True)
+# ── Macro signal library — universal lag validation ─────────────────────────
+st.markdown('<div class="section-header">MACRO SIGNAL LIBRARY — VALIDATED LEAD-TIME RESULTS</div>', unsafe_allow_html=True)
 st.caption(
-    f"All {len(SIGNALS)} macro/FRED-style signals, tested against up to 5 of each signal's relevant "
-    "tickers (not just one) so a signal that only works on a single name doesn't get credit for broad "
-    "predictive power. This is the SAME backtest available on the About page — one shared "
-    "implementation, so the two pages can't silently disagree with each other."
+    f"All {len(SIGNALS)} macro/FRED-style signals, now run through the SAME rigorous methodology "
+    "originally built only for insider activity and short interest: an out-of-sample split, "
+    "Bonferroni correction across every lag tested, and cross-ticker pooled confirmation -- "
+    "rolled up into one transparent Signal Reliability Score per signal (utils/lead_time_research.py). "
+    "Every signal held to the same bar, no exceptions."
 )
 
-run_backtest = st.button("Run Live Backtest (tests real correlation + significance)", key="run_pcs_backtest_validation_page")
+run_validated = st.button(
+    "Run Universal Lag Validation (out-of-sample + corrected, every signal)",
+    key="run_validated_lag_scan_all_signals",
+)
 
-backtest_results = {}
-if run_backtest:
-    with st.spinner("Backtesting every signal against real price history — this fetches live data, may take a minute…"):
-        backtest_results = backtest_all_macro_signals()
-    n_validated = sum(1 for r in backtest_results.values() if r["backtested"])
-    n_significant = sum(
-        1 for r in backtest_results.values()
-        if r["backtested"] and r.get("significance_rate", 0) >= 0.5
-    )
+validated_results = {}
+if run_validated:
+    with st.spinner(
+        "Running the validated lag-scan for every signal against up to 5 tickers each — "
+        "this is heavier than a simple correlation pass, may take a minute or two…"
+    ):
+        validated_results = validate_all_macro_signals()
+    n_scored = sum(1 for r in validated_results.values() if not r["validation"].get("error"))
+    n_reliable = sum(1 for r in validated_results.values() if r["reliability"]["score"] >= 70)
     st.success(
-        f"Backtest complete: {n_validated} of {len(SIGNALS)} signals had enough overlapping data to "
-        f"validate. {n_significant} of those showed significant correlation (p<0.05) on at least half "
-        f"of the tickers tested. The rest are shown as \"unvalidated\" below, not silently hidden."
+        f"Validation complete: {n_scored} of {len(SIGNALS)} signals had enough data to score. "
+        f"{n_reliable} scored 70+ (\"Reasonably well-supported\"). The rest are shown exactly as "
+        f"scored below, including the weak ones — that's the point of this page."
     )
 
 rows = []
 for sig_id, cfg in SIGNALS.items():
     cat = CATEGORIES.get(cfg["category"], {})
-    bt = backtest_results.get(sig_id, {})
-    if bt.get("backtested"):
-        validation = (
-            f"{bt['significance_rate']*100:.0f}% significant, avg |r|={bt['avg_abs_r']:.2f} "
-            f"(n={bt['n_tested']} tickers)"
-        )
-        validated_flag = "Yes"
+    vr = validated_results.get(sig_id)
+    if vr is None:
+        reliability_str  = "Not yet run"
+        survives_str     = "—"
+        holds_oos_str     = "—"
+        best_lag_str      = "—"
+    elif vr["validation"].get("error"):
+        reliability_str  = "Insufficient data"
+        survives_str     = "—"
+        holds_oos_str     = "—"
+        best_lag_str      = "—"
     else:
-        validation = "Not yet run — click \"Run Live Backtest\" above"
-        validated_flag = "Not run"
+        rel = vr["reliability"]
+        v   = vr["validation"]
+        reliability_str = f"{rel['score']}/100 — {rel['label']}"
+        survives_str    = "Yes" if v.get("survives_correction") else "No"
+        holds_oos_str    = "Yes" if v.get("holds_out_of_sample") else "No"
+        best_lag_str     = f"{v.get('best_lag', '—')}w"
 
     rows.append({
         "Signal": cfg["name"],
         "Category": cat.get("name", cfg["category"]),
-        "Validated?": validated_flag,
-        "Backtest Result": validation,
-        "Lead Time": f"~{cfg['lag_weeks']}w",
+        "Reliability Score": reliability_str,
+        "Survives Correction": survives_str,
+        "Holds Out-of-Sample": holds_oos_str,
+        "Best Lag (in-sample)": best_lag_str,
     })
 
 st.dataframe(
     pd.DataFrame(rows), use_container_width=True, hide_index=True,
     column_config={
-        "Backtest Result": st.column_config.TextColumn(
-            "Backtest Result",
-            help="Significance rate and average |r| from the live backtest, when run -- "
-                 "not run yet shows plainly as such, never a placeholder number.",
+        "Reliability Score": st.column_config.TextColumn(
+            "Reliability Score",
+            help="0-100, from utils/lead_time_research.py's compute_signal_reliability_score(): "
+                 "corrected significance + out-of-sample hold-up + sample size + cross-ticker pooling.",
+        ),
+        "Survives Correction": st.column_config.TextColumn(
+            "Survives Correction", help="Best in-sample lag's p-value beats alpha/n_lags (Bonferroni).",
+        ),
+        "Holds Out-of-Sample": st.column_config.TextColumn(
+            "Holds Out-of-Sample",
+            help="That same lag, re-tested on the held-out ~30% of history it was never fit to.",
         ),
     },
 )
+
+with st.expander("How is this different from the simpler backtest on the About page?"):
+    st.markdown(
+        "The About page's signal library still shows a simpler, same-sample significance test "
+        "(`compute_backtested_pcs` — fast, tests against up to 5 tickers, no out-of-sample split or "
+        "multiple-comparisons correction). It's a reasonable quick overview but, on its own, will show "
+        "more signals looking \"significant\" than actually survive the stricter bar above — that gap "
+        "is expected and is exactly why this page exists. Live confluence-score weighting "
+        "(`utils/ticker_score.py`) is unaffected by either backtest; it uses its own real-time, "
+        "per-ticker correlation regardless of what either validation pass finds."
+    )
 
 st.markdown("""
 <div class="disclaimer">

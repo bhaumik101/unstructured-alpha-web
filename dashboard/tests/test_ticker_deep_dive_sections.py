@@ -96,6 +96,46 @@ def test_switching_to_deep_correlation_scan_section(app_test):
     assert "SIGNAL-BASED PREDICTION MODEL" not in text
 
 
+def test_macro_lag_decay_button_runs_without_exception(app_test, monkeypatch):
+    """
+    The lag-decay tracking feature (2026-06-22) added a "Check lead-time
+    stability" button under the macro-signal path of Deep Correlation
+    Scan. Mocks the extended-history fetches with the same kind of
+    deterministic synthetic data used in utils/lead_time_research.py's
+    own unit tests, rather than depending on live network access, so this
+    test is fast and reproducible.
+    """
+    import numpy as np
+    import pandas as pd
+
+    def _fake_signal_series(cfg, start, end):
+        dates = pd.date_range("2016-01-03", periods=400, freq="W")
+        rng = np.random.default_rng(1)
+        return pd.Series(np.cumsum(rng.normal(0, 1, 400)) + 50, index=dates)
+
+    def _fake_price(ticker, start, end):
+        dates = pd.date_range("2016-01-03", periods=400, freq="W")
+        rng = np.random.default_rng(2)
+        vals = 100 * np.cumprod(1 + rng.normal(0, 0.01, 400))
+        return pd.Series(vals, index=dates)
+
+    import utils.fetchers as fetchers_mod
+    monkeypatch.setattr(fetchers_mod, "fetch_signal_series", _fake_signal_series)
+    monkeypatch.setattr(fetchers_mod, "fetch_price", _fake_price)
+
+    at = app_test("pages/3_Ticker_Deep_Dive.py")
+    sc = next((s for s in at.segmented_control if s.key == "dive_section"), None)
+    sc.set_value("Deep Correlation Scan").run()
+    assert not at.exception
+
+    decay_btn = next((b for b in at.button if b.key == "run_macro_lag_decay"), None)
+    assert decay_btn is not None, "Macro lag-decay button not found on Deep Correlation Scan"
+    decay_btn.click().run()
+    assert not at.exception, (
+        "Macro lag-decay button raised: " + "\n".join(str(e) for e in at.exception)
+    )
+
+
 def test_insider_history_fetch_only_runs_on_insider_section(app_test, monkeypatch):
     """
     The single concrete "excess usage" fix this restructuring delivers:

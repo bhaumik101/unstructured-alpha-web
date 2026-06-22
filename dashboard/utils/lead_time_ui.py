@@ -90,3 +90,59 @@ def render_validated_lag_scan(result: dict, reliability: dict, pooled: dict = No
             f"p={oos['p']:.4f}, n={oos['n']} weeks, "
             f"{'same' if oos['same_sign_as_in_sample'] else 'OPPOSITE'} direction as the in-sample finding."
         )
+
+
+def render_lag_decay_chart(decay: dict) -> None:
+    """
+    Render compute_rolling_best_lag()'s output: a line chart of the
+    best-fitting lag across each trailing window, plus the first-half vs
+    second-half trend summary. Deliberately framed as exploratory/
+    descriptive every time it renders -- this is NOT another validated
+    finding the way the lag-scan above is (see that function's docstring
+    for exactly why: in-sample-only per window, heavily overlapping
+    windows by construction).
+    """
+    if decay.get("error"):
+        st.info(f"Not enough history to track lag decay over time: {decay['error']}")
+        return
+
+    trend = decay["lag_trend"]
+    trend_color = {"shrinking": "#7B1010", "lengthening": "#1C2B4A", "stable": "#1B5E20"}[trend]
+    trend_word = {
+        "shrinking": "shrinking — this signal's lead time looks like it's compressing over time",
+        "lengthening": "lengthening — this signal's lead time looks like it's stretching out over time",
+        "stable": "stable — no clear change in this signal's lead time across the available history",
+    }[trend]
+
+    st.markdown(
+        f'<div style="padding:10px 16px;border-left:4px solid {trend_color};background:#FAF7F0;margin:8px 0;">'
+        f'<span style="font-weight:700;color:{trend_color};">Lead time looks {trend_word}</span><br>'
+        f'<span style="color:#6B6560;font-size:0.85rem;">Earlier windows averaged '
+        f'{decay["first_half_avg_lag"]:.1f}w · Later windows averaged {decay["second_half_avg_lag"]:.1f}w '
+        f'(across {decay["n_windows"]} trailing windows)</span></div>',
+        unsafe_allow_html=True,
+    )
+
+    st.caption(
+        "Exploratory, not a validated finding: each window's best lag is an in-sample pick with no "
+        "out-of-sample check of its own, and consecutive windows share most of their data by "
+        "construction -- read this as a descriptive trend, not the same kind of evidence as the "
+        "validated lag-scan above."
+    )
+
+    windows = decay["windows"]
+    fig = go.Figure(go.Scatter(
+        x=[w["window_end"] for w in windows],
+        y=[w["best_lag"] for w in windows],
+        mode="lines+markers",
+        line=dict(color="#1C2B4A", width=2.5),
+        marker=dict(size=7, color="#B8860B"),
+        hovertemplate="Window ending %{x|%Y-%m-%d}: best lag = %{y}w<extra></extra>",
+    ))
+    fig.update_layout(
+        height=240, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+        xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"), title="Trailing window ending"),
+        yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"), title="Best-fitting lag (weeks)"),
+        margin=dict(l=0, r=0, t=10, b=0),
+    )
+    st.plotly_chart(fig, use_container_width=True)

@@ -57,9 +57,9 @@ from utils.audit_ui import render_evidence_expander
 from utils.lead_time_research import (
     build_insider_intensity_series, build_short_interest_change_series,
     lag_scan_with_validation, get_sector_peers, pooled_lag_scan_across_sector,
-    compute_signal_reliability_score,
+    compute_signal_reliability_score, compute_rolling_best_lag,
 )
-from utils.lead_time_ui import render_validated_lag_scan
+from utils.lead_time_ui import render_validated_lag_scan, render_lag_decay_chart
 
 st.set_page_config(page_title="Ticker Deep Dive — UA", layout="wide")
 render_header("Ticker Deep Dive")
@@ -1271,6 +1271,9 @@ elif section == "Deep Correlation Scan":
                 st.session_state["_alt_lag_reliability"] = _alt_reliability
                 st.session_state["_alt_lag_pooled"] = _alt_pooled
                 st.session_state["_alt_lag_signal_id"] = deep_sig_id
+                # Kept for the lag-decay check below -- reuses this exact
+                # extended-history series rather than re-fetching it.
+                st.session_state["_alt_lag_signal_series"] = _alt_series
 
         if (
             "_alt_lag_result" in st.session_state
@@ -1281,6 +1284,34 @@ elif section == "Deep Correlation Scan":
                 st.session_state["_alt_lag_reliability"],
                 st.session_state.get("_alt_lag_pooled"),
             )
+
+            st.divider()
+            st.markdown("##### Is this signal's lead time stable, or is it decaying?")
+            st.caption(
+                "Uses the same extended fetch already pulled above for the validated scan -- no extra "
+                "network calls. Honest caveat specific to alt-data signals: insider/short-interest "
+                "history is capped well under what macro/FRED signals have (FINRA's API caps at 50 "
+                "rows; EDGAR fetches are limited to a bounded number of filings), so this trend view "
+                "has fewer, thinner windows here than it would for a longer-history macro signal -- "
+                "weigh n_windows accordingly, shown below."
+            )
+            if st.button("Check lead-time stability over time", key="run_alt_lag_decay"):
+                _alt_series_cur = st.session_state.get("_alt_lag_signal_series")
+                with st.spinner("Scanning each trailing window…"):
+                    if _alt_series_cur is None or _alt_series_cur.empty or price_series.empty:
+                        _alt_decay_result = {"error": "Insufficient data for this ticker"}
+                    else:
+                        _alt_decay_result = compute_rolling_best_lag(
+                            _alt_series_cur, price_series, window_weeks=52, step_weeks=8, scan_max_lag=16,
+                        )
+                    st.session_state["_alt_decay_result"] = _alt_decay_result
+                    st.session_state["_alt_decay_sig_id"] = deep_sig_id
+
+            if (
+                "_alt_decay_result" in st.session_state
+                and st.session_state.get("_alt_decay_sig_id") == deep_sig_id
+            ):
+                render_lag_decay_chart(st.session_state["_alt_decay_result"])
 
     elif deep_sig_options:
         # Reuse data already fetched earlier on this page — no extra network calls.
@@ -1380,4 +1411,41 @@ elif section == "Deep Correlation Scan":
                 fig_ov.update_yaxes(title_text=f"{ticker_input} Price (normalized to 100)", secondary_y=True,
                                      gridcolor="rgba(0,0,0,0)", tickfont=dict(color="#6B6560"), title_font=dict(color="#B8860B"))
                 st.plotly_chart(fig_ov, use_container_width=True)
+
+        st.divider()
+        st.markdown("##### Is this signal's lead time stable, or is it decaying?")
+        st.caption(
+            "The data above uses the page's standard 2-year window, which isn't enough history to "
+            "track a trend in the lead time itself. This re-fetches a longer history (up to 10 years, "
+            "where FRED/EIA actually has it) specifically to check whether the lag found above has been "
+            "stable over time or is compressing/lengthening — institutional desks call this \"alpha "
+            "decay.\" Exploratory, not a validated finding (see the result for exactly why)."
+        )
+        if st.button(f"Check lead-time stability for {deep_cfg.get('name', deep_sig_id)}", key="run_macro_lag_decay"):
+            with st.spinner("Fetching extended history and scanning each trailing window…"):
+                _decay_end = datetime.now().strftime("%Y-%m-%d")
+                _decay_start = (datetime.now() - timedelta(days=365 * 10)).strftime("%Y-%m-%d")
+                try:
+                    _decay_sig = fetch_signal_series(deep_cfg, _decay_start, _decay_end)
+                except Exception:
+                    _decay_sig = pd.Series(dtype=float)
+                try:
+                    _decay_price = fetch_price(ticker_input, _decay_start, _decay_end)
+                except Exception:
+                    _decay_price = pd.Series(dtype=float)
+
+                if _decay_sig.empty or _decay_price.empty:
+                    _decay_result = {"error": "Insufficient extended-history data for this ticker/signal pair"}
+                else:
+                    _decay_result = compute_rolling_best_lag(
+                        _decay_sig, _decay_price, window_weeks=104, step_weeks=13, scan_max_lag=16,
+                    )
+                st.session_state["_macro_decay_result"] = _decay_result
+                st.session_state["_macro_decay_sig_id"] = deep_sig_id
+
+        if (
+            "_macro_decay_result" in st.session_state
+            and st.session_state.get("_macro_decay_sig_id") == deep_sig_id
+        ):
+            render_lag_decay_chart(st.session_state["_macro_decay_result"])
 
