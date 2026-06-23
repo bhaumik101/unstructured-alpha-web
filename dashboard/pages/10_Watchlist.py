@@ -21,14 +21,43 @@ it does not run on a timer in the background.
 """
 
 import streamlit as st
+import yfinance as yf
 
 from utils.config import TICKERS
 from utils import alerts_db
 from utils.alerts import evaluate_watchlist
-from utils.header import render_header, render_sidebar_base, go_to_ticker
+from utils.header import render_header, render_sidebar_base
 from utils.auth_ui import require_login
 from utils.quotes import get_batch_quotes, mini_sparkline
 from utils.auth import set_digest_optin, get_digest_optin
+
+# ── Pre/post market batch fetch ────────────────────────────────────────────────
+# Separate from get_batch_quotes (which uses yf.download for speed) because
+# pre/post price requires fast_info per ticker — not available in the batch
+# download API. Cached 5 min; small max_entries since the result set is tiny.
+@st.cache_data(ttl=300, show_spinner=False, max_entries=5)
+def _get_prepost_batch(tickers_tuple: tuple) -> dict:
+    """Return {ticker: {pre_price, pre_pct, post_price, post_pct}} for each."""
+    result: dict = {}
+    if not tickers_tuple:
+        return result
+    for sym in tickers_tuple:
+        try:
+            fi    = yf.Ticker(sym).fast_info
+            last  = getattr(fi, "last_price",          None) or getattr(fi, "regular_market_price", None)
+            pre   = getattr(fi, "pre_market_price",    None)
+            post  = getattr(fi, "post_market_price",   None)
+            entry: dict = {}
+            if pre  and last and abs(pre  - last) > 0.005:
+                entry["pre_price"]  = pre
+                entry["pre_pct"]    = (pre  - last) / last * 100
+            if post and last and abs(post - last) > 0.005:
+                entry["post_price"] = post
+                entry["post_pct"]   = (post - last) / last * 100
+            result[sym] = entry
+        except Exception:
+            result[sym] = {}
+    return result
 
 # "Quick add" presets (per explicit user request: most people adding a
 # ticker don't want to hand-tune 3 threshold numbers every time). Each
@@ -109,55 +138,76 @@ if not watchlist:
     st.info("Your watchlist is empty. Add a ticker above to start tracking it.")
 else:
     # Batched, cached (utils/quotes.py, 15 min) -- one fetch per watched
-    # ticker, not per page render; the same module Stock Screener now uses,
-    # so price/% displays can't silently disagree between the two pages.
+    # ticker, not per page render; the same module Stock Screener uses, so
+    # price/% displays can't silently disagree between the two pages.
+    _ticker_list = [row["ticker"] for row in watchlist]
     with st.spinner(f"Loading prices for {len(watchlist)} watched ticker(s)…"):
-        _watch_quotes = get_batch_quotes([row["ticker"] for row in watchlist])
+        _watch_quotes  = get_batch_quotes(_ticker_list)
+        _prepost_quotes = _get_prepost_batch(tuple(_ticker_list))
 
     for row in watchlist:
-        ticker = row["ticker"]
-        q = _watch_quotes.get(ticker, {})
-        price = q.get("last")
+        ticker  = row["ticker"]
+        q       = _watch_quotes.get(ticker, {})
+        pp      = _prepost_quotes.get(ticker, {})
+        price   = q.get("last")
         chg_pct = q.get("chg_1d_pct")
-        series = q.get("series")
+        series  = q.get("series")
 
-        # Native bordered container (st.container(border=True), not a CSS
-        # hack) -- one clean card per watched ticker, per explicit user
-        # request for a more professional, boxed look around prices/charts.
+        # One bordered card per ticker.
         _row_box = st.container(border=True)
-        wc1, wc2, wc3, wc4 = _row_box.columns([2.2, 1, 1.8, 0.8])
+        wc1, wc2, wc3, wc4 = _row_box.columns([2.0, 1.3, 1.8, 0.9])
+
         with wc1:
-            # Clicking the ticker jumps straight to Ticker Deep Dive with
-            # this ticker pre-filled (same session_state.selected_ticker +
-            # switch_page mechanism used everywhere else tickers are
-            # clickable on this site -- Stock Screener, ticker chips, etc.)
-            go_to_ticker(ticker, key=f"watchlist_goto_{ticker}")
+            # Clicking the ticker name → Stock Viewer (simple chart).
+            # "Research" button → Ticker Deep Dive (full signal analysis).
+            if st.button(f"**{ticker}**", key=f"wl_chart_{ticker}",
+                         help="Open chart viewer"):
+                st.session_state["chart_ticker"] = ticker
+                st.switch_page("pages/14_Stock_Chart.py")
             st.caption(
-                f"Bull ≥ {row['score_bull_threshold']:.0f} · Bear ≤ {row['score_bear_threshold']:.0f} "
-                f"· Move ≥ {row['price_move_pct_threshold']:.1f}%"
+                f"Bull ≥ {row['score_bull_threshold']:.0f} · "
+                f"Bear ≤ {row['score_bear_threshold']:.0f} · "
+                f"Move ≥ {row['price_move_pct_threshold']:.1f}%"
             )
+
         with wc2:
+            # Regular-session price + daily change
             if price is not None:
                 st.markdown(f"**${price:,.2f}**")
             else:
                 st.caption("Price unavailable")
             if chg_pct is not None:
-                _chg_color = "#1B5E20" if chg_pct > 0 else ("#7B1010" if chg_pct < 0 else "#8B7355")
-                _chg_arrow = "▲" if chg_pct > 0 else ("▼" if chg_pct < 0 else "●")
+                _cc = "#1B5E20" if chg_pct > 0 else ("#7B1010" if chg_pct < 0 else "#8B7355")
+                _ca = "▲" if chg_pct > 0 else ("▼" if chg_pct < 0 else "●")
                 st.markdown(
-                    f'<span style="color:{_chg_color};font-size:0.85rem;">{_chg_arrow} {chg_pct:+.2f}%</span>',
+                    f'<span style="color:{_cc};font-size:0.85rem;">{_ca} {chg_pct:+.2f}%</span>',
                     unsafe_allow_html=True,
                 )
+            # Pre/post market prices (only shown when the market is closed
+            # and the extended-hours price differs from the last close)
+            _pre_p  = pp.get("pre_price")
+            _pre_c  = pp.get("pre_pct")
+            _post_p = pp.get("post_price")
+            _post_c = pp.get("post_pct")
+            _ext_lines = []
+            if _pre_p is not None:
+                _ec = "#1B5E20" if (_pre_c or 0) >= 0 else "#7B1010"
+                _ext_lines.append(
+                    f'<span style="color:{_ec};font-size:0.72rem;">'
+                    f'Pre ${_pre_p:,.2f} ({_pre_c:+.2f}%)</span>'
+                )
+            if _post_p is not None:
+                _ec = "#1B5E20" if (_post_c or 0) >= 0 else "#7B1010"
+                _ext_lines.append(
+                    f'<span style="color:{_ec};font-size:0.72rem;">'
+                    f'Post ${_post_p:,.2f} ({_post_c:+.2f}%)</span>'
+                )
+            if _ext_lines:
+                st.markdown("<br>".join(_ext_lines), unsafe_allow_html=True)
+
         with wc3:
-            # Small inline chart -- 3-month window, WITH real price/time
-            # axis labels (show_axes=True, per explicit user request --
-            # Market Overview's index cards keep the bare, axis-free
-            # style via the same mini_sparkline(), utils/quotes.py).
-            # Watched tickers always have years of history (get_quote()
-            # pulls "max" period), so 3M is a real, deliberate choice
-            # here, not a fallback: long enough to show a real trend,
-            # short enough not to flatten a recent move into invisibility
-            # next to a multi-year history.
+            # 3-month mini sparkline with axes — long enough to show trend,
+            # short enough not to flatten a recent move against multi-year history.
             if series is not None and not series.empty:
                 _spark_color = "#1B5E20" if (chg_pct or 0) >= 0 else "#7B1010"
                 st.plotly_chart(
@@ -168,7 +218,12 @@ else:
                 )
             else:
                 st.caption("Chart unavailable")
+
         with wc4:
+            if st.button("Research →", key=f"wl_tdd_{ticker}",
+                         help="Ticker Deep Dive: signals, earnings, insider data"):
+                st.session_state["selected_ticker"] = ticker
+                st.switch_page("pages/3_Ticker_Deep_Dive.py")
             if st.button("Remove", key=f"remove_{ticker}"):
                 alerts_db.remove_from_watchlist(user_id, ticker)
                 st.rerun()
