@@ -44,6 +44,7 @@ from utils.fetchers import (
     fetch_price, fetch_signal_series, is_synthetic, fetch_volume,
     fetch_federal_contracts, fetch_insider_trades, fetch_live_quote,
     fetch_insider_transactions_detail, fetch_short_interest, fetch_13f_holdings,
+    fetch_earnings_dates, fetch_ticker_news,
 )
 from utils.analysis import (
     score_signal, compute_confluence, compute_quick_correlation,
@@ -515,6 +516,59 @@ if section == "Overview":
                     mode="lines", line=dict(color="#7B1010", width=1.5, shape="spline", smoothing=0.3),
                 ))
 
+            # ── Earnings date markers ──────────────────────────────────────
+            # Vertical dashed lines on the price chart for each earnings date
+            # that falls inside the current view window.
+            # Color coding:
+            #   Gold (#B8860B)  — upcoming / date not yet reported
+            #   Green (#1B5E20) — reported and beat (surprise > 0)
+            #   Red (#7B1010)   — reported and missed (surprise < 0)
+            #   Grey            — reported with no surprise data
+            # Wrapped in try/except: a failed fetch never breaks the chart.
+            try:
+                _earnings_data = fetch_earnings_dates(ticker_input)
+                _view_start = price_view.index[0]
+                _view_end   = price_view.index[-1]
+                # Make view bounds timezone-naive for comparison
+                if hasattr(_view_start, "tzinfo") and _view_start.tzinfo is not None:
+                    _view_start = _view_start.tz_localize(None)
+                    _view_end   = _view_end.tz_localize(None)
+
+                for _e in _earnings_data:
+                    _e_ts = pd.Timestamp(_e["date"])
+                    # Include upcoming dates up to 90 days beyond chart end
+                    if _e_ts < _view_start - pd.Timedelta(days=5):
+                        continue
+                    if _e_ts > _view_end + pd.Timedelta(days=90):
+                        continue
+
+                    if not _e["reported"]:
+                        _ec = "#B8860B"        # upcoming — gold
+                        _ann = "Earnings ★"
+                    elif _e["surprise_pct"] is None:
+                        _ec = "#8B7355"        # reported, no surprise data — tan
+                        _ann = "E"
+                    elif _e["surprise_pct"] >= 0:
+                        _ec = "#1B5E20"        # beat — green
+                        _ann = f"E +{_e['surprise_pct']:.0f}%"
+                    else:
+                        _ec = "#7B1010"        # miss — red
+                        _ann = f"E {_e['surprise_pct']:.0f}%"
+
+                    fig_price.add_vline(
+                        x=str(_e["date"]),
+                        line_dash="dash",
+                        line_color=_ec,
+                        line_width=1.5,
+                        opacity=0.65,
+                        annotation_text=_ann,
+                        annotation_position="top",
+                        annotation_font_size=9,
+                        annotation_font_color=_ec,
+                    )
+            except Exception:
+                pass  # Never let an earnings fetch failure break the price chart
+
             fig_price.update_layout(
                 height=360, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
                 font=dict(size=13, color="#1A1612"),
@@ -640,6 +694,114 @@ if section == "Overview":
                     )
             else:
                 st.info(f"Not enough price history yet to compute RSI for {ticker_input}.")
+
+    # ── Catalysts & News ──────────────────────────────────────────────────────────
+    # Earnings timeline + recent headlines — both sourced from yfinance, no extra
+    # API key required. Placed here (after price/volume/RSI, before prediction
+    # model) so a user reading the chart can immediately see WHAT drove recent
+    # price moves before looking at the forward model's probabilities.
+    st.markdown('<div class="section-header">CATALYSTS & NEWS</div>', unsafe_allow_html=True)
+
+    _cat_col, _news_col = st.columns([1, 2])
+
+    with _cat_col:
+        st.markdown("##### Earnings")
+        try:
+            _earn = fetch_earnings_dates(ticker_input)   # cached — same call as price chart above
+            if _earn:
+                _today = datetime.now().date()
+                for _e in sorted(_earn, key=lambda x: x["date"], reverse=True):
+                    _days_delta = (_e["date"] - _today).days
+                    if not _e["reported"]:
+                        # Upcoming
+                        _when = (f"in {_days_delta}d" if _days_delta > 0
+                                 else "Today" if _days_delta == 0
+                                 else f"{abs(_days_delta)}d ago (est.)")
+                        _bg = "#FFF8E1"
+                        _border = "#B8860B"
+                        _badge = f'<span style="background:#B8860B;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">UPCOMING</span>'
+                        _body = f'<div style="font-size:0.78rem;color:#6B6560;margin-top:4px;">{_when}</div>'
+                        if _e["eps_estimate"] is not None:
+                            _body += f'<div style="font-size:0.78rem;color:#6B6560;">Est. EPS: <b>{_e["eps_estimate"]:+.2f}</b></div>'
+                    else:
+                        # Reported
+                        _sp = _e["surprise_pct"]
+                        if _sp is None:
+                            _border = "#8B7355"; _bg = "#F5F0E8"
+                            _badge = '<span style="font-size:0.68rem;color:#8B7355;font-weight:600;">REPORTED</span>'
+                            _beat_txt = ""
+                        elif _sp >= 0:
+                            _border = "#1B5E20"; _bg = "#F0F8F0"
+                            _badge = f'<span style="background:#1B5E20;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">BEAT +{_sp:.1f}%</span>'
+                            _beat_txt = ""
+                        else:
+                            _border = "#7B1010"; _bg = "#FDF0F0"
+                            _badge = f'<span style="background:#7B1010;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">MISS {_sp:.1f}%</span>'
+                            _beat_txt = ""
+                        _when = f"{abs(_days_delta)}d ago" if abs(_days_delta) < 365 else _e["date"].strftime("%b %d, %Y")
+                        _act_str = f'<b>{_e["eps_actual"]:+.2f}</b>' if _e["eps_actual"] is not None else "—"
+                        _est_str = f'{_e["eps_estimate"]:+.2f}' if _e["eps_estimate"] is not None else "—"
+                        _body = (
+                            f'<div style="font-size:0.78rem;color:#6B6560;margin-top:4px;">{_when}</div>'
+                            f'<div style="font-size:0.78rem;color:#6B6560;">EPS: {_act_str} <span style="color:#9E9E8E;">(est {_est_str})</span></div>'
+                        )
+
+                    st.markdown(f"""
+                    <div style="background:{_bg};border-left:3px solid {_border};border-radius:4px;
+                                padding:8px 12px;margin-bottom:8px;font-family:Georgia,serif;">
+                        <div style="font-size:0.80rem;font-weight:700;color:#1A1612;">
+                            {_e["date"].strftime("%b %d, %Y")} &nbsp; {_badge}
+                        </div>
+                        {_body}
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.caption("No earnings date data available for this ticker.")
+        except Exception as _earn_err:
+            st.caption(f"Earnings data unavailable: {_earn_err}")
+
+    with _news_col:
+        st.markdown("##### Recent Headlines")
+        try:
+            _news_items = fetch_ticker_news(ticker_input)
+            if _news_items:
+                _now_utc = pd.Timestamp.now(tz="UTC")
+                for _n in _news_items:
+                    _title = _n["title"][:110] + "…" if len(_n["title"]) > 110 else _n["title"]
+                    _pub   = _n["publisher"] or ""
+                    _url   = _n["url"] or ""
+
+                    # Relative time display
+                    _pub_dt = _n["published_at"]
+                    if pd.notna(_pub_dt):
+                        _age = _now_utc - _pub_dt.tz_convert("UTC")
+                        _hrs = int(_age.total_seconds() // 3600)
+                        if _hrs < 1:
+                            _time_str = "Just now"
+                        elif _hrs < 24:
+                            _time_str = f"{_hrs}h ago"
+                        else:
+                            _time_str = f"{_hrs // 24}d ago"
+                    else:
+                        _time_str = ""
+
+                    _meta = " · ".join(filter(None, [_pub, _time_str]))
+
+                    if _url:
+                        _title_html = f'<a href="{_url}" target="_blank" style="color:#1C2B4A;text-decoration:none;font-weight:600;">{_title}</a>'
+                    else:
+                        _title_html = f'<span style="color:#1C2B4A;font-weight:600;">{_title}</span>'
+
+                    st.markdown(f"""
+                    <div style="padding:8px 0 8px 0;border-bottom:1px solid #E8E0CE;font-family:Georgia,serif;">
+                        <div style="font-size:0.85rem;line-height:1.4;">{_title_html}</div>
+                        <div style="font-size:0.72rem;color:#9E9E8E;margin-top:3px;">{_meta}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                st.caption("No recent headlines found for this ticker.")
+        except Exception as _news_err:
+            st.caption(f"News unavailable: {_news_err}")
 
     st.divider()
 

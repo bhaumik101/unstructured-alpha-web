@@ -967,6 +967,124 @@ def _synthetic_signal(series_id: str, start: str, end: str) -> pd.Series:
     return s
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# yfinance — Earnings Dates + News Headlines
+# ─────────────────────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=3600 * 6, show_spinner=False)
+def fetch_earnings_dates(ticker: str) -> list[dict]:
+    """
+    Returns up to ~5 earnings dates (last 4 quarters + next upcoming) for a
+    ticker via yfinance.Ticker.earnings_dates.
+
+    Each dict:
+      date         — datetime.date
+      reported     — bool (False = upcoming/estimated)
+      eps_estimate — float or None
+      eps_actual   — float or None (None if upcoming)
+      surprise_pct — float or None (positive = beat, negative = miss)
+
+    Returns [] on any failure — callers treat this as "no data available" and
+    skip the earnings overlay rather than crashing.
+    """
+    try:
+        t = yf.Ticker(ticker)
+        df = t.earnings_dates
+        if df is None or df.empty:
+            return []
+
+        now_utc = pd.Timestamp.now(tz="UTC")
+        cutoff_past = now_utc - pd.Timedelta(days=400)   # last ~4 quarters
+
+        results = []
+        for dt, row in df.iterrows():
+            # Keep only the last ~4 reported quarters + any upcoming dates
+            if pd.notna(dt):
+                # earnings_dates index is tz-aware (ET); normalise for comparison
+                dt_utc = dt.tz_convert("UTC") if dt.tzinfo else dt.tz_localize("UTC")
+                if dt_utc < cutoff_past:
+                    continue
+            else:
+                continue
+
+            eps_actual   = row.get("Reported EPS")
+            eps_estimate = row.get("EPS Estimate")
+            surprise     = row.get("Surprise(%)")
+
+            reported = pd.notna(eps_actual)
+
+            results.append({
+                "date":         dt.date() if hasattr(dt, "date") else dt,
+                "reported":     reported,
+                "eps_estimate": float(eps_estimate) if pd.notna(eps_estimate) else None,
+                "eps_actual":   float(eps_actual)   if pd.notna(eps_actual)   else None,
+                "surprise_pct": float(surprise)     if pd.notna(surprise)     else None,
+            })
+
+        return sorted(results, key=lambda x: x["date"])
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=3600 * 2, show_spinner=False)
+def fetch_ticker_news(ticker: str) -> list[dict]:
+    """
+    Returns up to 12 recent news items for a ticker via yfinance.Ticker.news.
+
+    Each dict:
+      title        — str
+      url          — str
+      publisher    — str
+      published_at — pd.Timestamp (UTC) or pd.NaT
+
+    Handles both yfinance formats:
+      - Old (< 1.x): flat dict with uuid/title/link/publisher/providerPublishTime
+      - New (1.x+):  dict with id + nested 'content' sub-dict
+
+    Returns [] on any failure.
+    """
+    try:
+        t = yf.Ticker(ticker)
+        raw = t.news or []
+        results = []
+        for item in raw[:15]:
+            if "content" in item and isinstance(item.get("content"), dict):
+                # New yfinance 1.x format
+                c = item["content"]
+                title = c.get("title", "")
+                url   = (c.get("url")
+                         or c.get("canonicalUrl", {}).get("url", "")
+                         or "")
+                pub   = c.get("provider", {}).get("displayName", "")
+                pub_str = c.get("pubDate", "")
+                try:
+                    pub_dt = pd.Timestamp(pub_str).tz_convert("UTC") if pub_str else pd.NaT
+                except Exception:
+                    pub_dt = pd.NaT
+            else:
+                # Old flat format
+                title = item.get("title", "")
+                url   = item.get("link", "")
+                pub   = item.get("publisher", "")
+                ts    = item.get("providerPublishTime", 0)
+                try:
+                    pub_dt = pd.Timestamp(ts, unit="s", tz="UTC") if ts else pd.NaT
+                except Exception:
+                    pub_dt = pd.NaT
+
+            if title:
+                results.append({
+                    "title":        title,
+                    "url":          url,
+                    "publisher":    pub,
+                    "published_at": pub_dt,
+                })
+
+        return results[:12]
+    except Exception:
+        return []
+
+
 def _synthetic_cot(market: str) -> pd.DataFrame:
     """Synthetic COT positioning data for demo mode."""
     np.random.seed(abs(hash(market)) % 2**31)
