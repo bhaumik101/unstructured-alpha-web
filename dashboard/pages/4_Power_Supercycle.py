@@ -2,6 +2,13 @@
 Page 4 — Power Supercycle Tracker
 Multi-signal convergence for the nuclear + AI + copper + gas infrastructure thesis.
 arXiv quantum paper velocity. Federal contract awards for nuclear companies.
+
+RESTRUCTURED 2026-06-23: Previously 657 lines of 7 stacked sections all
+rendering on every page visit regardless of what the user came to see —
+the same clutter audit that split Ticker Deep Dive and Market Overview.
+Now uses st.segmented_control (lazy-loading via if/elif, not st.tabs which
+executes all branches) for the 6 detailed sections below the always-visible
+score banner and leg cards.
 """
 
 from datetime import datetime, timedelta
@@ -12,7 +19,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
-from utils.config import SIGNALS, POWER_SUPERCYCLE_SIGNALS, POWER_SUPERCYCLE_TICKERS, CATEGORIES
+from utils.config import SIGNALS, POWER_SUPERCYCLE_TICKERS
 from utils.fetchers import (
     fetch_signal_series, is_synthetic, fetch_basket, fetch_arxiv_velocity, fetch_cot, fetch_federal_contracts,
 )
@@ -33,7 +40,7 @@ COLS  = {"Nuclear Fuel Chain": "#4A1B6B", "Grid & Power Infra": "#B8860B",
 
 STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# ── Page header ───────────────────────────────────────────────────────────────
 st.markdown("# Power Supercycle Tracker")
 st.caption("The convergence thesis: AI demand → power demand → grid buildout → nuclear + copper + gas")
 
@@ -78,9 +85,7 @@ with st.expander("The Thesis — Read This First", expanded=False):
     on Ticker Deep Dive without that problem.)*
     """)
 
-st.divider()
-
-# ── Load Supercycle Signals ───────────────────────────────────────────────────
+# ── Always-visible: Load signals + compute Supercycle Score ───────────────────
 supercycle_sig_ids = ["uranium_proxy", "copper", "natural_gas", "hyperscaler_capex",
                       "semiconductor_etf", "ata_trucking", "jobless_claims", "ism_pmi", "crude_oil"]
 
@@ -94,30 +99,22 @@ with st.spinner("Loading Power Supercycle signals…"):
             continue
         try:
             s = fetch_signal_series(cfg, START, END)
-            scored = score_signal(s, inverse=cfg.get("inverse", False))
-            sc_scores[sid] = scored
+            sc_scores[sid] = score_signal(s, inverse=cfg.get("inverse", False))
             sc_data[sid]   = s
         except Exception:
             sc_scores[sid] = {"score": 50, "status": "neutral"}
 
     supercycle = compute_supercycle_score(sc_scores)
 
-    # ── Blend in nuclear-sector federal contract award velocity ─────────────
-    # score_contract_velocity() was already being computed for the 3 nuclear
-    # companies further down this page (Centrus Energy, Cameco, Uranium
-    # Energy) -- but, same issue as Ticker Deep Dive had, the result only
-    # ever fed an HTML display card, never the Supercycle Score itself, even
-    # though the page's own "Why it matters" text directly above describes
-    # contract velocity as "one of the most reliable leading indicators for
-    # nuclear equity performance." Fixed: compute it here too (cached, so
-    # the later display loop reuses these same calls, no extra network cost)
-    # and blend the average into the thesis-level score as an extra leg —
-    # only when at least one company actually has real contract history.
-    _nuclear_contract_companies = ["Centrus Energy", "Cameco", "Uranium Energy"]
+    # Blend nuclear-sector contract velocity into the top-level score.
+    # fetch_federal_contracts is cached, so the Nuclear Contracts tab below
+    # reuses these same results at zero extra network cost.
+    _nuclear_companies = {"Centrus Energy": None, "Cameco": None, "Uranium Energy": None}
     _nuclear_vel_scores = []
-    for _name in _nuclear_contract_companies:
+    for _name in _nuclear_companies:
         _c = fetch_federal_contracts(_name, years=2)
-        _v = score_contract_velocity(_c)
+        _nuclear_companies[_name] = (_c, score_contract_velocity(_c))
+        _v = _nuclear_companies[_name][1]
         if _v.get("status") != "no_data" and _v.get("award_count", 0) >= 3:
             _nuclear_vel_scores.append(_v["score"])
 
@@ -125,12 +122,10 @@ with st.spinner("Loading Power Supercycle signals…"):
         _avg_contract_score = sum(_nuclear_vel_scores) / len(_nuclear_vel_scores)
         _blended = supercycle["overall_score"] * 0.85 + _avg_contract_score * 0.15
         supercycle["overall_score"] = round(_blended, 1)
-        # Re-derive case from the blended score (same thresholds compute_confluence uses)
         if _blended >= 62:
             supercycle["case"] = "BULL"
         elif _blended <= 38:
             supercycle["case"] = "BEAR"
-        # Re-derive thesis_status with the same thresholds compute_supercycle_score uses internally
         if _blended >= 72:
             supercycle["thesis_status"] = "STRONGLY ALIGNED — Most legs of the Power Supercycle are reading bullish right now"
         elif _blended >= 60:
@@ -145,7 +140,7 @@ render_synthetic_data_banner(
     len(sc_data),
 )
 
-# ── Supercycle Score Banner ───────────────────────────────────────────────────
+# ── Always-visible: Supercycle Score Banner ───────────────────────────────────
 sc_score  = supercycle["overall_score"]
 sc_case   = supercycle["case"]
 sc_conv   = supercycle["conviction"]
@@ -191,7 +186,7 @@ st.caption(
     "real-time read of signal alignment, not a forecast. See About → Methodology for the full backtest."
 )
 
-# ── Signal Leg Status Cards ───────────────────────────────────────────────────
+# ── Always-visible: Five Leg Cards ────────────────────────────────────────────
 st.markdown("### Five Legs of the Supercycle")
 
 leg_map = {
@@ -225,375 +220,339 @@ for col, (leg_name, leg_sigs) in zip(leg_cols, leg_map.items()):
 
 st.divider()
 
-# ── Multi-Leg Signal Chart — small multiples, one panel per leg ───────────────
-st.markdown("### Signal Trends by Leg")
-st.caption("Each series normalized to 100 at the start of the selected window. Split into one panel per leg so individual trends stay readable.")
-
-_LEG_PERIOD_OPTS = ["1H", "1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"]
-_LEG_PERIOD_DAYS = {
-    "1H": 1, "1D": 1, "1W": 7, "1M": 30, "3M": 90, "6M": 182,
-    "YTD": None, "1Y": 365, "ALL": 0,
-}
-
-leg_period = st.radio(
-    "Signal trend window",
-    _LEG_PERIOD_OPTS,
-    index=7,            # default 1Y
-    horizontal=True,
-    label_visibility="collapsed",
-    key="psc_leg_period",
+# ── Segmented control: lazy-load the 6 detailed sections ─────────────────────
+section = st.segmented_control(
+    "View",
+    ["Signal Trends", "Ticker Performance", "Copper COT", "Quantum", "Nuclear Contracts", "Confluence"],
+    default="Signal Trends",
+    key="psc_section",
 )
 
-with st.expander("Reading these charts"):
-    st.markdown(f"""
-    Cramming all eleven signals onto a single chart makes individual trends impossible to read,
-    so each leg of the thesis gets its own panel below — each series is normalized to 100 at the
-    **start of the selected window** ({leg_period}), grouped so the lines that belong together are
-    easy to compare.
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB: Signal Trends
+# ─────────────────────────────────────────────────────────────────────────────
+if section == "Signal Trends":
+    st.markdown('<div class="section-header">SIGNAL TRENDS BY LEG</div>', unsafe_allow_html=True)
+    st.caption("Each series normalized to 100 at the start of the selected window. One panel per leg.")
 
-    **What to look for:**
-    - Lines **rising together within a panel** = that leg of the thesis is strengthening
-    - Lines **diverging within a panel** = that leg is mixed, not a clean signal yet
-    - **Most panels trending the same direction at the same time** = the strongest form
-      of confluence — the whole supercycle thesis moving together, not just one commodity
+    _LEG_PERIOD_OPTS = ["1H", "1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"]
+    _LEG_PERIOD_DAYS = {
+        "1H": 1, "1D": 1, "1W": 7, "1M": 30, "3M": 90, "6M": 182,
+        "YTD": None, "1Y": 365, "ALL": 0,
+    }
 
-    **A note on the short windows (1H / 1D / 1W):** most of these signals are macro data
-    series published daily, weekly, monthly, or even quarterly (e.g. hyperscaler capex) —
-    not intraday ticks. Selecting a very short window will show only the handful of data
-    points that exist within it, which is an honest reflection of how often that data is
-    actually published, not a rendering error.
+    leg_period = st.radio(
+        "Signal trend window",
+        _LEG_PERIOD_OPTS,
+        index=7,
+        horizontal=True,
+        label_visibility="collapsed",
+        key="psc_leg_period",
+    )
 
-    The **confluence of multiple independent signals** is what makes this analysis
-    different from just watching uranium or copper in isolation.
-    """)
+    with st.expander("Reading these charts"):
+        st.markdown(f"""
+        Each series is normalized to 100 at the **start of the selected window** ({leg_period}),
+        grouped so the lines that belong together are easy to compare.
 
-leg_colors = {
-    "uranium_proxy":     "#4A1B6B",
-    "copper":            "#B34700",
-    "natural_gas":       "#B8860B",
-    "hyperscaler_capex": "#1C2B4A",
-    "semiconductor_etf": "#0D4F5C",
-    "ata_trucking":      "#1B5E20",
-    "jobless_claims":    "#7B1010",
-    "ism_pmi":           "#5D4037",
-    "crude_oil":         "#8B7355",
-}
+        - Lines **rising together within a panel** = that leg is strengthening
+        - Lines **diverging** = mixed, not a clean signal yet
+        - **Most panels trending the same direction** = whole supercycle moving together
 
+        **Short windows (1H/1D/1W):** most signals are published daily/weekly/monthly — a short
+        window will show only the native data points that exist, which is honest, not a rendering error.
+        """)
 
-def _window_and_resample(s: pd.Series, period: str) -> pd.Series:
-    """Trim a raw signal series to the selected window, then resample to a
-    sensible granularity for that window length. Falls back to the most
-    recent few raw points if the window is too short for the signal's
-    native publication frequency (e.g. a monthly series under a 1D window)."""
-    s = s.dropna().sort_index()
-    if s.empty:
-        return s
+    leg_colors = {
+        "uranium_proxy": "#4A1B6B", "copper": "#B34700", "natural_gas": "#B8860B",
+        "hyperscaler_capex": "#1C2B4A", "semiconductor_etf": "#0D4F5C",
+        "ata_trucking": "#1B5E20", "jobless_claims": "#7B1010",
+        "ism_pmi": "#5D4037", "crude_oil": "#8B7355",
+    }
 
-    days = _LEG_PERIOD_DAYS.get(period)
-    if period == "YTD":
-        yr_start = pd.Timestamp(datetime.now().year, 1, 1, tz=s.index.tz)
-        windowed = s[s.index >= yr_start]
-    elif days == 0:   # ALL
-        windowed = s
-    else:
-        cutoff = pd.Timestamp(datetime.now(), tz=s.index.tz) - pd.Timedelta(days=days)
-        windowed = s[s.index >= cutoff]
-
-    if len(windowed) < 2:
-        # Not enough native data points in this window — fall back to the
-        # last few available readings so the panel still shows a line.
-        windowed = s.tail(min(6, len(s)))
-
-    # Resample for smoothing on longer windows; keep native resolution on short ones.
-    resample_rule = "D" if period in ("1H", "1D", "1W") else ("W" if period in ("1M", "3M") else "W")
-    try:
-        out = windowed.resample(resample_rule).mean().dropna()
-        return out if len(out) >= 2 else windowed
-    except Exception:
-        return windowed
-
-
-_LEG_COLS = 3
-_n_legs   = len(leg_map)
-_n_rows   = -(-_n_legs // _LEG_COLS)  # ceil division
-
-fig_legs = make_subplots(
-    rows=_n_rows, cols=_LEG_COLS,
-    subplot_titles=list(leg_map.keys()),
-    horizontal_spacing=0.07, vertical_spacing=0.22,
-)
-
-for i, (leg_name, leg_sig_ids) in enumerate(leg_map.items()):
-    row, col = (i // _LEG_COLS) + 1, (i % _LEG_COLS) + 1
-    for sid in leg_sig_ids:
-        if sid not in sc_data or sc_data[sid].empty:
-            continue
-        s = _window_and_resample(sc_data[sid], leg_period)
+    def _window_and_resample(s: pd.Series, period: str) -> pd.Series:
+        s = s.dropna().sort_index()
         if s.empty:
-            continue
-        s_idx = s.index.tz_localize(None) if s.index.tz else s.index
-        norm  = s.values / s.values[0] * 100 if s.values[0] != 0 else s.values
-        cfg   = SIGNALS.get(sid, {})
+            return s
+        days = _LEG_PERIOD_DAYS.get(period)
+        if period == "YTD":
+            yr_start = pd.Timestamp(datetime.now().year, 1, 1, tz=s.index.tz)
+            windowed = s[s.index >= yr_start]
+        elif days == 0:
+            windowed = s
+        else:
+            cutoff = pd.Timestamp(datetime.now(), tz=s.index.tz) - pd.Timedelta(days=days)
+            windowed = s[s.index >= cutoff]
+        if len(windowed) < 2:
+            windowed = s.tail(min(6, len(s)))
+        resample_rule = "D" if period in ("1H", "1D", "1W") else "W"
+        try:
+            out = windowed.resample(resample_rule).mean().dropna()
+            return out if len(out) >= 2 else windowed
+        except Exception:
+            return windowed
 
-        fig_legs.add_trace(
-            go.Scatter(
-                x=s_idx, y=norm,
-                name=cfg.get("name", sid)[:22],
-                mode="lines+markers" if len(s) <= 8 else "lines",
-                line=dict(color=leg_colors.get(sid, "#888888"), width=1.8),
-                marker=dict(size=5),
-                hovertemplate=f"{cfg.get('name', sid)[:22]}: %{{y:.1f}}<extra></extra>",
-                legendgroup=leg_name,
-            ),
-            row=row, col=col,
-        )
-    fig_legs.add_hline(y=100, line_dash="dot", line_color="#9E9E8E", line_width=1, row=row, col=col)
+    _LEG_COLS = 3
+    _n_rows = -(-len(leg_map) // _LEG_COLS)
 
-fig_legs.update_layout(
-    height=260 * _n_rows, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-    font=dict(color="#1A1612"),
-    showlegend=True,
-    legend=dict(font=dict(size=9, color="#1A1612"), bgcolor="rgba(250,247,240,0.92)",
-                orientation="h", y=-0.06, x=0.5, xanchor="center"),
-    margin=dict(l=0, r=0, t=40, b=10),
-)
-fig_legs.update_xaxes(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(size=9, color="#6B6560"))
-fig_legs.update_yaxes(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(size=9, color="#6B6560"))
-fig_legs.update_annotations(font=dict(size=11, color="#1C2B4A"))
-
-st.plotly_chart(fig_legs, use_container_width=True)
-
-st.divider()
-
-# ── Ticker Performance by Supercycle Leg ─────────────────────────────────────
-st.markdown("### Ticker Performance by Supercycle Leg")
-st.caption("How each basket of supercycle-relevant tickers has performed over the selected period.")
-
-with st.expander("Why these specific tickers?"):
-    st.markdown("""
-    Each leg of the Power Supercycle thesis has specific publicly traded companies that
-    *benefit most* if that leg of the thesis plays out:
-
-    | Leg | Key Tickers | Why |
-    |---|---|---|
-    | Nuclear Fuel Chain | CCJ, LEU, UEC, URA | Uranium miners and enrichers benefit from rising fuel prices |
-    | Grid & Power Infra | PWR, ETN, VRT, VST, CEG | Grid contractors + utilities with nuclear exposure |
-    | Copper & Materials | FCX, SCCO, COPX | Copper miners benefit from grid buildout demand |
-    | Gas Pipelines | WMB, KMI, OKE | Data center co-located gas demand = long-term contracted revenue |
-    | AI / Hyperscalers | NVDA, MSFT, AMZN | Direct beneficiaries of AI compute buildout |
-
-    The thesis: if you believe the Power Supercycle is playing out, you want exposure across
-    multiple legs — not just one. Owning only uranium is a one-leg bet.
-    """)
-
-perf_fig = go.Figure()
-for basket_name, tickers in POWER_SUPERCYCLE_TICKERS.items():
-    basket_series = fetch_basket(tickers, START, END)
-    if not basket_series.empty:
-        b_idx = basket_series.index.tz_localize(None) if basket_series.index.tz else basket_series.index
-        perf_fig.add_trace(go.Scatter(
-            x=b_idx, y=basket_series.values,
-            name=basket_name,
-            mode="lines",
-            line=dict(color=COLS.get(basket_name, "#ccc"), width=2),
-            hovertemplate=f"{basket_name}: %{{y:.1f}}<extra></extra>",
-        ))
-
-perf_fig.add_hline(y=100, line_dash="dash", line_color="#9E9E8E", annotation_text="Baseline (100)")
-perf_fig.update_layout(
-    height=360, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-    xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
-               title="Equal-Weight Basket (normalized to 100)"),
-    legend=dict(font=dict(size=10, color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
-    hovermode="x unified",
-    margin=dict(l=0, r=0, t=10, b=0),
-)
-st.plotly_chart(perf_fig, use_container_width=True)
-
-# ── Clickable ticker chips per basket ─────────────────────────────────────────
-st.caption("Click any ticker to open its full Ticker Deep Dive analysis:")
-for basket_name, basket_tickers in POWER_SUPERCYCLE_TICKERS.items():
-    bc1, bc2 = st.columns([1, 5])
-    bc1.markdown(
-        f'<div style="font-size:0.75rem;color:#8B7355;font-family:Georgia,serif;'
-        f'padding-top:6px;font-weight:600;">{basket_name}</div>',
-        unsafe_allow_html=True,
+    fig_legs = make_subplots(
+        rows=_n_rows, cols=_LEG_COLS,
+        subplot_titles=list(leg_map.keys()),
+        horizontal_spacing=0.07, vertical_spacing=0.22,
     )
-    with bc2:
-        ticker_chips(basket_tickers, key_prefix=f"psc_{basket_name.replace(' ','_')}")
 
-st.divider()
+    for i, (leg_name, leg_sig_ids) in enumerate(leg_map.items()):
+        row, col = (i // _LEG_COLS) + 1, (i % _LEG_COLS) + 1
+        for sid in leg_sig_ids:
+            if sid not in sc_data or sc_data[sid].empty:
+                continue
+            s = _window_and_resample(sc_data[sid], leg_period)
+            if s.empty:
+                continue
+            s_idx = s.index.tz_localize(None) if s.index.tz else s.index
+            norm  = s.values / s.values[0] * 100 if s.values[0] != 0 else s.values
+            cfg   = SIGNALS.get(sid, {})
+            fig_legs.add_trace(
+                go.Scatter(
+                    x=s_idx, y=norm,
+                    name=cfg.get("name", sid)[:22],
+                    mode="lines+markers" if len(s) <= 8 else "lines",
+                    line=dict(color=leg_colors.get(sid, "#888888"), width=1.8),
+                    marker=dict(size=5),
+                    hovertemplate=f"{cfg.get('name', sid)[:22]}: %{{y:.1f}}<extra></extra>",
+                    legendgroup=leg_name,
+                ),
+                row=row, col=col,
+            )
+        fig_legs.add_hline(y=100, line_dash="dot", line_color="#9E9E8E", line_width=1, row=row, col=col)
 
-# ── Uranium CFTC COT ──────────────────────────────────────────────────────────
-st.markdown("### Copper COT — Commercial Positioning")
-
-with st.expander("Why copper COT matters for the supercycle"):
-    st.markdown("""
-    Copper is the most critical physical material in the Power Supercycle thesis.
-
-    **Commercial hedgers in copper COT** are the copper miners, manufacturers, and utilities
-    that actually use or produce copper. When they take **extreme net long positions**, they're
-    locking in purchase prices because they expect copper to be scarce — and expensive.
-
-    This is one of the clearest "smart money" signals available in commodity markets.
-    When commercial positioning hits the 80th percentile or above, it has historically
-    preceded significant copper price appreciation.
-
-    **The AI/data center angle:** Copper demand from grid buildout overtook EVs as the primary
-    growth driver in June 2026. Commercial hedgers in copper see this demand in their order books
-    *months before* it shows up in macro data.
-    """)
-
-copper_cot = fetch_cot("copper")
-cot_scored = score_cot(copper_cot)
-
-cot1, cot2, cot3 = st.columns(3)
-cot_status = cot_scored.get("status", "neutral")
-cot_color  = STATUS_COLOR.get(cot_status, "#FF9800")
-
-cot1.metric("COT Score", f"{cot_scored['score']:.0f}/100",
-            delta="Bullish" if cot_status == "bullish" else cot_status.capitalize())
-cot2.metric("Spec Net Position", f"{cot_scored['spec_net']:+,}",
-            delta=f"{cot_scored['spec_net_pct']:.0f}th percentile")
-cot3.metric("Commercial Net", f"{cot_scored['comm_net']:+,}",
-            delta=f"{cot_scored['comm_net_pct']:.0f}th percentile")
-
-contrarian = cot_scored.get("contrarian_signal")
-if contrarian:
-    st.warning(f"**Contrarian Signal:** {contrarian}")
-
-if not copper_cot.empty:
-    cot_chart = copper_cot.tail(52).copy()
-    cot_chart["spec_net"] = cot_chart["spec_long"] - cot_chart["spec_short"]
-    cot_chart["comm_net"] = cot_chart["comm_long"] - cot_chart["comm_short"]
-
-    fig_cot = go.Figure()
-    fig_cot.add_trace(go.Bar(
-        x=cot_chart["date"], y=cot_chart["spec_net"],
-        name="Speculator Net", marker_color="#1C2B4A", opacity=0.8,
-    ))
-    fig_cot.add_trace(go.Bar(
-        x=cot_chart["date"], y=cot_chart["comm_net"],
-        name="Commercial Net", marker_color="#B8860B", opacity=0.8,
-    ))
-    fig_cot.add_hline(y=0, line_color="#9E9E8E")
-    fig_cot.update_layout(
-        title="Copper COT — Speculator vs. Commercial Positioning (52 weeks)",
-        height=280, barmode="group", paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-        xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560")),
-        yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
-                   title="Net Contracts"),
-        legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
-        margin=dict(l=0, r=0, t=30, b=0),
+    fig_legs.update_layout(
+        height=260 * _n_rows, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+        font=dict(color="#1A1612"), showlegend=True,
+        legend=dict(font=dict(size=9, color="#1A1612"), bgcolor="rgba(250,247,240,0.92)",
+                    orientation="h", y=-0.06, x=0.5, xanchor="center"),
+        margin=dict(l=0, r=0, t=40, b=10),
     )
-    st.plotly_chart(fig_cot, use_container_width=True)
+    fig_legs.update_xaxes(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(size=9, color="#6B6560"))
+    fig_legs.update_yaxes(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(size=9, color="#6B6560"))
+    fig_legs.update_annotations(font=dict(size=11, color="#1C2B4A"))
+    st.plotly_chart(fig_legs, use_container_width=True)
 
-st.divider()
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB: Ticker Performance
+# ─────────────────────────────────────────────────────────────────────────────
+elif section == "Ticker Performance":
+    st.markdown('<div class="section-header">TICKER PERFORMANCE BY SUPERCYCLE LEG</div>', unsafe_allow_html=True)
+    st.caption("How each basket of supercycle-relevant tickers has performed over the last 2 years.")
 
-# ── arXiv Quantum Paper Velocity ──────────────────────────────────────────────
-st.markdown("### Quantum Computing — arXiv Paper Velocity")
+    with st.expander("Why these specific tickers?"):
+        st.markdown("""
+        | Leg | Key Tickers | Why |
+        |---|---|---|
+        | Nuclear Fuel Chain | CCJ, LEU, UEC, URA | Uranium miners and enrichers |
+        | Grid & Power Infra | PWR, ETN, VRT, VST, CEG | Grid contractors + utilities with nuclear exposure |
+        | Copper & Materials | FCX, SCCO, COPX | Copper miners benefit from grid buildout demand |
+        | Gas Pipelines | WMB, KMI, OKE | Data center co-located gas = long-term contracted revenue |
+        | AI / Hyperscalers | NVDA, MSFT, AMZN | Direct beneficiaries of AI compute buildout |
+        """)
 
-with st.expander("Why arXiv paper velocity is a leading indicator"):
-    st.markdown("""
-    Institutional investors who specialize in quantum computing track **arXiv preprints** —
-    academic papers posted *before* peer review. This is where breakthroughs appear first.
+    perf_fig = go.Figure()
+    with st.spinner("Loading basket performance data…"):
+        for basket_name, tickers in POWER_SUPERCYCLE_TICKERS.items():
+            basket_series = fetch_basket(tickers, START, END)
+            if not basket_series.empty:
+                b_idx = basket_series.index.tz_localize(None) if basket_series.index.tz else basket_series.index
+                perf_fig.add_trace(go.Scatter(
+                    x=b_idx, y=basket_series.values,
+                    name=basket_name, mode="lines",
+                    line=dict(color=COLS.get(basket_name, "#ccc"), width=2),
+                    hovertemplate=f"{basket_name}: %{{y:.1f}}<extra></extra>",
+                ))
 
-    **The signal:**
-    - Papers appear on arXiv **2-6 weeks before** the press release
-    - When Google published the Willow chip paper (below-threshold error correction),
-      institutional money rotated into quantum stocks **within weeks** of the preprint
-    - A sustained spike in paper publication velocity from major labs (Google Quantum AI,
-      IBM Research, Microsoft Station Q) signals an imminent milestone announcement
-
-    **What "below-threshold error correction" means for investors:**
-    This is the critical technical hurdle for fault-tolerant quantum computing. When any major
-    lab achieves this reliably, it unlocks commercial viability — and a major re-rating of
-    pure-play quantum stocks (IONQ, RGTI, QBTS).
-
-    This tracker is unique to Unstructured Alpha. No retail finance platform monitors arXiv velocity.
-    """)
-
-with st.spinner("Fetching arXiv quantum paper data…"):
-    arxiv_series = fetch_arxiv_velocity()
-
-if not arxiv_series.empty:
-    arxiv_4w_avg = float(arxiv_series.tail(4).mean())
-    arxiv_52w_avg = float(arxiv_series.mean())
-    arxiv_pct_above = (arxiv_4w_avg - arxiv_52w_avg) / arxiv_52w_avg * 100 if arxiv_52w_avg > 0 else 0
-
-    ax1, ax2, ax3 = st.columns(3)
-    ax1.metric("Papers this week",       f"{arxiv_series.iloc[-1]:.0f}" if len(arxiv_series) > 0 else "—")
-    ax2.metric("4-week avg",             f"{arxiv_4w_avg:.1f}")
-    ax3.metric("vs. 52-week avg",        f"{arxiv_pct_above:+.1f}%",
-               delta="Elevated" if arxiv_pct_above > 10 else ("Suppressed" if arxiv_pct_above < -10 else "Normal"))
-
-    # Rolling average chart
-    rolling_4w = arxiv_series.rolling(4).mean()
-    fig_arx = go.Figure()
-    fig_arx.add_trace(go.Bar(
-        x=arxiv_series.index, y=arxiv_series.values,
-        name="Papers/week", marker_color="#4A1B6B", opacity=0.75,
-    ))
-    fig_arx.add_trace(go.Scatter(
-        x=rolling_4w.index, y=rolling_4w.values,
-        name="4-week rolling avg", mode="lines",
-        line=dict(color="#0D4F5C", width=2),
-    ))
-    fig_arx.add_hline(
-        y=arxiv_52w_avg, line_dash="dash", line_color="#9E9E8E",
-        annotation_text="52w avg", annotation_font_size=9,
-    )
-    fig_arx.update_layout(
-        title="Quantum Computing Papers on arXiv (quant-ph, error correction / fault tolerant)",
-        height=280, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+    perf_fig.add_hline(y=100, line_dash="dash", line_color="#9E9E8E", annotation_text="Baseline (100)")
+    perf_fig.update_layout(
+        height=360, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
         xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
         yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
-                   title="Papers per week"),
-        legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
-        margin=dict(l=0, r=0, t=30, b=0),
+                   title="Equal-Weight Basket (normalized to 100)"),
+        legend=dict(font=dict(size=10, color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
+        hovermode="x unified", margin=dict(l=0, r=0, t=10, b=0),
     )
-    st.plotly_chart(fig_arx, use_container_width=True)
+    st.plotly_chart(perf_fig, use_container_width=True)
 
-    st.caption("Source: arXiv.org API — papers in quant-ph category matching 'qubit', 'error correction', 'fault tolerant'. [Browse arXiv →](https://arxiv.org/list/quant-ph/recent)")
-else:
-    st.info("arXiv data temporarily unavailable. The API occasionally rate-limits; try refreshing in a few minutes.")
+    st.caption("Click any ticker to open its full Ticker Deep Dive analysis:")
+    for basket_name, basket_tickers in POWER_SUPERCYCLE_TICKERS.items():
+        bc1, bc2 = st.columns([1, 5])
+        bc1.markdown(
+            f'<div style="font-size:0.75rem;color:#8B7355;font-family:Georgia,serif;'
+            f'padding-top:6px;font-weight:600;">{basket_name}</div>',
+            unsafe_allow_html=True,
+        )
+        with bc2:
+            ticker_chips(basket_tickers, key_prefix=f"psc_{basket_name.replace(' ','_')}")
 
-st.divider()
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB: Copper COT
+# ─────────────────────────────────────────────────────────────────────────────
+elif section == "Copper COT":
+    st.markdown('<div class="section-header">COPPER COT — COMMERCIAL POSITIONING</div>', unsafe_allow_html=True)
 
-# ── Nuclear Federal Contracts ─────────────────────────────────────────────────
-st.markdown("### DoE Nuclear Contract Awards")
+    with st.expander("Why copper COT matters for the supercycle"):
+        st.markdown("""
+        **Commercial hedgers in copper COT** are the copper miners, manufacturers, and utilities that
+        actually use or produce copper. When they take **extreme net long positions**, they're locking
+        in purchase prices because they expect copper to be scarce — and expensive.
 
-with st.expander("Why DoE contract awards are a leading indicator for nuclear stocks"):
-    st.markdown("""
-    The **Department of Energy** has committed over $3.5 billion to nuclear projects since 2025:
-    - $800M to TVA and Holtec for SMR deployment
-    - $1.52B loan guarantee for Palisades restart
-    - $900M SMR solicitation (March 2025)
-    - TerraPower construction permit and funding (Natrium design)
+        When commercial positioning hits the 80th percentile or above, it has historically preceded
+        significant copper price appreciation. **The AI/data center angle:** copper demand from grid
+        buildout overtook EVs as the primary growth driver in June 2026. Commercial hedgers in copper
+        see this demand in their order books *months before* it shows up in macro data.
+        """)
 
-    **Why it matters for investors:**
-    When DoE awards a conditional commitment, the **capital cycle starts**. Suppliers, fuel
-    contractors, and enrichment companies begin signing long-term agreements. This activity
-    precedes earnings impacts by 12-36 months.
+    with st.spinner("Loading CFTC copper COT data…"):
+        copper_cot = fetch_cot("copper")
+        cot_scored = score_cot(copper_cot)
 
-    Contract award velocity for companies like Centrus Energy (LEU) and Cameco (CCJ) is one
-    of the most reliable leading indicators for nuclear equity performance.
-    """)
+    cot1, cot2, cot3 = st.columns(3)
+    cot_status = cot_scored.get("status", "neutral")
+    cot1.metric("COT Score", f"{cot_scored['score']:.0f}/100",
+                delta="Bullish" if cot_status == "bullish" else cot_status.capitalize())
+    cot2.metric("Spec Net Position", f"{cot_scored['spec_net']:+,}",
+                delta=f"{cot_scored['spec_net_pct']:.0f}th percentile")
+    cot3.metric("Commercial Net", f"{cot_scored['comm_net']:+,}",
+                delta=f"{cot_scored['comm_net_pct']:.0f}th percentile")
 
-nuclear_companies = {
-    "Centrus Energy (LEU)": "Centrus Energy",
-    "Cameco":               "Cameco",
-    "Uranium Energy":       "Uranium Energy",
-}
+    contrarian = cot_scored.get("contrarian_signal")
+    if contrarian:
+        st.warning(f"**Contrarian Signal:** {contrarian}")
 
-nuke_cols = st.columns(len(nuclear_companies))
-for col, (display_name, search_name) in zip(nuke_cols, nuclear_companies.items()):
-    with col:
-        with st.spinner(f"Loading {display_name}…"):
-            contracts = fetch_federal_contracts(search_name, years=2)
-            vel       = score_contract_velocity(contracts)
+    if not copper_cot.empty:
+        cot_chart = copper_cot.tail(52).copy()
+        cot_chart["spec_net"] = cot_chart["spec_long"] - cot_chart["spec_short"]
+        cot_chart["comm_net"] = cot_chart["comm_long"] - cot_chart["comm_short"]
 
+        fig_cot = go.Figure()
+        fig_cot.add_trace(go.Bar(
+            x=cot_chart["date"], y=cot_chart["spec_net"],
+            name="Speculator Net", marker_color="#1C2B4A", opacity=0.8,
+        ))
+        fig_cot.add_trace(go.Bar(
+            x=cot_chart["date"], y=cot_chart["comm_net"],
+            name="Commercial Net", marker_color="#B8860B", opacity=0.8,
+        ))
+        fig_cot.add_hline(y=0, line_color="#9E9E8E")
+        fig_cot.update_layout(
+            title="Copper COT — Speculator vs. Commercial Positioning (52 weeks)",
+            height=320, barmode="group", paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+            xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560")),
+            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+                       title="Net Contracts"),
+            legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
+            margin=dict(l=0, r=0, t=30, b=0),
+        )
+        st.plotly_chart(fig_cot, use_container_width=True)
+    else:
+        st.info("CFTC COT data temporarily unavailable.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB: Quantum
+# ─────────────────────────────────────────────────────────────────────────────
+elif section == "Quantum":
+    st.markdown('<div class="section-header">QUANTUM COMPUTING — arXiv PAPER VELOCITY</div>', unsafe_allow_html=True)
+
+    with st.expander("Why arXiv paper velocity is a leading indicator"):
+        st.markdown("""
+        Institutional investors who specialize in quantum computing track **arXiv preprints** —
+        academic papers posted *before* peer review. This is where breakthroughs appear first.
+
+        - Papers appear on arXiv **2-6 weeks before** the press release
+        - When Google published the Willow chip paper, institutional money rotated into quantum stocks
+          **within weeks** of the preprint
+        - A sustained spike in publication velocity from major labs signals an imminent milestone
+
+        **What "below-threshold error correction" means for investors:** this is the critical technical
+        hurdle for fault-tolerant quantum computing. When any major lab achieves this reliably, it
+        unlocks commercial viability — and a major re-rating of IONQ, RGTI, QBTS.
+
+        This tracker is unique to Unstructured Alpha. No retail finance platform monitors arXiv velocity.
+        """)
+
+    with st.spinner("Fetching arXiv quantum paper data…"):
+        arxiv_series = fetch_arxiv_velocity()
+
+    if not arxiv_series.empty:
+        arxiv_4w_avg  = float(arxiv_series.tail(4).mean())
+        arxiv_52w_avg = float(arxiv_series.mean())
+        arxiv_pct_above = (arxiv_4w_avg - arxiv_52w_avg) / arxiv_52w_avg * 100 if arxiv_52w_avg > 0 else 0
+
+        ax1, ax2, ax3 = st.columns(3)
+        ax1.metric("Papers this week", f"{arxiv_series.iloc[-1]:.0f}" if len(arxiv_series) > 0 else "—")
+        ax2.metric("4-week avg",       f"{arxiv_4w_avg:.1f}")
+        ax3.metric("vs. 52-week avg",  f"{arxiv_pct_above:+.1f}%",
+                   delta="Elevated" if arxiv_pct_above > 10 else ("Suppressed" if arxiv_pct_above < -10 else "Normal"))
+
+        rolling_4w = arxiv_series.rolling(4).mean()
+        fig_arx = go.Figure()
+        fig_arx.add_trace(go.Bar(
+            x=arxiv_series.index, y=arxiv_series.values,
+            name="Papers/week", marker_color="#4A1B6B", opacity=0.75,
+        ))
+        fig_arx.add_trace(go.Scatter(
+            x=rolling_4w.index, y=rolling_4w.values,
+            name="4-week rolling avg", mode="lines",
+            line=dict(color="#0D4F5C", width=2),
+        ))
+        fig_arx.add_hline(
+            y=arxiv_52w_avg, line_dash="dash", line_color="#9E9E8E",
+            annotation_text="52w avg", annotation_font_size=9,
+        )
+        fig_arx.update_layout(
+            title="Quantum Computing Papers on arXiv (quant-ph, error correction / fault tolerant)",
+            height=320, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
+            xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
+            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+                       title="Papers per week"),
+            legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
+            margin=dict(l=0, r=0, t=30, b=0),
+        )
+        st.plotly_chart(fig_arx, use_container_width=True)
+        st.caption("Source: arXiv.org API — papers in quant-ph category matching 'qubit', 'error correction', 'fault tolerant'. [Browse arXiv →](https://arxiv.org/list/quant-ph/recent)")
+    else:
+        st.info("arXiv data temporarily unavailable. The API occasionally rate-limits; try refreshing in a few minutes.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB: Nuclear Contracts
+# ─────────────────────────────────────────────────────────────────────────────
+elif section == "Nuclear Contracts":
+    st.markdown('<div class="section-header">DoE NUCLEAR CONTRACT AWARDS</div>', unsafe_allow_html=True)
+
+    with st.expander("Why DoE contract awards are a leading indicator for nuclear stocks"):
+        st.markdown("""
+        The **Department of Energy** has committed over $3.5 billion to nuclear projects since 2025:
+        - $800M to TVA and Holtec for SMR deployment
+        - $1.52B loan guarantee for Palisades restart
+        - $900M SMR solicitation (March 2025)
+        - TerraPower construction permit and funding (Natrium design)
+
+        When DoE awards a conditional commitment, the **capital cycle starts**. Suppliers, fuel
+        contractors, and enrichment companies begin signing long-term agreements. This activity
+        precedes earnings impacts by 12-36 months.
+
+        Contract award velocity for Centrus Energy (LEU) and Cameco (CCJ) is one of the most
+        reliable leading indicators for nuclear equity performance.
+        """)
+
+    # Reuse the contract data already fetched for score blending above —
+    # fetch_federal_contracts is cached so these are instant reads, not new HTTP calls.
+    nuclear_display = {
+        "Centrus Energy (LEU)": "Centrus Energy",
+        "Cameco":               "Cameco",
+        "Uranium Energy":       "Uranium Energy",
+    }
+
+    nuke_cols = st.columns(len(nuclear_display))
+    for col, (display_name, search_name) in zip(nuke_cols, nuclear_display.items()):
+        _contracts, vel = _nuclear_companies[search_name]
         vel_color  = STATUS_COLOR.get(vel.get("status", "neutral"), "#FF9800")
         vel_pct    = vel.get("pct_change", 0.0)
         vel_recent = vel.get("recent_total", 0)
@@ -604,54 +563,54 @@ for col, (display_name, search_name) in zip(nuke_cols, nuclear_companies.items()
                     border-top:1px solid #D4C9B0;border-right:1px solid #D4C9B0;border-bottom:1px solid #D4C9B0;
                     margin-bottom:8px;font-family:Georgia,serif;">
             <div style="font-size:0.82rem;font-weight:700;color:#1A1612;">{display_name}</div>
-            <div style="font-size:1.4rem;font-weight:700;color:{vel_color};">
-                {vel_pct:+.1f}%
-            </div>
+            <div style="font-size:1.4rem;font-weight:700;color:{vel_color};">{vel_pct:+.1f}%</div>
             <div style="font-size:0.75rem;color:#6B6560;">
-                Recent 6m: ${vel_recent:,.0f}<br>
-                Prior 6m: ${vel_prior:,.0f}
+                Recent 6m: ${vel_recent:,.0f}<br>Prior 6m: ${vel_prior:,.0f}
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-st.divider()
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB: Confluence
+# ─────────────────────────────────────────────────────────────────────────────
+elif section == "Confluence":
+    st.markdown('<div class="section-header">FULL SIGNAL CONFLUENCE SUMMARY</div>', unsafe_allow_html=True)
 
-# ── Confluence Summary Table ──────────────────────────────────────────────────
-st.markdown("### Full Signal Confluence Summary")
+    _leg_by_sig = {
+        "uranium_proxy":     "Nuclear Fuel",
+        "copper":            "Grid & Copper",
+        "natural_gas":       "Gas Bridge",
+        "hyperscaler_capex": "AI Demand",
+        "semiconductor_etf": "AI Demand",
+        "ata_trucking":      "Macro",
+        "jobless_claims":    "Macro",
+        "ism_pmi":           "Macro",
+        "crude_oil":         "Macro",
+    }
 
-rows = []
-for sid in supercycle_sig_ids:
-    cfg = SIGNALS.get(sid)
-    sv  = sc_scores.get(sid, {})
-    if not cfg:
-        continue
-    rows.append({
-        "Signal":      cfg["name"],
-        "Leg":         {
-            "uranium_proxy":     "Nuclear Fuel",
-            "copper":            "Grid & Copper",
-            "natural_gas":       "Gas Bridge",
-            "hyperscaler_capex": "AI Demand",
-            "semiconductor_etf": "AI Demand",
-            "ata_trucking":      "Macro",
-            "jobless_claims":    "Macro",
-            "ism_pmi":           "Macro",
-            "crude_oil":         "Macro",
-        }.get(sid, "Other"),
-        "Status":      ("🟢 Bullish" if sv.get("status") == "bullish"
-                        else ("🔴 Bearish" if sv.get("status") == "bearish" else "🟡 Neutral")),
-        "Score":       round(sv.get("score", 50), 1),
-        "Z-Score":     round(sv.get("z_score", 0), 2),
-        "Dev %":       round(sv.get("deviation_pct", 0), 2),
-        "PCS":         cfg["pcs"],
-        "Lead (wk)":   cfg["lag_weeks"],
-    })
+    rows = []
+    for sid in supercycle_sig_ids:
+        cfg = SIGNALS.get(sid)
+        sv  = sc_scores.get(sid, {})
+        if not cfg:
+            continue
+        rows.append({
+            "Signal":    cfg["name"],
+            "Leg":       _leg_by_sig.get(sid, "Other"),
+            "Status":    ("🟢 Bullish" if sv.get("status") == "bullish"
+                          else ("🔴 Bearish" if sv.get("status") == "bearish" else "🟡 Neutral")),
+            "Score":     round(sv.get("score", 50), 1),
+            "Z-Score":   round(sv.get("z_score", 0), 2),
+            "Dev %":     round(sv.get("deviation_pct", 0), 2),
+            "PCS":       cfg["pcs"],
+            "Lead (wk)": cfg["lag_weeks"],
+        })
 
-if rows:
-    sum_df = pd.DataFrame(rows).sort_values("Score", ascending=False)
-    st.dataframe(
-        sum_df, use_container_width=True, hide_index=True,
-        column_config={
-            "Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
-        },
-    )
+    if rows:
+        sum_df = pd.DataFrame(rows).sort_values("Score", ascending=False)
+        st.dataframe(
+            sum_df, use_container_width=True, hide_index=True,
+            column_config={
+                "Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f"),
+            },
+        )

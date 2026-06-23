@@ -1,0 +1,415 @@
+"""
+Page 2 — Today's Intelligence Brief
+Cross-cutting daily digest: current state of every signal in the library,
+score movers from the snapshot history, and a watchlist summary for
+logged-in users. The "morning brief" for the platform — one page that
+answers "what changed and what should I look at today?"
+
+Data freshness is deliberately tiered:
+- Signal Pulse: fetched live, cached 2 hours (40 HTTP calls is real cost,
+  not something to redo on every page refresh; 2h is honest for
+  monthly/weekly signals whose values don't change intraday anyway).
+- Score Movers: pulled from score_snapshots (the DB built organically by
+  Ticker Deep Dive views) -- only tickers someone has recently viewed
+  appear here. Stated plainly in the UI, not hidden.
+- Watchlist / prices: 15-min cache via utils/quotes.py (same as Watchlist
+  and Stock Screener, for consistency).
+"""
+
+from datetime import datetime, timedelta, timezone
+
+import pandas as pd
+import streamlit as st
+from sqlalchemy import select
+
+from utils.config import SIGNALS, TICKERS
+from utils.db import engine, score_snapshots, init_db
+from utils.fetchers import fetch_signal_series
+from utils.analysis import score_signal
+from utils.header import render_header, render_sidebar_base, go_to_ticker, ticker_label
+from utils.quotes import get_batch_quotes
+
+st.set_page_config(page_title="Today's Brief — UA", layout="wide")
+render_header("Today's Brief")
+render_sidebar_base()
+
+init_db()
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=7200, show_spinner=False)
+def compute_all_signal_scores(_v: int = 1) -> tuple[dict, str]:
+    """
+    Fetch and score every signal in the SIGNALS library. Cached 2 hours --
+    this is ~40 HTTP calls and the underlying signals (mostly monthly/weekly
+    FRED series) don't change faster than that anyway. Returns both the
+    scores dict and the "as of" timestamp so the UI can show when this
+    snapshot was taken without a second call.
+    """
+    end = datetime.now().strftime("%Y-%m-%d")
+    start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+
+    results = {}
+    for sig_id, cfg in SIGNALS.items():
+        try:
+            s = fetch_signal_series(cfg, start, end)
+            scored = score_signal(s, inverse=cfg.get("inverse", False))
+            results[sig_id] = {
+                "name": cfg["name"],
+                "score": scored.get("score", 50),
+                "status": scored.get("status", "neutral"),
+                "tier": cfg.get("tier", 1),
+                "category": cfg.get("category", "macro"),
+                "pcs": cfg.get("pcs", 5),
+                "error": False,
+            }
+        except Exception:
+            results[sig_id] = {
+                "name": cfg["name"],
+                "score": 50,
+                "status": "neutral",
+                "tier": cfg.get("tier", 1),
+                "category": cfg.get("category", "macro"),
+                "pcs": cfg.get("pcs", 5),
+                "error": True,
+            }
+
+    as_of = datetime.now().strftime("%-I:%M %p ET, %b %-d")
+    return results, as_of
+
+
+def get_score_movers(days_back: int = 7) -> pd.DataFrame:
+    """
+    From score_snapshots, find tickers with the biggest score delta between
+    their earliest and latest snapshot within the last `days_back` days.
+    Only tickers with at least 2 recorded snapshots in the window appear —
+    a single snapshot has no delta to compare against.
+    Returns empty DataFrame if no data (common for a fresh/low-traffic DB).
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    try:
+        with engine.begin() as conn:
+            rows = conn.execute(
+                select(score_snapshots)
+                .where(score_snapshots.c.snapshot_date >= cutoff)
+                .order_by(score_snapshots.c.ticker, score_snapshots.c.snapshot_date)
+            ).mappings().all()
+    except Exception:
+        return pd.DataFrame()
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame([dict(r) for r in rows])
+    results = []
+    for ticker, grp in df.groupby("ticker"):
+        grp = grp.sort_values("snapshot_date")
+        if len(grp) < 2:
+            continue
+        earliest = grp.iloc[0]
+        latest = grp.iloc[-1]
+        delta = latest["score"] - earliest["score"]
+        results.append({
+            "ticker": ticker,
+            "from_score": round(earliest["score"], 1),
+            "from_date": earliest["snapshot_date"],
+            "to_score": round(latest["score"], 1),
+            "to_date": latest["snapshot_date"],
+            "delta": round(delta, 1),
+            "case": latest.get("case", "NEUTRAL") or "NEUTRAL",
+        })
+
+    if not results:
+        return pd.DataFrame()
+
+    result_df = pd.DataFrame(results)
+    result_df["abs_delta"] = result_df["delta"].abs()
+    return result_df.sort_values("abs_delta", ascending=False).reset_index(drop=True)
+
+
+def get_watchlist_snapshots(user_id: int) -> pd.DataFrame:
+    """
+    Most recent recorded score for each of a user's watchlist tickers.
+    Returns empty DataFrame if none have been viewed yet.
+    """
+    from utils import alerts_db
+    watchlist = alerts_db.get_watchlist(user_id)
+    if not watchlist:
+        return pd.DataFrame()
+
+    tickers = [row["ticker"] for row in watchlist]
+    try:
+        with engine.begin() as conn:
+            rows = conn.execute(
+                select(score_snapshots)
+                .where(score_snapshots.c.ticker.in_(tickers))
+                .order_by(score_snapshots.c.snapshot_date.desc())
+            ).mappings().all()
+    except Exception:
+        return pd.DataFrame()
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame([dict(r) for r in rows])
+    # Keep only the most recent snapshot per ticker
+    return df.sort_values("snapshot_date", ascending=False).drop_duplicates("ticker").reset_index(drop=True)
+
+
+# ── Page header ───────────────────────────────────────────────────────────────
+
+try:
+    from zoneinfo import ZoneInfo
+    _today_str = datetime.now(ZoneInfo("America/New_York")).strftime("%A, %B %-d, %Y")
+except Exception:
+    _today_str = datetime.now().strftime("%A, %B %-d, %Y")
+
+st.markdown(f"# Today's Intelligence Brief")
+st.caption(f"{_today_str} — signal state, score movers, and watchlist activity at a glance.")
+
+# ── Section 1: Signal Pulse ───────────────────────────────────────────────────
+
+st.markdown('<div class="section-header">SIGNAL PULSE</div>', unsafe_allow_html=True)
+
+with st.spinner("Loading signal pulse (40 signals — cached 2 hours)…"):
+    _all_scores, _as_of = compute_all_signal_scores()
+
+st.caption(f"As of {_as_of} · Cached 2 hours · {len(_all_scores)} signals evaluated")
+
+_bull_sigs = sorted(
+    [(sid, d) for sid, d in _all_scores.items() if d["status"] == "bullish" and not d.get("error")],
+    key=lambda x: -x[1]["score"],
+)
+_bear_sigs = sorted(
+    [(sid, d) for sid, d in _all_scores.items() if d["status"] == "bearish" and not d.get("error")],
+    key=lambda x: x[1]["score"],
+)
+_neut_sigs = sorted(
+    [(sid, d) for sid, d in _all_scores.items() if d["status"] == "neutral" or d.get("error")],
+    key=lambda x: -x[1]["score"],
+)
+
+_pulse_col1, _pulse_col2, _pulse_col3 = st.columns(3)
+
+def _signal_card_html(sid: str, d: dict) -> str:
+    score = d["score"]
+    status = d["status"]
+    color = "#1B5E20" if status == "bullish" else ("#7B1010" if status == "bearish" else "#8B7355")
+    border = "#1B5E20" if status == "bullish" else ("#7B1010" if status == "bearish" else "#D4C9B0")
+    label = "BULL" if status == "bullish" else ("BEAR" if status == "bearish" else "—")
+    if d.get("error"):
+        score_str = "—"
+        label = "ERR"
+        color = "#8B7355"
+        border = "#D4C9B0"
+    else:
+        score_str = f"{score:.0f}"
+    return (
+        f'<div style="background:#F5F1E8;border-radius:5px;padding:8px 12px;margin-bottom:6px;'
+        f'border-left:3px solid {border};font-family:Georgia,serif;">'
+        f'<span style="font-size:0.82rem;color:#1A1612;">{d["name"]}</span>'
+        f'<span style="float:right;font-size:0.80rem;font-weight:700;color:{color};">'
+        f'{score_str} <span style="font-size:0.68rem;letter-spacing:0.05em;">{label}</span></span>'
+        f'</div>'
+    )
+
+with _pulse_col1:
+    st.markdown(
+        f'<div style="font-size:0.78rem;font-weight:700;color:#1B5E20;letter-spacing:0.06em;'
+        f'text-transform:uppercase;border-bottom:2px solid #1B5E20;padding-bottom:4px;margin-bottom:10px;">'
+        f'▲ BULLISH ({len(_bull_sigs)})</div>',
+        unsafe_allow_html=True,
+    )
+    if _bull_sigs:
+        for sid, d in _bull_sigs:
+            st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
+    else:
+        st.caption("No bullish signals right now.")
+
+with _pulse_col2:
+    st.markdown(
+        f'<div style="font-size:0.78rem;font-weight:700;color:#7B1010;letter-spacing:0.06em;'
+        f'text-transform:uppercase;border-bottom:2px solid #7B1010;padding-bottom:4px;margin-bottom:10px;">'
+        f'▼ BEARISH ({len(_bear_sigs)})</div>',
+        unsafe_allow_html=True,
+    )
+    if _bear_sigs:
+        for sid, d in _bear_sigs:
+            st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
+    else:
+        st.caption("No bearish signals right now.")
+
+with _pulse_col3:
+    st.markdown(
+        f'<div style="font-size:0.78rem;font-weight:700;color:#8B7355;letter-spacing:0.06em;'
+        f'text-transform:uppercase;border-bottom:2px solid #8B7355;padding-bottom:4px;margin-bottom:10px;">'
+        f'● NEUTRAL ({len(_neut_sigs)})</div>',
+        unsafe_allow_html=True,
+    )
+    if _neut_sigs:
+        for sid, d in _neut_sigs:
+            st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
+    else:
+        st.caption("No neutral signals right now.")
+
+# Summary bar
+_n_bull, _n_bear, _n_neut = len(_bull_sigs), len(_bear_sigs), len(_neut_sigs)
+_total = _n_bull + _n_bear + _n_neut or 1
+_bull_pct = _n_bull / _total * 100
+_bear_pct = _n_bear / _total * 100
+_neut_pct = _n_neut / _total * 100
+
+_overall_bias = "BULLISH LEANING" if _n_bull > _n_bear + _n_neut * 0.5 else (
+    "BEARISH LEANING" if _n_bear > _n_bull + _n_neut * 0.5 else "MIXED / NEUTRAL"
+)
+_bias_color = "#1B5E20" if "BULL" in _overall_bias else ("#7B1010" if "BEAR" in _overall_bias else "#8B7355")
+
+st.markdown(
+    f'<div style="background:#F0EBE1;border:1px solid #D4C9B0;border-radius:6px;padding:10px 16px;'
+    f'margin-top:8px;font-family:Georgia,serif;font-size:0.85rem;">'
+    f'<b style="color:{_bias_color};">{_overall_bias}</b> — '
+    f'{_n_bull} bullish · {_n_bear} bearish · {_n_neut} neutral '
+    f'<span style="color:#8B7355;font-size:0.78rem;">({_bull_pct:.0f}% / {_bear_pct:.0f}% / {_neut_pct:.0f}%)</span>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
+
+st.divider()
+
+# ── Section 2: Score Movers ───────────────────────────────────────────────────
+
+st.markdown('<div class="section-header">SCORE MOVERS (LAST 7 DAYS)</div>', unsafe_allow_html=True)
+
+_movers_df = get_score_movers(days_back=7)
+
+if _movers_df.empty:
+    st.info(
+        "No score movement data yet — this feed populates organically as tickers are viewed on Ticker Deep Dive. "
+        "Open any ticker there to start building the history."
+    )
+else:
+    st.caption(
+        "Score changes across tickers with at least 2 recorded snapshots in the last 7 days. "
+        "History accumulates as tickers are viewed on Ticker Deep Dive — not a complete universe."
+    )
+
+    CASE_COLOR = {"BULL": "#1B5E20", "BEAR": "#7B1010", "NEUTRAL": "#8B7355"}
+
+    for _, row in _movers_df.iterrows():
+        ticker = row["ticker"]
+        delta = row["delta"]
+        to_score = row["to_score"]
+        from_score = row["from_score"]
+        case = str(row.get("case", "NEUTRAL") or "NEUTRAL").upper()
+        from_date = row.get("from_date", "")
+        to_date = row.get("to_date", "")
+        case_color = CASE_COLOR.get(case, "#8B7355")
+        delta_color = "#1B5E20" if delta > 0 else ("#7B1010" if delta < 0 else "#8B7355")
+        delta_arrow = "▲" if delta > 0 else ("▼" if delta < 0 else "●")
+        company = TICKERS.get(ticker, {}).get("name", "")
+
+        _mover_box = st.container(border=True)
+        mc1, mc2, mc3 = _mover_box.columns([2.5, 2, 1])
+        with mc1:
+            go_to_ticker(ticker, key=f"digest_mover_{ticker}")
+            if company:
+                st.caption(company)
+        with mc2:
+            st.markdown(
+                f'<div style="font-family:Georgia,serif;font-size:0.85rem;padding-top:4px;">'
+                f'<span style="color:#8B7355;">{from_date}</span> → <span style="color:#1A1612;font-weight:700;">{to_date}</span>'
+                f'<br><span style="color:#8B7355;">{from_score:.0f}</span> → '
+                f'<b style="color:{case_color};">{to_score:.0f}</b>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with mc3:
+            st.markdown(
+                f'<div style="text-align:right;padding-top:4px;">'
+                f'<span style="font-size:1.3rem;font-weight:700;color:{delta_color};">'
+                f'{delta_arrow} {abs(delta):.0f}</span>'
+                f'<br><span style="font-size:0.72rem;font-weight:700;color:{case_color};">{case}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+st.divider()
+
+# ── Section 3: Watchlist Activity ─────────────────────────────────────────────
+
+st.markdown('<div class="section-header">WATCHLIST ACTIVITY</div>', unsafe_allow_html=True)
+
+_user = st.session_state.get("user")
+if not _user:
+    st.info("Sign in to see your watchlist tickers' latest recorded scores and live prices here.")
+else:
+    _user_id = _user["id"]
+    from utils import alerts_db
+    _watchlist = alerts_db.get_watchlist(_user_id)
+
+    if not _watchlist:
+        st.info("Your watchlist is empty. Add tickers on the Watchlist page to track them here.")
+    else:
+        _watch_tickers = [r["ticker"] for r in _watchlist]
+
+        with st.spinner(f"Loading live prices for {len(_watch_tickers)} watched ticker(s)…"):
+            _watch_quotes = get_batch_quotes(_watch_tickers)
+
+        _watch_snaps = get_watchlist_snapshots(_user_id)
+        _snap_by_ticker = {}
+        if not _watch_snaps.empty:
+            for _, srow in _watch_snaps.iterrows():
+                _snap_by_ticker[srow["ticker"]] = srow
+
+        for row in _watchlist:
+            ticker = row["ticker"]
+            q = _watch_quotes.get(ticker, {})
+            price = q.get("last")
+            chg_pct = q.get("chg_1d_pct")
+            snap = _snap_by_ticker.get(ticker)
+
+            _wbox = st.container(border=True)
+            wa1, wa2, wa3 = _wbox.columns([2.5, 1.5, 1.5])
+
+            with wa1:
+                go_to_ticker(ticker, key=f"digest_watch_{ticker}")
+                company = TICKERS.get(ticker, {}).get("name", "")
+                if company:
+                    st.caption(company)
+
+            with wa2:
+                if price is not None:
+                    st.markdown(f"**${price:,.2f}**")
+                else:
+                    st.caption("Price unavailable")
+                if chg_pct is not None:
+                    _cc = "#1B5E20" if chg_pct > 0 else ("#7B1010" if chg_pct < 0 else "#8B7355")
+                    _ca = "▲" if chg_pct > 0 else ("▼" if chg_pct < 0 else "●")
+                    st.markdown(
+                        f'<span style="color:{_cc};font-size:0.85rem;">{_ca} {chg_pct:+.2f}% today</span>',
+                        unsafe_allow_html=True,
+                    )
+
+            with wa3:
+                if snap is not None:
+                    _snap_score = snap["score"]
+                    _snap_case = str(snap.get("case", "NEUTRAL") or "NEUTRAL").upper()
+                    _snap_date = snap.get("snapshot_date", "")
+                    _sc_color = "#1B5E20" if _snap_case == "BULL" else ("#7B1010" if _snap_case == "BEAR" else "#8B7355")
+                    st.markdown(
+                        f'<div style="text-align:right;font-family:Georgia,serif;">'
+                        f'<span style="font-size:1.2rem;font-weight:700;color:{_sc_color};">{_snap_score:.0f}</span>'
+                        f'<span style="font-size:0.72rem;font-weight:700;color:{_sc_color};margin-left:4px;">{_snap_case}</span>'
+                        f'<br><span style="font-size:0.70rem;color:#8B7355;">as of {_snap_date}</span>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.caption("No score recorded yet — open on Ticker Deep Dive to generate one.")
+
+st.markdown("""
+<div class="disclaimer">
+<b>Not financial advice.</b> Signal states and scores reflect publicly available data at the cached
+time shown above. Do your own research before making any investment decision.
+</div>
+""", unsafe_allow_html=True)

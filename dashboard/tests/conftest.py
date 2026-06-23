@@ -106,6 +106,7 @@ os.environ["UNSTRUCTURED_ALPHA_DATABASE_URL"] = f"sqlite:///{_TEST_DB_PATH}"
 # rather than silently testing the wrong set of pages.
 ROUTED_PAGES = [
     "pages/home_page.py",
+    "pages/2_Today_Digest.py",
     "pages/1_Signal_Dashboard.py",
     "pages/3_Ticker_Deep_Dive.py",
     "pages/4_Power_Supercycle.py",

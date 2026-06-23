@@ -45,7 +45,8 @@ pg = st.navigation(
             st.Page("pages/home_page.py",        title="Home",             default=True),
         ],
         "Signals": [
-            st.Page("pages/1_Signal_Dashboard.py", title="Signal Dashboard"),
+            st.Page("pages/2_Today_Digest.py",      title="Today's Brief"),
+            st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard"),
         ],
         "Research": [
             st.Page("pages/3_Ticker_Deep_Dive.py", title="Ticker Deep Dive"),
