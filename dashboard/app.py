@@ -42,29 +42,31 @@ _cookies = init_cookies_for_this_run()
 pg = st.navigation(
     {
         "": [
-            st.Page("pages/home_page.py",        title="Home",             default=True),
-        ],
-        "Signals": [
-            st.Page("pages/2_Today_Digest.py",      title="Today's Brief"),
-            st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard"),
-        ],
-        "Research": [
-            st.Page("pages/3_Ticker_Deep_Dive.py",  title="Ticker Deep Dive"),
-            st.Page("pages/13_Track_Record.py",      title="Earnings Track Record"),
-            st.Page("pages/4_Power_Supercycle.py",   title="Power Supercycle"),
-        ],
-        "Market": [
-            st.Page("pages/5_Market_Overview.py",  title="Market Overview"),
-            st.Page("pages/6_Stock_Screener.py",   title="Stock Screener"),
-            st.Page("pages/12_Sector_Map.py",      title="Sector Map"),
+            st.Page("pages/home_page.py",           title="Home",              default=True),
         ],
         "Watchlist": [
             st.Page("pages/10_Watchlist.py",        title="My Watchlist"),
         ],
+        "Daily Intel": [
+            st.Page("pages/2_Today_Digest.py",      title="Today's Brief"),
+            st.Page("pages/12_Sector_Map.py",       title="Sector Map"),
+        ],
+        "Signals": [
+            st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard"),
+        ],
+        "Research": [
+            st.Page("pages/3_Ticker_Deep_Dive.py",  title="Ticker Deep Dive"),
+            st.Page("pages/13_Track_Record.py",     title="Earnings Track Record"),
+            st.Page("pages/4_Power_Supercycle.py",  title="Power Supercycle"),
+        ],
+        "Market": [
+            st.Page("pages/5_Market_Overview.py",   title="Market Overview"),
+            st.Page("pages/6_Stock_Screener.py",    title="Stock Screener"),
+        ],
         "Info": [
-            st.Page("pages/8_About.py",            title="About"),
             st.Page("pages/11_Model_Validation.py", title="Model Validation"),
-            st.Page("pages/9_AI_Assistant.py",     title="AI Assistant"),
+            st.Page("pages/8_About.py",             title="About"),
+            st.Page("pages/9_AI_Assistant.py",      title="AI Assistant"),
         ],
     },
     position="sidebar",

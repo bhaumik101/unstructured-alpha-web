@@ -22,6 +22,49 @@ st.set_page_config(
 
 from utils.header import render_header, render_sidebar_base
 from utils.config import SIGNALS, CATEGORIES
+from utils.fetchers import fetch_signal_series
+from utils.analysis import score_signal
+from datetime import datetime as _dt, timedelta as _td
+
+
+# ── Combined home-page data loader ────────────────────────────────────────────
+# Single pass over all signals — feeds both the Signal Pulse banner AND the
+# Sector Rotation teaser. One set of API calls on cold start instead of two,
+# halving startup time on Render. Cached 2 hours (signals are monthly/weekly).
+@st.cache_data(ttl=7200, show_spinner=False)
+def _home_load_all(_v: int = 1) -> dict:
+    _end   = _dt.now().strftime("%Y-%m-%d")
+    _start = (_dt.now() - _td(days=730)).strftime("%Y-%m-%d")
+    _bull: list = []
+    _bear: list = []
+    _neut: list = []
+    _buckets: dict = {}
+    for _sid, _cfg in SIGNALS.items():
+        _cat = _cfg.get("category", "macro")
+        try:
+            _s      = fetch_signal_series(_cfg, _start, _end)
+            _scored = score_signal(_s, inverse=_cfg.get("inverse", False))
+            _status = _scored.get("status", "neutral")
+            _score  = _scored.get("score", 50)
+            if _status == "bullish":
+                _bull.append((_cfg["name"], _score))
+            elif _status == "bearish":
+                _bear.append((_cfg["name"], _score))
+            else:
+                _neut.append((_cfg["name"], _score))
+            _buckets.setdefault(_cat, []).append(_score)
+        except Exception:
+            pass  # Signal failure must never crash the home page
+    return {
+        "bull":    sorted(_bull, key=lambda x: -x[1]),
+        "bear":    sorted(_bear, key=lambda x:  x[1]),
+        "neut":    _neut,
+        "sectors": {
+            _cat: sum(_sc) / len(_sc)
+            for _cat, _sc in _buckets.items()
+            if _sc
+        },
+    }
 
 render_header("Home")
 render_sidebar_base()
@@ -46,56 +89,27 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Live Signal Pulse ─────────────────────────────────────────────────────────
-# Most visitors land here and want something actionable immediately.
-# The pulse shows the current macro read in under 3 seconds.
+# Single combined loader — also feeds the Sector Rotation teaser below.
+# Shows the current macro read immediately on page load.
 try:
-    from utils.fetchers import fetch_signal_series
-    from utils.analysis import score_signal
-    from utils.config import SIGNALS as _SIGNALS_HP
-    from datetime import datetime as _dt, timedelta as _td
+    with st.spinner("Loading signal pulse…"):
+        _hd = _home_load_all()
 
-    @st.cache_data(ttl=7200, show_spinner=False)
-    def _home_signal_pulse(_v: int = 1) -> dict:
-        _end   = _dt.now().strftime("%Y-%m-%d")
-        _start = (_dt.now() - _td(days=730)).strftime("%Y-%m-%d")
-        _bull, _bear, _neut = [], [], []
-        for _sid, _cfg in _SIGNALS_HP.items():
-            try:
-                _s      = fetch_signal_series(_cfg, _start, _end)
-                _scored = score_signal(_s, inverse=_cfg.get("inverse", False))
-                _status = _scored.get("status", "neutral")
-                _score  = _scored.get("score", 50)
-                if _status == "bullish":
-                    _bull.append((_cfg["name"], _score))
-                elif _status == "bearish":
-                    _bear.append((_cfg["name"], _score))
-                else:
-                    _neut.append((_cfg["name"], _score))
-            except Exception:
-                pass
-        return {
-            "bull": sorted(_bull, key=lambda x: -x[1]),
-            "bear": sorted(_bear, key=lambda x:  x[1]),
-            "neut": _neut,
-        }
-
-    with st.spinner("Loading live signal pulse…"):
-        _pulse = _home_signal_pulse()
-
-    _nb, _nr, _nn = len(_pulse["bull"]), len(_pulse["bear"]), len(_pulse["neut"])
-    _total_hp = _nb + _nr + _nn or 1
+    _pulse  = _hd  # alias for readability below
+    _nb, _nr, _nn = len(_hd["bull"]), len(_hd["bear"]), len(_hd["neut"])
+    _total_hp = max(1, _nb + _nr + _nn)
     _bias_color = "#1B5E20" if _nb > _nr + _nn * 0.5 else (
         "#7B1010" if _nr > _nb + _nn * 0.5 else "#8B7355")
     _bias_label = ("Bullish Leaning" if _nb > _nr + _nn * 0.5 else
                    "Bearish Leaning" if _nr > _nb + _nn * 0.5 else "Mixed Signals")
 
-    _bull_str = (f'<b style="color:#4CAF50;">Top bull:</b> {_pulse["bull"][0][0]} '
-                 f'<span style="color:#9E9E8E;">({_pulse["bull"][0][1]:.0f})</span>'
-                 if _pulse["bull"] else "")
-    _bear_str = (f'<b style="color:#EF5350;">Top bear:</b> {_pulse["bear"][0][0]} '
-                 f'<span style="color:#9E9E8E;">({_pulse["bear"][0][1]:.0f})</span>'
-                 if _pulse["bear"] else "")
-    _sep_str = "&nbsp;&nbsp;·&nbsp;&nbsp;" if _pulse["bull"] and _pulse["bear"] else ""
+    _bull_str = (f'<b style="color:#4CAF50;">Top bull:</b> {_hd["bull"][0][0]} '
+                 f'<span style="color:#9E9E8E;">({_hd["bull"][0][1]:.0f})</span>'
+                 if _hd["bull"] else "")
+    _bear_str = (f'<b style="color:#EF5350;">Top bear:</b> {_hd["bear"][0][0]} '
+                 f'<span style="color:#9E9E8E;">({_hd["bear"][0][1]:.0f})</span>'
+                 if _hd["bear"] else "")
+    _sep_str = "&nbsp;&nbsp;·&nbsp;&nbsp;" if _hd["bull"] and _hd["bear"] else ""
 
     st.markdown(f"""
 <div style="background:#1C2B4A;border-radius:10px;padding:18px 22px;margin:20px 0 8px;
@@ -123,7 +137,7 @@ try:
         if st.button("Full Today's Brief →", use_container_width=True, key="cta_today"):
             st.switch_page("pages/2_Today_Digest.py")
 except Exception:
-    pass
+    _hd = {"bull": [], "bear": [], "neut": [], "sectors": {}}  # safe fallback for sector section below
 
 st.markdown("")
 
@@ -247,56 +261,30 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+_SECTOR_META_HP = {
+    "ai_infrastructure": ("💻 Technology & AI",  "#1C2B4A"),
+    "energy":            ("⛽ Energy",            "#5D4037"),
+    "nuclear":           ("⚡ Nuclear/Utilities",  "#7B1010"),
+    "financials":        ("🏦 Financials",         "#B8860B"),
+    "healthcare":        ("🏥 Healthcare",          "#1B5E20"),
+    "consumer":          ("🛒 Consumer",           "#B34700"),
+    "industrials":       ("🏭 Industrials",        "#4A1B6B"),
+    "macro":             ("📊 Macro Backdrop",     "#0D4F5C"),
+}
+
+# Use sector data from the combined loader (_hd already populated above).
+# Always 4 columns so indexing never crashes regardless of how many sectors
+# have data on a given run — extra columns just render empty.
 try:
-    from datetime import timedelta
-    from datetime import datetime as _sm_dt
-    from utils.fetchers import fetch_signal_series as _sm_fetch
-    from utils.analysis import score_signal as _sm_score
-    from utils.config import SIGNALS as _sm_sigs
-
-    _SECTOR_META_HP = {
-        "ai_infrastructure": ("💻 Technology & AI",  "#1C2B4A"),
-        "energy":            ("⛽ Energy",            "#5D4037"),
-        "nuclear":           ("⚡ Nuclear/Utilities",  "#7B1010"),
-        "financials":        ("🏦 Financials",         "#B8860B"),
-        "healthcare":        ("🏥 Healthcare",          "#1B5E20"),
-        "consumer":          ("🛒 Consumer",           "#B34700"),
-        "industrials":       ("🏭 Industrials",        "#4A1B6B"),
-        "macro":             ("📊 Macro Backdrop",     "#0D4F5C"),
-    }
-
-    @st.cache_data(ttl=7200, show_spinner=False)
-    def _hp_sector_scores(_v: int = 1) -> dict:
-        _end   = _sm_dt.now().strftime("%Y-%m-%d")
-        _start = (_sm_dt.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-        _buckets: dict = {}
-        for _sid, _cfg in _sm_sigs.items():
-            _cat = _cfg.get("category", "macro")
-            if _cat not in _buckets:
-                _buckets[_cat] = []
-            try:
-                _s = _sm_fetch(_cfg, _start, _end)
-                _sc = _sm_score(_s, inverse=_cfg.get("inverse", False))
-                _buckets[_cat].append(_sc.get("score", 50))
-            except Exception:
-                pass
-        return {
-            _cat: sum(_scores) / len(_scores)
-            for _cat, _scores in _buckets.items()
-            if _scores
-        }
-
-    with st.spinner("Loading sector scores…"):
-        _hp_sectors = _hp_sector_scores()
-
+    _hp_sectors = _hd.get("sectors", {})
     if _hp_sectors:
         _sorted_sectors = sorted(_hp_sectors.items(), key=lambda x: -x[1])
-        _sec_cols = st.columns(min(len(_sorted_sectors), 4))
+        _sec_cols = st.columns(4)  # always 4 — never crashes on fewer sectors
         for _si, (_cat, _avg) in enumerate(_sorted_sectors[:8]):
             _name, _color = _SECTOR_META_HP.get(_cat, (f"📊 {_cat}", "#8B7355"))
-            _status = "▲" if _avg >= 60 else ("▼" if _avg <= 40 else "●")
+            _status   = "▲" if _avg >= 60 else ("▼" if _avg <= 40 else "●")
             _sc_color = "#1B5E20" if _avg >= 60 else ("#7B1010" if _avg <= 40 else "#8B7355")
-            _bg = "#EDF7ED" if _avg >= 60 else ("#FDF0F0" if _avg <= 40 else "#FAF7F0")
+            _bg       = "#EDF7ED" if _avg >= 60 else ("#FDF0F0" if _avg <= 40 else "#FAF7F0")
             with _sec_cols[_si % 4]:
                 st.markdown(f"""
 <div style="background:{_bg};border:1px solid #D4C9B0;border-left:3px solid {_sc_color};
@@ -305,6 +293,8 @@ try:
     <div style="font-size:1.3rem;font-weight:800;color:{_sc_color};">{_status} {_avg:.0f}</div>
 </div>
 """, unsafe_allow_html=True)
+    else:
+        st.caption("Sector scores loading — refresh the page in a moment.")
 
     _sm_col, _ = st.columns([1, 3])
     with _sm_col:
