@@ -21,13 +21,11 @@ industrials       → Industrials
 macro             → Macro Backdrop (rates, credit, housing, freight, etc.)
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.config import SIGNALS, CATEGORIES
 from utils.header import render_header, render_sidebar_base
 
 st.set_page_config(page_title="Sector Map — UA", layout="wide")
@@ -268,42 +266,34 @@ for _i, _cat in enumerate(_ordered_cats):
 
     _col = _grid_cols[_i % 3]
     with _col:
-        st.markdown(f"""
-        <div style="background:{_card_bg};border:1px solid #D4C9B0;border-top:4px solid {_sc_color};
-                    border-radius:8px;padding:16px 18px;margin-bottom:16px;font-family:Georgia,serif;
-                    min-height:220px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;">
-                <div style="font-size:1.1rem;font-weight:700;color:#1A1612;">
-                    {_m['icon']} {_m['name']}
-                </div>
-                <div style="font-size:1.4rem;font-weight:800;color:{_sc_color};">{_sc:.0f}</div>
-            </div>
-            <div style="font-size:0.72rem;color:#8B7355;margin-top:2px;margin-bottom:8px;">
-                {_m['etf']} &nbsp;·&nbsp; {_d['n']} signal{'s' if _d['n'] != 1 else ''}
-            </div>
-
-            <div style="font-weight:700;color:{_sc_color};font-size:0.82rem;margin-bottom:6px;">
-                {STATUS_LABEL[_st]}
-            </div>
-
-            <!-- Signal breakdown bar -->
-            <div style="display:flex;border-radius:3px;overflow:hidden;height:6px;margin-bottom:8px;">
-                <div style="width:{_bar_w_b:.0f}%;background:#1B5E20;"></div>
-                <div style="width:{_bar_w_n:.0f}%;background:#8B7355;"></div>
-                <div style="width:{_bar_w_r:.0f}%;background:#7B1010;"></div>
-            </div>
-            <div style="font-size:0.68rem;color:#9E9E8E;margin-bottom:8px;">
-                ▲{_d['bull']} bull &nbsp; ●{_d['neut']} neutral &nbsp; ▼{_d['bear']} bear
-            </div>
-
-            <div style="border-top:1px solid #E8E0CE;padding-top:8px;">
-                <div style="font-size:0.68rem;color:#9E9E8E;letter-spacing:0.06em;margin-bottom:4px;">
-                    TOP MOVERS
-                </div>
-                {_top_html}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="background:{_card_bg};border:1px solid #D4C9B0;border-top:4px solid {_sc_color};'
+            f'border-radius:8px;padding:16px 18px;margin-bottom:16px;font-family:Georgia,serif;min-height:220px;">'
+            f'<div style="display:flex;align-items:center;justify-content:space-between;">'
+            f'<div style="font-size:1.1rem;font-weight:700;color:#1A1612;">{_m["icon"]} {_m["name"]}</div>'
+            f'<div style="font-size:1.4rem;font-weight:800;color:{_sc_color};">{_sc:.0f}</div>'
+            f'</div>'
+            f'<div style="font-size:0.72rem;color:#8B7355;margin-top:2px;margin-bottom:10px;">'
+            f'{_m["etf"]} &nbsp;&middot;&nbsp; {_d["n"]} signal{"s" if _d["n"] != 1 else ""}'
+            f'</div>'
+            f'<div style="font-weight:700;color:{_sc_color};font-size:0.82rem;margin-bottom:8px;">'
+            f'{STATUS_LABEL[_st]}'
+            f'</div>'
+            f'<div style="display:flex;border-radius:3px;overflow:hidden;height:6px;margin-bottom:6px;">'
+            f'<div style="width:{_bar_w_b:.0f}%;background:#1B5E20;"></div>'
+            f'<div style="width:{_bar_w_n:.0f}%;background:#8B7355;"></div>'
+            f'<div style="width:{_bar_w_r:.0f}%;background:#7B1010;"></div>'
+            f'</div>'
+            f'<div style="font-size:0.68rem;color:#9E9E8E;margin-bottom:10px;">'
+            f'&#9650;{_d["bull"]} bull &nbsp; &bull;{_d["neut"]} neutral &nbsp; &#9660;{_d["bear"]} bear'
+            f'</div>'
+            f'<div style="border-top:1px solid #E8E0CE;padding-top:8px;">'
+            f'<div style="font-size:0.68rem;color:#9E9E8E;letter-spacing:0.06em;margin-bottom:4px;">TOP MOVERS</div>'
+            f'{_top_html}'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
         # Button to jump to Signal Dashboard filtered view
         if st.button(f"Explore {_m['name']} signals →", key=f"sm_goto_{_cat}",

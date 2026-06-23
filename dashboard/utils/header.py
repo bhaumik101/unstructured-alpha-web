@@ -41,7 +41,6 @@ html, body, [class*="css"] {
 section[data-testid="stSidebar"] { background-color: #1C2B4A !important; }
 section[data-testid="stSidebar"] * { color: #F0EBE1 !important; }
 section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
 section[data-testid="stSidebar"] a,
 section[data-testid="stSidebar"] .stSelectbox label,
 section[data-testid="stSidebar"] .stTextInput label { color: #C9A84C !important; }
@@ -51,10 +50,29 @@ section[data-testid="stSidebar"] h3 {
     border-bottom: 1px solid rgba(201,168,76,0.35);
     padding-bottom: 4px;
 }
+/* Nav section group headers (Watchlist, Daily Intel, Signals, etc.) */
+[data-testid="stNavSectionHeader"] {
+    background: rgba(201,168,76,0.14) !important;
+    border-radius: 4px !important;
+    padding: 3px 8px !important;
+    margin-top: 8px !important;
+    margin-bottom: 2px !important;
+}
+[data-testid="stNavSectionHeader"] p {
+    font-size: 0.70rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.07em !important;
+    color: #C9A84C !important;
+}
+/* Sidebar buttons — ensure text stays white even when span override is present */
 section[data-testid="stSidebar"] .stButton > button {
     background-color: #B8860B !important;
     color: #FAF7F0 !important;
     border: none !important;
+}
+section[data-testid="stSidebar"] .stButton > button span,
+section[data-testid="stSidebar"] .stButton > button p {
+    color: #FAF7F0 !important;
 }
 
 /* Masthead */
