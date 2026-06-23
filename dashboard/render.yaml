@@ -43,3 +43,26 @@ services:
         sync: false
       - key: EIA_API_KEY
         sync: false
+
+  # Morning digest cron job — runs at 07:00 ET (12:00 UTC) daily.
+  # Scores all signals, detects flips, emails opted-in users.
+  # Uses the same DATABASE_URL / RESEND_* env vars as the web service.
+  - type: cron
+    name: unstructured-alpha-digest
+    runtime: python
+    plan: free
+    rootDir: dashboard
+    schedule: "0 12 * * *"   # 12:00 UTC = 07:00 ET (UTC-5 winter) / 08:00 EDT
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_digest
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false

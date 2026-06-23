@@ -28,6 +28,7 @@ from utils.alerts import evaluate_watchlist
 from utils.header import render_header, render_sidebar_base, go_to_ticker
 from utils.auth_ui import require_login
 from utils.quotes import get_batch_quotes, mini_sparkline
+from utils.auth import set_digest_optin, get_digest_optin
 
 # "Quick add" presets (per explicit user request: most people adding a
 # ticker don't want to hand-tune 3 threshold numbers every time). Each
@@ -185,6 +186,33 @@ else:
 
 st.divider()
 
+# ── Morning Digest Opt-In ─────────────────────────────────────────────────────
+st.markdown('<div class="section-header">EMAIL SETTINGS</div>', unsafe_allow_html=True)
+try:
+    _current_optin = get_digest_optin(user_id)
+    _new_optin = st.toggle(
+        "📬 Morning digest email (7 AM ET daily)",
+        value=_current_optin,
+        help="Receive a daily email with signal flips since yesterday and biggest score movers. "
+             "Sent via Resend to your account email. Unsubscribe any time by turning this off.",
+        key="digest_optin_toggle",
+    )
+    if _new_optin != _current_optin:
+        set_digest_optin(user_id, _new_optin)
+        if _new_optin:
+            st.success("Morning digest enabled — you'll receive your first email tomorrow at 7 AM ET.")
+        else:
+            st.info("Morning digest disabled.")
+        st.rerun()
+    if _current_optin:
+        st.caption("✓ You'll receive a morning brief at 7 AM ET with signal flips and score movers.")
+    else:
+        st.caption("Turn on to receive a daily morning brief with the day's signal changes and top movers.")
+except Exception as _digest_err:
+    st.caption(f"Could not load email settings: {_digest_err}")
+
+st.divider()
+
 # ── Alerts (integrated into this page, not a separate page) ─────────────────
 st.markdown('<div class="section-header">ALERTS FOR YOUR WATCHLIST</div>', unsafe_allow_html=True)
 
@@ -199,12 +227,10 @@ with st.expander("How alerts work — and what's not built yet"):
     - **Differentiator signal changes** — insider buy/sell clustering, FINRA short interest trend, or
       curated-fund 13F positioning flipping between bullish/bearish/neutral.
 
-    **Delivery — in-app only right now.** This is the notification center. Email alerts were
-    explicitly scoped as a fast-follow, not built yet: real email delivery needs a scheduled job that
-    runs even when nobody has this page open, plus an email-sending service (e.g. SendGrid, SES) and
-    its own credentials — that's infrastructure beyond what a Streamlit page can do by itself. The
-    "Check Watchlist Now" button above runs the exact same evaluation logic a scheduled job would, but
-    only fires when you click it while this page is open.
+    **Delivery — in-app + morning email.** This is the in-app notification center.
+    A morning digest email (signal flips + score movers) goes out daily at 7 AM ET
+    to opted-in users — toggle that below. The "Check Watchlist Now" button above
+    runs the same evaluation logic on demand whenever you want a fresh read.
 
     **Nothing fires on the very first check** for a newly-watched ticker — there's no prior snapshot
     yet to compare against, so the first check just establishes a baseline silently.

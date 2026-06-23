@@ -45,7 +45,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from utils import db, email as email_module
 from utils.db import users, remember_tokens
@@ -274,6 +274,21 @@ def revoke_remember_token(token: str) -> None:
     doesn't invalidate a "remember me" session left active in another."""
     with db.engine.begin() as conn:
         conn.execute(remember_tokens.delete().where(remember_tokens.c.token_hash == _hash_code(token)))
+
+
+def set_digest_optin(user_id: int, opted_in: bool) -> None:
+    """Toggle the morning digest opt-in for a user."""
+    with db.engine.begin() as conn:
+        conn.execute(update(users).where(users.c.id == user_id).values(digest_opted_in=opted_in))
+
+
+def get_digest_optin(user_id: int) -> bool:
+    """Return the current digest opt-in state for a user. Defaults False if unset."""
+    with db.engine.begin() as conn:
+        row = conn.execute(select(users.c.digest_opted_in).where(users.c.id == user_id)).fetchone()
+    if row is None:
+        return False
+    return bool(row[0])
 
 
 def cleanup_expired_remember_tokens() -> int:

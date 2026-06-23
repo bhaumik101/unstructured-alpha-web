@@ -304,6 +304,88 @@ if section == "Overview":
         tomorrow. Full methodology and numbers: About → Methodology.
         """)
 
+    # ── Auto-Explainer ────────────────────────────────────────────────────────────
+    # Build a 2–3 sentence plain-English summary of what's driving the score,
+    # using only the statistically significant signals (corr_info significant=True)
+    # that are currently directional (not neutral). This gives any visitor an
+    # immediate, concrete "why" rather than leaving them to hunt through the
+    # signal table below.
+    try:
+        _drivers = []
+        for _sid in relevant_sig_ids:
+            _ss = signal_scores.get(_sid, {})
+            _ci = corr_info.get(_sid, {})
+            _st = _ss.get("status", "neutral")
+            if _st in ("bullish", "bearish") and _ci.get("significant"):
+                _drivers.append({
+                    "name":    SIGNALS.get(_sid, {}).get("name", _sid),
+                    "status":  _st,
+                    "r":       _ci.get("r", 0.0),
+                    "z":       _ss.get("z_score", 0.0),
+                    "dev":     _ss.get("deviation_pct", 0.0),
+                    "lag":     SIGNALS.get(_sid, {}).get("lag_weeks", 0),
+                    "inverse": SIGNALS.get(_sid, {}).get("inverse", False),
+                })
+        _drivers.sort(key=lambda d: -abs(d["r"]))
+
+        def _driver_phrase(d: dict) -> str:
+            """Turn one driver into a short clause like 'Copper is elevated (+2.1σ)'."""
+            _name = d["name"]
+            _dev  = d["dev"]
+            _z    = d["z"]
+            _dir  = "above" if _dev > 0 else "below"
+            _mag  = abs(_dev)
+            _lag  = d["lag"]
+            _lag_str = f" (leads stocks ~{_lag}w)" if _lag > 0 else ""
+            if d["status"] == "bullish":
+                return f"**{_name}** is running {_mag:.0f}% {_dir} its average{_lag_str}"
+            else:
+                return f"**{_name}** is running {_mag:.0f}% {_dir} its average{_lag_str}"
+
+        if _drivers:
+            _top      = _drivers[:3]
+            _case_str = confluence["case"]
+            _sv       = confluence["overall_score"]
+            _conv     = confluence["conviction"]
+
+            _sent1_parts = [_driver_phrase(d) for d in _top]
+            if len(_sent1_parts) == 1:
+                _drivers_str = _sent1_parts[0]
+            elif len(_sent1_parts) == 2:
+                _drivers_str = f"{_sent1_parts[0]} and {_sent1_parts[1]}"
+            else:
+                _drivers_str = f"{_sent1_parts[0]}, {_sent1_parts[1]}, and {_sent1_parts[2]}"
+
+            _bull_d = [d for d in _top if d["status"] == "bullish"]
+            _bear_d = [d for d in _top if d["status"] == "bearish"]
+
+            if _case_str == "BULL":
+                _tone = "bullish" if len(_bull_d) >= len(_bear_d) else "mixed-bullish"
+            elif _case_str == "BEAR":
+                _tone = "bearish" if len(_bear_d) >= len(_bull_d) else "mixed-bearish"
+            else:
+                _tone = "neutral"
+
+            _total_drivers = len(_drivers)
+            _sent2 = (
+                f"{_total_drivers} statistically significant signal{'s' if _total_drivers != 1 else ''} "
+                f"currently {_tone} — conviction is **{_conv}**."
+            )
+
+            _expl_color = "#1B5E20" if case == "BULL" else ("#7B1010" if case == "BEAR" else "#8B7355")
+            st.markdown(
+                f'<div style="background:#FAFAFA;border-left:4px solid {_expl_color};'
+                f'border:1px solid #E0E0E0;border-radius:6px;padding:14px 18px;'
+                f'margin:12px 0;font-family:Georgia,serif;">'
+                f'<div style="font-size:0.70rem;text-transform:uppercase;letter-spacing:0.08em;'
+                f'color:#8B7355;margin-bottom:6px;">WHY THIS SCORE</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(f"{ticker_input} scores **{_sv:.0f}** ({_case_str}) primarily because {_drivers_str}. {_sent2}")
+    except Exception:
+        pass  # Never crash the page if explainer fails
+
     # ── Score History ─────────────────────────────────────────────────────────────
     _score_hist = get_score_history(ticker_input, days=180)
     if len(_score_hist) >= 2:

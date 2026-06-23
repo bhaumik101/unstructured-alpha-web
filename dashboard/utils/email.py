@@ -118,3 +118,168 @@ def send_verification_email(to_email: str, code: str) -> None:
     except requests.RequestException as e:
         print(f"[email] send FAILED for to={to_email!r}: {type(e).__name__}: {e}", flush=True)
         raise EmailSendError(f"Failed to send verification email: {e}") from e
+
+
+def send_digest_email(
+    to_email: str,
+    signal_flips: list[dict],
+    score_movers: list[dict],
+    overall_bias: str,
+    bull_n: int,
+    bear_n: int,
+    neut_n: int,
+) -> None:
+    """
+    Send the morning intelligence digest to a single opted-in user.
+    Called by cron/send_digest.py for each opted-in user.
+
+    signal_flips: list of {signal_id, from_status, to_status, to_score} dicts
+    score_movers: list of {ticker, from_score, to_score, delta, case} dicts (top 5)
+    overall_bias: "Bullish", "Bearish", or "Mixed"
+    bull_n / bear_n / neut_n: current signal counts
+    """
+    api_key, from_email = _get_resend_config()
+    print(f"[digest] send_digest_email: to={to_email!r} bias={overall_bias}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    # ── Signal flips HTML ──────────────────────────────────────────────────
+    FLIP_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355",
+                  "insufficient_data": "#9E9E8E"}
+    FLIP_SYM   = {"bullish": "▲", "bearish": "▼", "neutral": "●", "insufficient_data": "○"}
+
+    if signal_flips:
+        flip_rows = ""
+        for f in signal_flips[:6]:
+            from_c = FLIP_COLOR.get(f["from_status"], "#9E9E9E")
+            to_c   = FLIP_COLOR.get(f["to_status"],   "#9E9E9E")
+            from_s = FLIP_SYM.get(f["from_status"], "●")
+            to_s   = FLIP_SYM.get(f["to_status"],   "●")
+            flip_rows += (
+                f'<tr>'
+                f'<td style="padding:6px 12px;font-size:0.85rem;color:#1A1612;">{f.get("signal_name", f["signal_id"])}</td>'
+                f'<td style="padding:6px 12px;color:{from_c};">{from_s} {f["from_status"].title()}</td>'
+                f'<td style="padding:6px 12px;font-size:1.1rem;color:#9E9E9E;">→</td>'
+                f'<td style="padding:6px 12px;font-weight:700;color:{to_c};">{to_s} {f["to_status"].title()}</td>'
+                f'</tr>'
+            )
+        flips_html = f"""
+        <h3 style="color:#1C2B4A;border-bottom:2px solid #D4C9B0;padding-bottom:6px;">
+            ⚡ {len(signal_flips)} Signal Flip{"s" if len(signal_flips) != 1 else ""} Since Yesterday
+        </h3>
+        <table style="border-collapse:collapse;width:100%;font-family:Georgia,serif;">
+            {flip_rows}
+        </table>
+        """
+    else:
+        flips_html = """
+        <h3 style="color:#1C2B4A;border-bottom:2px solid #D4C9B0;padding-bottom:6px;">Signal Flips</h3>
+        <p style="color:#8B7355;font-size:0.85rem;">No status changes since yesterday — signals are steady.</p>
+        """
+
+    # ── Score movers HTML ──────────────────────────────────────────────────
+    if score_movers:
+        mover_rows = ""
+        for m in score_movers[:5]:
+            delta = m["delta"]
+            delta_color = "#1B5E20" if delta > 0 else "#7B1010"
+            delta_str = f"+{delta:.1f}" if delta > 0 else f"{delta:.1f}"
+            mover_rows += (
+                f'<tr>'
+                f'<td style="padding:6px 12px;font-weight:700;font-size:0.9rem;color:#1C2B4A;">{m["ticker"]}</td>'
+                f'<td style="padding:6px 12px;color:#8B7355;">{m["from_score"]:.0f} → {m["to_score"]:.0f}</td>'
+                f'<td style="padding:6px 12px;font-weight:700;color:{delta_color};">{delta_str}</td>'
+                f'<td style="padding:6px 12px;color:#6B6560;">{m.get("case","")}</td>'
+                f'</tr>'
+            )
+        movers_html = f"""
+        <h3 style="color:#1C2B4A;border-bottom:2px solid #D4C9B0;padding-bottom:6px;margin-top:24px;">
+            📊 Biggest Score Movers (7 days)
+        </h3>
+        <table style="border-collapse:collapse;width:100%;font-family:Georgia,serif;">
+            <tr style="font-size:0.72rem;color:#9E9E8E;letter-spacing:0.06em;text-transform:uppercase;">
+                <th style="padding:4px 12px;text-align:left;">Ticker</th>
+                <th style="padding:4px 12px;text-align:left;">Score</th>
+                <th style="padding:4px 12px;text-align:left;">Delta</th>
+                <th style="padding:4px 12px;text-align:left;">Case</th>
+            </tr>
+            {mover_rows}
+        </table>
+        """
+    else:
+        movers_html = """
+        <h3 style="color:#1C2B4A;border-bottom:2px solid #D4C9B0;padding-bottom:6px;margin-top:24px;">
+            Score Movers
+        </h3>
+        <p style="color:#8B7355;font-size:0.85rem;">
+            No recorded score moves yet — score history builds organically as tickers get viewed.
+        </p>
+        """
+
+    # ── Bias banner ────────────────────────────────────────────────────────
+    bias_color = "#1B5E20" if overall_bias == "Bullish" else ("#7B1010" if overall_bias == "Bearish" else "#8B7355")
+    from datetime import date
+    today_str = date.today().strftime("%B %-d, %Y")
+
+    html = f"""
+    <div style="font-family:Georgia,serif;max-width:560px;color:#1A1612;">
+        <div style="background:#1C2B4A;padding:18px 24px;border-radius:8px 8px 0 0;">
+            <div style="font-size:0.70rem;color:#C9A84C;letter-spacing:0.12em;text-transform:uppercase;">
+                Unstructured Alpha — Morning Brief
+            </div>
+            <div style="font-size:1.2rem;font-weight:700;color:#FAF7F0;margin-top:4px;">
+                {today_str}
+            </div>
+        </div>
+
+        <div style="background:#F0EBE1;padding:14px 24px;border-left:5px solid {bias_color};">
+            <span style="font-size:0.72rem;color:#8B7355;text-transform:uppercase;letter-spacing:0.08em;">
+                Signal Pulse
+            </span>
+            <br>
+            <span style="font-size:1.3rem;font-weight:800;color:{bias_color};">{overall_bias}</span>
+            <span style="font-size:0.85rem;color:#6B6560;margin-left:12px;">
+                ▲ {bull_n} bullish &nbsp; ▼ {bear_n} bearish &nbsp; ● {neut_n} neutral
+            </span>
+        </div>
+
+        <div style="background:#FFFFFF;padding:20px 24px;">
+            {flips_html}
+            {movers_html}
+
+            <div style="margin-top:28px;text-align:center;">
+                <a href="https://unstructuredalpha.com/Today%27s_Brief"
+                   style="background:#1C2B4A;color:#FAF7F0;padding:10px 24px;border-radius:4px;
+                          text-decoration:none;font-size:0.9rem;font-weight:700;">
+                    Open Full Brief →
+                </a>
+            </div>
+        </div>
+
+        <div style="background:#F0EBE1;padding:10px 24px;border-radius:0 0 8px 8px;
+                    font-size:0.72rem;color:#9E9E8E;text-align:center;">
+            Unstructured Alpha · Not financial advice · All data from public sources<br>
+            <a href="https://unstructuredalpha.com/Watchlist" style="color:#9E9E8E;">
+                Manage digest preferences
+            </a>
+        </div>
+    </div>
+    """
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [to_email],
+                "subject": f"UA Morning Brief — {today_str}",
+                "html": html,
+            },
+            timeout=20,
+        )
+        print(f"[digest] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[digest] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send digest to {to_email}: {e}") from e

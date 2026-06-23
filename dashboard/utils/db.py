@@ -97,6 +97,10 @@ users = Table(
     Column("email_verified", Boolean, nullable=False, server_default="0"),
     Column("verification_code_hash", Text),
     Column("verification_code_expires_at", String(64)),
+    # Morning digest opt-in (added 2026-06-23). False by default — users
+    # must explicitly opt in via the Watchlist page settings section. The
+    # cron/send_digest.py script queries this column to decide who to email.
+    Column("digest_opted_in", Boolean, nullable=False, server_default="0"),
 )
 
 watchlist = Table(
@@ -228,13 +232,14 @@ def _migrate_users_table() -> None:
     bool_type = "BOOLEAN" if not IS_SQLITE else "INTEGER"
     with engine.begin() as conn:
         for col in new_cols:
-            if col.name == "email_verified":
+            if col.name in ("email_verified", "digest_opted_in"):
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} {bool_type} DEFAULT 0"))
             else:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} TEXT"))
         if any(c.name == "email_verified" for c in new_cols):
             # Grandfather in every account that existed before this column did.
             conn.execute(update(users).values(email_verified=True))
+        # digest_opted_in: new accounts default False, no backfill needed.
 
 
 def init_db() -> None:

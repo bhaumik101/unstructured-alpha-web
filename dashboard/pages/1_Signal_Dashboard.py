@@ -14,6 +14,7 @@ from utils.config import CATEGORIES, SIGNALS, TICKERS
 from utils.fetchers import fetch_signal_series, is_synthetic
 from utils.analysis import score_signal
 from utils.header import render_header, render_sidebar_base, ticker_chips, render_synthetic_data_banner
+from utils.score_history import get_signal_flips
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
 render_header("Signal Dashboard")
@@ -44,6 +45,15 @@ def load_all_signals(_v: int = 5):
             }
     return results
 
+
+_load_ts = datetime.now().strftime("%I:%M %p")
+_hdr_col, _ref_col = st.columns([6, 1])
+with _hdr_col:
+    st.caption(f"Data cached up to 1 hour · computed ~{_load_ts}")
+with _ref_col:
+    if st.button("↺ Refresh", key="sd_refresh", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
 
 with st.spinner("Loading signal data…"):
     all_signals = load_all_signals()
@@ -150,6 +160,55 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ── Signal Flips (since yesterday) ───────────────────────────────────────────
+try:
+    _flips = get_signal_flips(days_back=1)
+    if _flips:
+        _FLIP_COLOR = {
+            "bullish":  "#1B5E20",
+            "bearish":  "#7B1010",
+            "neutral":  "#8B7355",
+            "insufficient_data": "#9E9E8E",
+        }
+        _FLIP_SYM = {"bullish": "▲", "bearish": "▼", "neutral": "●", "insufficient_data": "○"}
+
+        st.markdown(
+            f'<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;'
+            f'color:#8B7355;margin-bottom:4px;font-family:Georgia,serif;">'
+            f'⚡ {len(_flips)} signal{"s" if len(_flips) != 1 else ""} changed status since yesterday'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+        _flip_cols = st.columns(min(len(_flips), 4))
+        for _fi, _flip in enumerate(_flips[:4]):
+            _fsid   = _flip["signal_id"]
+            _fname  = SIGNALS.get(_fsid, {}).get("name", _fsid)
+            _from_c = _FLIP_COLOR.get(_flip["from_status"], "#9E9E9E")
+            _to_c   = _FLIP_COLOR.get(_flip["to_status"],   "#9E9E9E")
+            _from_s = _FLIP_SYM.get(_flip["from_status"],  "●")
+            _to_s   = _FLIP_SYM.get(_flip["to_status"],    "●")
+            _to_lbl = _flip["to_status"].replace("_", " ").title()
+            with _flip_cols[_fi]:
+                st.markdown(
+                    f'<div style="background:#FAFAFA;border-radius:6px;padding:8px 12px;'
+                    f'border:1px solid #E0E0E0;border-top:3px solid {_to_c};'
+                    f'margin-bottom:8px;font-family:Georgia,serif;">'
+                    f'<div style="font-size:0.75rem;font-weight:700;color:#1A1612;'
+                    f'line-height:1.3;margin-bottom:4px;">{_fname[:36]}</div>'
+                    f'<div style="font-size:0.80rem;">'
+                    f'<span style="color:{_from_c};">{_from_s} {_flip["from_status"].title()}</span>'
+                    f' <span style="color:#9E9E8E;">→</span> '
+                    f'<span style="color:{_to_c};font-weight:700;">{_to_s} {_to_lbl}</span>'
+                    f'</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+        if len(_flips) > 4:
+            st.caption(f"+ {len(_flips) - 4} more flips — see Today's Brief for the full list.")
+        st.markdown("")
+except Exception:
+    pass  # Never crash the dashboard if flip history isn't available yet
 
 # ── Theme Context Banner ──────────────────────────────────────────────────────
 st.markdown("""
