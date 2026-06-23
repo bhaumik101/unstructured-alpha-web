@@ -21,40 +21,34 @@ st.set_page_config(
 )
 
 from utils.header import render_header, render_sidebar_base
-from utils.config import SIGNALS, CATEGORIES
-from utils.fetchers import fetch_signal_series
-from utils.analysis import score_signal
-from datetime import datetime as _dt, timedelta as _td
+from utils.signals_cache import get_all_signal_scores
 
 
 # ── Combined home-page data loader ────────────────────────────────────────────
-# Single pass over all signals — feeds both the Signal Pulse banner AND the
-# Sector Rotation teaser. One set of API calls on cold start instead of two,
-# halving startup time on Render. Cached 2 hours (signals are monthly/weekly).
-@st.cache_data(ttl=7200, show_spinner=False)
-def _home_load_all(_v: int = 1) -> dict:
-    _end   = _dt.now().strftime("%Y-%m-%d")
-    _start = (_dt.now() - _td(days=730)).strftime("%Y-%m-%d")
+# Builds the pulse + sector summary from the shared cross-page signal cache.
+# No separate fetch loop — all five pages (home, Signal Dashboard, Today's
+# Brief, Sector Map, Stock Screener) draw from get_all_signal_scores().
+def _build_home_data() -> dict:
+    """Derive pulse lists and sector averages from the shared signal cache."""
+    _all_sv = get_all_signal_scores()
     _bull: list = []
     _bear: list = []
     _neut: list = []
     _buckets: dict = {}
-    for _sid, _cfg in SIGNALS.items():
-        _cat = _cfg.get("category", "macro")
-        try:
-            _s      = fetch_signal_series(_cfg, _start, _end)
-            _scored = score_signal(_s, inverse=_cfg.get("inverse", False))
-            _status = _scored.get("status", "neutral")
-            _score  = _scored.get("score", 50)
-            if _status == "bullish":
-                _bull.append((_cfg["name"], _score))
-            elif _status == "bearish":
-                _bear.append((_cfg["name"], _score))
-            else:
-                _neut.append((_cfg["name"], _score))
-            _buckets.setdefault(_cat, []).append(_score)
-        except Exception:
-            pass  # Signal failure must never crash the home page
+    for _sid, _sv in _all_sv.items():
+        if _sv.get("error"):
+            continue
+        _status = _sv.get("status", "neutral")
+        _score  = _sv.get("score", 50)
+        _name   = _sv.get("name", _sid)
+        _cat    = _sv.get("category", "macro")
+        if _status == "bullish":
+            _bull.append((_name, _score))
+        elif _status == "bearish":
+            _bear.append((_name, _score))
+        else:
+            _neut.append((_name, _score))
+        _buckets.setdefault(_cat, []).append(_score)
     return {
         "bull":    sorted(_bull, key=lambda x: -x[1]),
         "bear":    sorted(_bear, key=lambda x:  x[1]),
@@ -93,7 +87,7 @@ st.markdown("""
 # Shows the current macro read immediately on page load.
 try:
     with st.spinner("Loading signal pulse…"):
-        _hd = _home_load_all()
+        _hd = _build_home_data()
 
     _pulse  = _hd  # alias for readability below
     _nb, _nr, _nn = len(_hd["bull"]), len(_hd["bear"]), len(_hd["neut"])

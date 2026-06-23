@@ -11,52 +11,30 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.config import CATEGORIES, SIGNALS, TICKERS
-from utils.fetchers import fetch_signal_series, is_synthetic
-from utils.analysis import score_signal
 from utils.header import render_header, render_sidebar_base, ticker_chips, render_synthetic_data_banner
 from utils.score_history import get_signal_flips
+from utils.signals_cache import get_all_signal_scores
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
 render_header("Signal Dashboard")
 render_sidebar_base()
-
-END   = datetime.now().strftime("%Y-%m-%d")
-START = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
 
 STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355", "insufficient_data": "#9E9E8E"}
 STATUS_LABEL = {"bullish": "🟢 Bullish", "bearish": "🔴 Bearish", "neutral": "🟡 Neutral", "insufficient_data": "⚪ No Data"}
 STATUS_SYM   = {"bullish": "▲", "bearish": "▼", "neutral": "●", "insufficient_data": "○"}
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def load_all_signals(_v: int = 5):
-    results = {}
-    for sig_id, cfg in SIGNALS.items():
-        try:
-            s = fetch_signal_series(cfg, START, END)
-            scored = score_signal(s, inverse=cfg.get("inverse", False))
-            results[sig_id] = {**scored, "config": cfg, "data": s, "is_synthetic": is_synthetic(s)}
-        except Exception:
-            results[sig_id] = {
-                "score": 50, "status": "insufficient_data", "config": cfg,
-                "data": pd.Series(dtype=float), "z_score": 0,
-                "percentile": 50, "current": float("nan"), "deviation_pct": 0,
-                "trend_4w_pct": 0, "is_synthetic": False,
-            }
-    return results
-
-
 _load_ts = datetime.now().strftime("%I:%M %p")
 _hdr_col, _ref_col = st.columns([6, 1])
 with _hdr_col:
-    st.caption(f"Data cached up to 1 hour · computed ~{_load_ts}")
+    st.caption(f"Data cached up to 2 hours · computed ~{_load_ts}")
 with _ref_col:
     if st.button("↺ Refresh", key="sd_refresh", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
 with st.spinner("Loading signal data…"):
-    all_signals = load_all_signals()
+    all_signals = get_all_signal_scores()
 
 render_synthetic_data_banner(
     sum(1 for sv in all_signals.values() if sv.get("is_synthetic")),

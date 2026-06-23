@@ -24,11 +24,10 @@ from sqlalchemy import select
 
 from utils.config import SIGNALS, TICKERS
 from utils.db import engine, score_snapshots, init_db
-from utils.fetchers import fetch_signal_series
-from utils.analysis import score_signal
 from utils.header import render_header, render_sidebar_base, go_to_ticker, ticker_label
 from utils.quotes import get_batch_quotes
-from utils.score_history import record_signal_snapshot, get_signal_flips
+from utils.score_history import record_all_signal_snapshots, get_signal_flips
+from utils.signals_cache import get_all_signal_scores
 
 st.set_page_config(page_title="Today's Brief — UA", layout="wide")
 render_header("Today's Brief")
@@ -38,45 +37,10 @@ init_db()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=7200, show_spinner=False)
-def compute_all_signal_scores(_v: int = 1) -> tuple[dict, str]:
-    """
-    Fetch and score every signal in the SIGNALS library. Cached 2 hours --
-    this is ~40 HTTP calls and the underlying signals (mostly monthly/weekly
-    FRED series) don't change faster than that anyway. Returns both the
-    scores dict and the "as of" timestamp so the UI can show when this
-    snapshot was taken without a second call.
-    """
-    end = datetime.now().strftime("%Y-%m-%d")
-    start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-
-    results = {}
-    for sig_id, cfg in SIGNALS.items():
-        try:
-            s = fetch_signal_series(cfg, start, end)
-            scored = score_signal(s, inverse=cfg.get("inverse", False))
-            results[sig_id] = {
-                "name": cfg["name"],
-                "score": scored.get("score", 50),
-                "status": scored.get("status", "neutral"),
-                "tier": cfg.get("tier", 1),
-                "category": cfg.get("category", "macro"),
-                "pcs": cfg.get("pcs", 5),
-                "error": False,
-            }
-        except Exception:
-            results[sig_id] = {
-                "name": cfg["name"],
-                "score": 50,
-                "status": "neutral",
-                "tier": cfg.get("tier", 1),
-                "category": cfg.get("category", "macro"),
-                "pcs": cfg.get("pcs", 5),
-                "error": True,
-            }
-
-    as_of = datetime.now().strftime("%-I:%M %p ET, %b %-d")
-    return results, as_of
+# Scores are loaded from the shared cross-page cache (utils/signals_cache.py).
+# compute_all_signal_scores() has been removed — use get_all_signal_scores()
+# directly. This eliminates a duplicate 40-signal FRED sweep and aligns TTL
+# with home page and Sector Map (all now 2h from the same cache entry).
 
 
 def get_score_movers(days_back: int = 7) -> pd.DataFrame:
@@ -173,14 +137,17 @@ st.caption(f"{_today_str} — signal state, score movers, and watchlist activity
 st.markdown('<div class="section-header">SIGNAL PULSE</div>', unsafe_allow_html=True)
 
 with st.spinner("Loading signal pulse (40 signals — cached 2 hours)…"):
-    _all_scores, _as_of = compute_all_signal_scores()
+    _all_scores = get_all_signal_scores()
 
-# Upsert today's snapshot for every signal so get_signal_flips() has data
-# to compare against tomorrow. Best-effort: never crash the page on a DB error.
+# "as of" reflects when this page rendered, which is close enough — the data
+# was fetched within the last 2h (the shared cache TTL). Exact fetch time is
+# not stored because the shared cache serves all pages.
+_as_of = datetime.now().strftime("%-I:%M %p ET, %b %-d")
+
+# Batch-upsert today's snapshot for every signal in ONE DB transaction.
+# Replaces the old per-signal loop (40 connections → 1).
 try:
-    for _sid, _d in _all_scores.items():
-        if not _d.get("error"):
-            record_signal_snapshot(_sid, _d["score"], _d["status"])
+    record_all_signal_snapshots(_all_scores)
 except Exception:
     pass
 

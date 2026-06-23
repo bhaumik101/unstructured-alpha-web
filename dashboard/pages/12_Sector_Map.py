@@ -111,38 +111,36 @@ STATUS_BG     = {"bullish": "#EDF7ED", "bearish": "#FDF0F0", "neutral": "#FAF7F0
 @st.cache_data(ttl=7200, show_spinner=False)
 def _compute_sector_scores(_v: int = 1) -> dict:
     """
-    Score every signal in SIGNALS and group results by category.
+    Group already-scored signals by category.
     Returns {category_key: {score, status, bull, bear, neut, top_signals, n}}
 
-    Cache key _v exists so callers can force-bust by passing a different int
-    (e.g. after a manual Refresh click) without the function signature changing.
+    Delegates fetching+scoring to get_all_signal_scores() (shared cross-page
+    cache) so the ~40 FRED/EIA HTTP calls are shared with home page, Signal
+    Dashboard, Today's Brief, and Stock Screener — one set of calls per 2h.
+    _v is forwarded so a Refresh button click busts both cache layers at once.
     """
-    from utils.fetchers import fetch_signal_series
-    from utils.analysis import score_signal
+    from utils.signals_cache import get_all_signal_scores
 
-    end   = datetime.now().strftime("%Y-%m-%d")
-    start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+    all_sv = get_all_signal_scores(_v)
 
     buckets: dict = {}
-    for sig_id, cfg in SIGNALS.items():
-        cat = cfg.get("category", "macro")
+    for sig_id, sv in all_sv.items():
+        cfg    = sv.get("config", {})
+        cat    = cfg.get("category", "macro")
+        score  = sv.get("score", 50)
+        status = sv.get("status", "neutral")
+        if sv.get("error"):
+            continue
         if cat not in buckets:
             buckets[cat] = {"scores": [], "bull": 0, "bear": 0, "neut": 0, "signals": []}
-        try:
-            s = fetch_signal_series(cfg, start, end)
-            scored  = score_signal(s, inverse=cfg.get("inverse", False))
-            status  = scored.get("status", "neutral")
-            score   = scored.get("score", 50)
-            buckets[cat]["scores"].append(score)
-            buckets[cat]["signals"].append((cfg["name"], round(score, 1), status))
-            if status == "bullish":
-                buckets[cat]["bull"] += 1
-            elif status == "bearish":
-                buckets[cat]["bear"] += 1
-            else:
-                buckets[cat]["neut"] += 1
-        except Exception:
-            pass
+        buckets[cat]["scores"].append(score)
+        buckets[cat]["signals"].append((cfg.get("name", sig_id), round(score, 1), status))
+        if status == "bullish":
+            buckets[cat]["bull"] += 1
+        elif status == "bearish":
+            buckets[cat]["bear"] += 1
+        else:
+            buckets[cat]["neut"] += 1
 
     result = {}
     for cat, data in buckets.items():

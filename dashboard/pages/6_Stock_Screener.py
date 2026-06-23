@@ -14,10 +14,11 @@ import streamlit as st
 import yfinance as yf
 
 from utils.config import SIGNALS, TICKERS, CATEGORIES
-from utils.fetchers import fetch_signal_series, is_synthetic, fetch_live_quote
-from utils.analysis import score_signal, compute_confluence
+from utils.fetchers import fetch_live_quote
+from utils.analysis import compute_confluence
 from utils.header import render_header, render_sidebar_base, render_synthetic_data_banner
 from utils.quotes import get_batch_quotes
+from utils.signals_cache import get_all_signal_scores
 
 st.set_page_config(page_title="Stock Screener — UA", layout="wide")
 render_header("Stock Screener")
@@ -171,19 +172,10 @@ with st.sidebar:
     st.caption("Click any ticker row, then use the **Ticker Deep Dive** page for full signal breakdown.")
 
 
-# ── Load signals once (cached) ────────────────────────────────────────────────
-@st.cache_data(ttl=3600, show_spinner=False)
-def load_all_signal_scores() -> dict:
-    """Fetch and score every signal — reused across tickers."""
-    results = {}
-    for sig_id, cfg in SIGNALS.items():
-        try:
-            s = fetch_signal_series(cfg, START, END)
-            results[sig_id] = score_signal(s, inverse=cfg.get("inverse", False))
-            results[sig_id]["is_synthetic"] = is_synthetic(s)
-        except Exception:
-            results[sig_id] = {"score": 50, "status": "neutral", "is_synthetic": False}
-    return results
+# ── Load signals once (shared cross-page cache) ───────────────────────────────
+# load_all_signal_scores() has been replaced by get_all_signal_scores() from
+# utils.signals_cache — same data, shared TTL=2h cache with home page, Signal
+# Dashboard, Today's Brief, and Sector Map.  No local fetch loop needed.
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
@@ -276,7 +268,7 @@ st.caption(
 )
 
 with st.spinner("Loading signals and price momentum…"):
-    all_scores       = load_all_signal_scores()
+    all_scores       = get_all_signal_scores()
     _momentum_cache  = load_all_ticker_momentum()
 
 render_synthetic_data_banner(
