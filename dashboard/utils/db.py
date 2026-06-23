@@ -94,13 +94,13 @@ users = Table(
     # Email verification (added 2026-06-21, after accounts already existed
     # in the running local DB -- see _migrate_users_table() below for why
     # this needs an explicit ALTER TABLE step, not just create_all()).
-    Column("email_verified", Boolean, nullable=False, server_default="0"),
+    Column("email_verified", Boolean, nullable=False, server_default="false"),
     Column("verification_code_hash", Text),
     Column("verification_code_expires_at", String(64)),
     # Morning digest opt-in (added 2026-06-23). False by default — users
     # must explicitly opt in via the Watchlist page settings section. The
     # cron/send_digest.py script queries this column to decide who to email.
-    Column("digest_opted_in", Boolean, nullable=False, server_default="0"),
+    Column("digest_opted_in", Boolean, nullable=False, server_default="false"),
 )
 
 watchlist = Table(
@@ -230,10 +230,12 @@ def _migrate_users_table() -> None:
         return
 
     bool_type = "BOOLEAN" if not IS_SQLITE else "INTEGER"
+    # PostgreSQL requires TRUE/FALSE literals for BOOLEAN defaults; SQLite accepts 0/1.
+    false_literal = "0" if IS_SQLITE else "FALSE"
     with engine.begin() as conn:
         for col in new_cols:
             if col.name in ("email_verified", "digest_opted_in"):
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} {bool_type} DEFAULT 0"))
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} {bool_type} DEFAULT {false_literal}"))
             else:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} TEXT"))
         if any(c.name == "email_verified" for c in new_cols):
