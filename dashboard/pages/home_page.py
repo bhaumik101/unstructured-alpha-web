@@ -18,6 +18,7 @@ st.set_page_config(
     menu_items={"About": "Unstructured Alpha — institutional-grade macro signals for every investor."},
 )
 
+import html as _h
 import pandas as pd
 from utils.header import render_header, render_sidebar_base
 from utils.signals_cache import get_all_signal_scores
@@ -116,63 +117,53 @@ _bar_bear = f"{(_nr / _total * 100):.0f}%" if _total > 0 else "0%"
 
 _top_bull_html = (
     f'<div style="font-size:0.78rem;color:#D4F0DA;margin-top:2px;">'
-    f'▲ Strongest: <b style="color:#A8E6B0;">{_top_bull}</b></div>'
+    f'▲ Strongest: <b style="color:#A8E6B0;">{_h.escape(str(_top_bull))}</b></div>'
     if _top_bull else ""
 )
 _top_bear_html = (
     f'<div style="font-size:0.78rem;color:#F5C2C2;margin-top:2px;">'
-    f'▼ Weakest: <b style="color:#FFAAAA;">{_top_bear}</b></div>'
+    f'▼ Weakest: <b style="color:#FFAAAA;">{_h.escape(str(_top_bear))}</b></div>'
     if _top_bear else ""
 )
 
-st.markdown(f"""
-<div style="background:#1C2B4A;border-radius:12px;padding:22px 28px 20px;
-            margin:24px auto 0;max-width:820px;font-family:Georgia,serif;">
-
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;
-                flex-wrap:wrap;gap:16px;">
-
-        <div style="flex:1;min-width:200px;">
-            <div style="font-size:0.62rem;letter-spacing:0.16em;color:#C9A84C;margin-bottom:6px;
-                        font-weight:600;">LIVE MACRO READ — RIGHT NOW</div>
-            <div style="font-size:2.0rem;font-weight:800;color:{_bias_color};
-                        letter-spacing:-0.01em;">{_bias_label}</div>
-            <div style="font-size:0.80rem;color:#A0A8B8;margin-top:6px;">
-                across {_total} tracked signals
-            </div>
-        </div>
-
-        <div style="display:flex;gap:24px;flex-wrap:wrap;">
-            <div style="text-align:center;">
-                <div style="font-size:2.2rem;font-weight:800;color:#4CAF50;">{_nb}</div>
-                <div style="font-size:0.68rem;color:#4CAF50;letter-spacing:0.10em;">BULLISH</div>
-                {_top_bull_html}
-            </div>
-            <div style="text-align:center;">
-                <div style="font-size:2.2rem;font-weight:800;color:#EF5350;">{_nr}</div>
-                <div style="font-size:0.68rem;color:#EF5350;letter-spacing:0.10em;">BEARISH</div>
-                {_top_bear_html}
-            </div>
-            <div style="text-align:center;">
-                <div style="font-size:2.2rem;font-weight:800;color:#B8B0A0;">{_nn}</div>
-                <div style="font-size:0.68rem;color:#B8B0A0;letter-spacing:0.10em;">NEUTRAL</div>
-            </div>
-        </div>
-    </div>
-
-    <div style="margin-top:16px;background:rgba(255,255,255,0.08);border-radius:6px;
-                height:6px;overflow:hidden;display:flex;">
-        <div style="width:{_bar_bull};background:#4CAF50;"></div>
-        <div style="width:{_bar_bear};background:#EF5350;"></div>
-        <div style="flex:1;background:#5A6070;"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:4px;">
-        <div style="font-size:0.66rem;color:#8A9AB8;">▲ Bullish {_bar_bull}</div>
-        <div style="font-size:0.66rem;color:#8A9AB8;">Updated every 2 hours</div>
-        <div style="font-size:0.66rem;color:#8A9AB8;">Bearish {_bar_bear} ▼</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+    f'<div style="background:#1C2B4A;border-radius:12px;padding:22px 28px 20px;margin:24px auto 0;max-width:820px;font-family:Georgia,serif;">'
+    f'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;">'
+    f'<div style="flex:1;min-width:200px;">'
+    f'<div style="font-size:0.62rem;letter-spacing:0.16em;color:#C9A84C;margin-bottom:6px;font-weight:600;">LIVE MACRO READ — RIGHT NOW</div>'
+    f'<div style="font-size:2.0rem;font-weight:800;color:{_bias_color};letter-spacing:-0.01em;">{_h.escape(_bias_label)}</div>'
+    f'<div style="font-size:0.80rem;color:#A0A8B8;margin-top:6px;">across {_total} tracked signals</div>'
+    f'</div>'
+    f'<div style="display:flex;gap:24px;flex-wrap:wrap;">'
+    f'<div style="text-align:center;">'
+    f'<div style="font-size:2.2rem;font-weight:800;color:#4CAF50;">{_nb}</div>'
+    f'<div style="font-size:0.68rem;color:#4CAF50;letter-spacing:0.10em;">BULLISH</div>'
+    f'{_top_bull_html}'
+    f'</div>'
+    f'<div style="text-align:center;">'
+    f'<div style="font-size:2.2rem;font-weight:800;color:#EF5350;">{_nr}</div>'
+    f'<div style="font-size:0.68rem;color:#EF5350;letter-spacing:0.10em;">BEARISH</div>'
+    f'{_top_bear_html}'
+    f'</div>'
+    f'<div style="text-align:center;">'
+    f'<div style="font-size:2.2rem;font-weight:800;color:#B8B0A0;">{_nn}</div>'
+    f'<div style="font-size:0.68rem;color:#B8B0A0;letter-spacing:0.10em;">NEUTRAL</div>'
+    f'</div>'
+    f'</div>'
+    f'</div>'
+    f'<div style="margin-top:16px;background:rgba(255,255,255,0.08);border-radius:6px;height:6px;overflow:hidden;display:flex;">'
+    f'<div style="width:{_bar_bull};background:#4CAF50;"></div>'
+    f'<div style="width:{_bar_bear};background:#EF5350;"></div>'
+    f'<div style="flex:1;background:#5A6070;"></div>'
+    f'</div>'
+    f'<div style="display:flex;justify-content:space-between;margin-top:4px;">'
+    f'<div style="font-size:0.66rem;color:#8A9AB8;">▲ Bullish {_bar_bull}</div>'
+    f'<div style="font-size:0.66rem;color:#8A9AB8;">Updated every 2 hours</div>'
+    f'<div style="font-size:0.66rem;color:#8A9AB8;">Bearish {_bar_bear} ▼</div>'
+    f'</div>'
+    f'</div>',
+    unsafe_allow_html=True,
+)
 
 # Primary CTA — one action, no decision paralysis
 st.markdown("<div style='text-align:center;margin:22px 0 8px;'>", unsafe_allow_html=True)
