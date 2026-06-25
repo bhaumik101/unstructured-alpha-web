@@ -167,8 +167,18 @@ with st.expander("Customize which signals to include"):
 # 2026-06-21 specifically so the score shown here and the score an alert
 # fires on can never silently diverge into two different numbers for the
 # same ticker (see utils/ticker_score.py's module docstring).
-with st.spinner(f"Loading signal data for {ticker_input}…"):
-    _full = compute_full_ticker_score(ticker_input, signal_ids=relevant_sig_ids)
+try:
+    with st.spinner(f"Loading signal data for {ticker_input}…"):
+        _full = compute_full_ticker_score(ticker_input, signal_ids=relevant_sig_ids)
+except Exception as _score_err:
+    st.error(
+        f"**Could not load data for {ticker_input}.** "
+        f"This usually means the ticker symbol is invalid, or a data source "
+        f"(yfinance / FRED) is temporarily unavailable. "
+        f"Try again in a moment, or check that '{ticker_input}' is a valid NYSE/NASDAQ symbol."
+    )
+    st.caption(f"Technical detail: {_score_err}")
+    st.stop()
 
 signal_scores  = _full["signal_scores"]
 signal_data    = _full["signal_data"]

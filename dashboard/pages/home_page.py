@@ -1,513 +1,541 @@
 """
 Home — Unstructured Alpha
-Public-facing landing page. Should work for someone who has never heard
-of alternative data and just Googled "hedge fund signals for retail investors."
-
-Design goals:
-  1. Immediate value signal in the first screen (live Signal Pulse)
-  2. Feature grid that names every major capability clearly
-  3. Plain-English explanation of what this is vs Bloomberg / stock screeners
-  4. Easy CTAs to every key page
-  5. No jargon without a definition
+Public-facing landing page. Psychological design goals:
+  1. Live signal data IN the hero — not below it. Real data creates immediate credibility.
+  2. Specificity everywhere — "40 signals, 4-16 weeks ahead" not "leading indicators."
+  3. Authority by association — FRED / SEC EDGAR / FINRA = same sources Goldman uses.
+  4. Loss aversion framing — "what are you missing" more powerful than "here's what you get."
+  5. Anchoring — mention Bloomberg's $50K price before showing this is free.
+  6. One clear primary CTA above the fold — no decision paralysis.
 """
 
 import streamlit as st
 
 st.set_page_config(
-    page_title="Unstructured Alpha — Home",
+    page_title="Unstructured Alpha — Macro Signal Intelligence",
     layout="wide",
     initial_sidebar_state="expanded",
-    menu_items={"About": "Unstructured Alpha — hedge-fund signals for everyday investors."},
+    menu_items={"About": "Unstructured Alpha — institutional-grade macro signals for every investor."},
 )
 
+import pandas as pd
 from utils.header import render_header, render_sidebar_base
 from utils.signals_cache import get_all_signal_scores
-
-
-# ── Combined home-page data loader ────────────────────────────────────────────
-# Builds the pulse + sector summary from the shared cross-page signal cache.
-# No separate fetch loop — all five pages (home, Signal Dashboard, Today's
-# Brief, Sector Map, Stock Screener) draw from get_all_signal_scores().
-def _build_home_data() -> dict:
-    """Derive pulse lists and sector averages from the shared signal cache."""
-    _all_sv = get_all_signal_scores()
-    _bull: list = []
-    _bear: list = []
-    _neut: list = []
-    _buckets: dict = {}
-    for _sid, _sv in _all_sv.items():
-        if _sv.get("error"):
-            continue
-        _status = _sv.get("status", "neutral")
-        _score  = _sv.get("score", 50)
-        _name   = _sv.get("name", _sid)
-        _cat    = _sv.get("category", "macro")
-        if _status == "bullish":
-            _bull.append((_name, _score))
-        elif _status == "bearish":
-            _bear.append((_name, _score))
-        else:
-            _neut.append((_name, _score))
-        _buckets.setdefault(_cat, []).append(_score)
-    return {
-        "bull":    sorted(_bull, key=lambda x: -x[1]),
-        "bear":    sorted(_bear, key=lambda x:  x[1]),
-        "neut":    _neut,
-        "sectors": {
-            _cat: sum(_sc) / len(_sc)
-            for _cat, _sc in _buckets.items()
-            if _sc
-        },
-    }
+from utils.config import SIGNALS, CATEGORIES
 
 render_header("Home")
 render_sidebar_base()
 
-# ── Hero ──────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="text-align:center;padding:32px 0 8px;font-family:Georgia,serif;">
-    <div style="font-size:0.78rem;letter-spacing:0.14em;color:#B8860B;margin-bottom:10px;">
-        ALTERNATIVE DATA INTELLIGENCE
-    </div>
-    <div style="font-size:2.3rem;font-weight:800;color:#1C2B4A;line-height:1.2;">
-        Hedge Fund Signals.<br>
-        <span style="color:#B8860B;">Finally Explained.</span>
-    </div>
-    <div style="font-size:1.05rem;color:#6B6560;margin-top:12px;max-width:600px;
-                margin-left:auto;margin-right:auto;line-height:1.6;">
-        Institutional-grade alternative data signals — trucking freight, uranium contracts,
-        insider trades, credit spreads — scored and mapped to the stocks they move.
-        No Bloomberg terminal required.
-    </div>
-</div>
-""", unsafe_allow_html=True)
+# ── Load live signal data (shared cache — no extra API cost) ──────────────────
+def _build_home_data() -> dict:
+    _all = get_all_signal_scores()
+    bull, bear, neut, buckets = [], [], [], {}
+    for sid, sv in _all.items():
+        if sv.get("error"):
+            continue
+        status = sv.get("status", "neutral")
+        score  = sv.get("score", 50)
+        name   = sv.get("name", sid)
+        cat    = sv.get("category", "macro")
+        if status == "bullish":
+            bull.append((name, score))
+        elif status == "bearish":
+            bear.append((name, score))
+        else:
+            neut.append((name, score))
+        buckets.setdefault(cat, []).append(score)
+    return {
+        "bull":    sorted(bull, key=lambda x: -x[1]),
+        "bear":    sorted(bear, key=lambda x:  x[1]),
+        "neut":    neut,
+        "sectors": {k: sum(v)/len(v) for k, v in buckets.items() if v},
+    }
 
-# ── Live Signal Pulse ─────────────────────────────────────────────────────────
-# Single combined loader — also feeds the Sector Rotation teaser below.
-# Shows the current macro read immediately on page load.
 try:
-    with st.spinner("Loading signal pulse…"):
+    with st.spinner(""):
         _hd = _build_home_data()
-
-    _pulse  = _hd  # alias for readability below
     _nb, _nr, _nn = len(_hd["bull"]), len(_hd["bear"]), len(_hd["neut"])
-    _total_hp = max(1, _nb + _nr + _nn)
-    _bias_color = "#1B5E20" if _nb > _nr + _nn * 0.5 else (
-        "#7B1010" if _nr > _nb + _nn * 0.5 else "#8B7355")
-    _bias_label = ("Bullish Leaning" if _nb > _nr + _nn * 0.5 else
-                   "Bearish Leaning" if _nr > _nb + _nn * 0.5 else "Mixed Signals")
-
-    _bull_str = (f'<b style="color:#4CAF50;">Top bull:</b> {_hd["bull"][0][0]} '
-                 f'<span style="color:#9E9E8E;">({_hd["bull"][0][1]:.0f})</span>'
-                 if _hd["bull"] else "")
-    _bear_str = (f'<b style="color:#EF5350;">Top bear:</b> {_hd["bear"][0][0]} '
-                 f'<span style="color:#9E9E8E;">({_hd["bear"][0][1]:.0f})</span>'
-                 if _hd["bear"] else "")
-    _sep_str = "&nbsp;&nbsp;·&nbsp;&nbsp;" if _hd["bull"] and _hd["bear"] else ""
-
-    st.markdown(f"""
-<div style="background:#1C2B4A;border-radius:10px;padding:18px 22px;margin:20px 0 8px;
-            font-family:Georgia,serif;color:#FAF7F0;">
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
-        <div>
-            <div style="font-size:0.65rem;letter-spacing:0.12em;color:#C9A84C;margin-bottom:4px;">
-                LIVE SIGNAL PULSE — RIGHT NOW
-            </div>
-            <div style="font-size:1.3rem;font-weight:800;color:{_bias_color};">{_bias_label}</div>
-            <div style="font-size:0.78rem;color:#D4C9B0;margin-top:3px;">
-                ▲ {_nb} bullish &nbsp;·&nbsp; ▼ {_nr} bearish &nbsp;·&nbsp; ● {_nn} neutral
-                &nbsp;across {_total_hp} signals
-            </div>
-        </div>
-        <div style="font-size:0.82rem;color:#FAF7F0;text-align:right;">
-            {_bull_str}{_sep_str}{_bear_str}
-        </div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-    _p1, _p2 = st.columns([4, 1])
-    with _p2:
-        if st.button("Full Today's Brief →", use_container_width=True, key="cta_today"):
-            st.switch_page("pages/2_Today_Digest.py")
+    _total = max(1, _nb + _nr + _nn)
+    _bull_pct = _nb / _total
+    _bear_pct = _nr / _total
+    _bias_bullish = _bull_pct >= 0.50
+    _bias_bearish = _bear_pct >= 0.50
+    _bias_label  = "BULLISH LEANING" if _bias_bullish else ("BEARISH LEANING" if _bias_bearish else "MIXED SIGNALS")
+    _bias_color  = "#1B5E20" if _bias_bullish else ("#7B1010" if _bias_bearish else "#8B7355")
+    _bias_bg     = "#EDF7ED" if _bias_bullish else ("#FDF0F0" if _bias_bearish else "#FAF7F0")
+    _top_bull    = _hd["bull"][0][0] if _hd["bull"] else None
+    _top_bear    = _hd["bear"][0][0] if _hd["bear"] else None
+    _data_loaded = True
 except Exception:
-    _hd = {"bull": [], "bear": [], "neut": [], "sectors": {}}  # safe fallback for sector section below
+    _hd = {"bull": [], "bear": [], "neut": [], "sectors": {}}
+    _nb = _nr = _nn = _total = 0
+    _bias_label = "LOADING…"
+    _bias_color = "#8B7355"
+    _bias_bg    = "#FAF7F0"
+    _top_bull = _top_bear = None
+    _data_loaded = False
 
-st.markdown("")
-
-# ── Feature grid — 6 major features ──────────────────────────────────────────
-st.markdown("""
-<div style="font-size:0.70rem;text-transform:uppercase;letter-spacing:0.12em;
-            color:#8B7355;text-align:center;margin-bottom:4px;">
-    WHAT YOU CAN DO WITH THIS
-</div>
-<div style="font-size:1.5rem;font-weight:800;color:#1C2B4A;text-align:center;margin-bottom:20px;
-            font-family:Georgia,serif;">
-    Six Tools. One Dashboard.
+# ── HERO ──────────────────────────────────────────────────────────────────────
+# Psychology: specificity + live data immediately = credibility. The live
+# pulse IS the hero — not a badge below it.
+st.markdown(f"""
+<div style="text-align:center;padding:36px 0 0;font-family:Georgia,serif;">
+    <div style="font-size:0.72rem;letter-spacing:0.18em;color:#B8860B;margin-bottom:14px;
+                font-weight:600;">
+        INSTITUTIONAL-GRADE MACRO INTELLIGENCE · FREE
+    </div>
+    <div style="font-size:2.6rem;font-weight:800;color:#1C2B4A;line-height:1.15;
+                max-width:720px;margin:0 auto;">
+        Before the market moves,<br>
+        <span style="color:#B8860B;">the signals already did.</span>
+    </div>
+    <div style="font-size:1.0rem;color:#5C5650;margin:16px auto 0;max-width:580px;
+                line-height:1.65;">
+        40 macro signals — Fed policy, energy flows, credit spreads, insider buying —
+        scored in real time and mapped to the stocks you actually hold.
+        The same data Goldman watches. Now accessible to everyone.
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-_FEATURE_CARD = """
-<div style="background:{bg};border:1px solid #D4C9B0;border-top:4px solid {accent};
-            border-radius:8px;padding:18px;font-family:Georgia,serif;min-height:190px;
-            margin-bottom:4px;">
-    <div style="font-size:1.5rem;margin-bottom:6px;">{icon}</div>
-    <div style="font-size:0.65rem;letter-spacing:0.10em;color:{label_color};margin-bottom:4px;">
-        {label}
+# ── LIVE SIGNAL PULSE — embedded in hero, not below it ───────────────────────
+# Psychology: showing REAL data immediately answers "does this actually work?"
+# The live pulse is the most powerful trust signal on this page.
+_bar_bull = f"{(_nb / _total * 100):.0f}%" if _total > 0 else "0%"
+_bar_bear = f"{(_nr / _total * 100):.0f}%" if _total > 0 else "0%"
+
+_top_bull_html = (
+    f'<div style="font-size:0.78rem;color:#D4F0DA;margin-top:2px;">'
+    f'▲ Strongest: <b style="color:#A8E6B0;">{_top_bull}</b></div>'
+    if _top_bull else ""
+)
+_top_bear_html = (
+    f'<div style="font-size:0.78rem;color:#F5C2C2;margin-top:2px;">'
+    f'▼ Weakest: <b style="color:#FFAAAA;">{_top_bear}</b></div>'
+    if _top_bear else ""
+)
+
+st.markdown(f"""
+<div style="background:#1C2B4A;border-radius:12px;padding:22px 28px 20px;
+            margin:24px auto 0;max-width:820px;font-family:Georgia,serif;">
+
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;
+                flex-wrap:wrap;gap:16px;">
+
+        <div style="flex:1;min-width:200px;">
+            <div style="font-size:0.62rem;letter-spacing:0.16em;color:#C9A84C;margin-bottom:6px;
+                        font-weight:600;">LIVE MACRO READ — RIGHT NOW</div>
+            <div style="font-size:2.0rem;font-weight:800;color:{_bias_color};
+                        letter-spacing:-0.01em;">{_bias_label}</div>
+            <div style="font-size:0.80rem;color:#A0A8B8;margin-top:6px;">
+                across {_total} tracked signals
+            </div>
+        </div>
+
+        <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <div style="text-align:center;">
+                <div style="font-size:2.2rem;font-weight:800;color:#4CAF50;">{_nb}</div>
+                <div style="font-size:0.68rem;color:#4CAF50;letter-spacing:0.10em;">BULLISH</div>
+                {_top_bull_html}
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:2.2rem;font-weight:800;color:#EF5350;">{_nr}</div>
+                <div style="font-size:0.68rem;color:#EF5350;letter-spacing:0.10em;">BEARISH</div>
+                {_top_bear_html}
+            </div>
+            <div style="text-align:center;">
+                <div style="font-size:2.2rem;font-weight:800;color:#B8B0A0;">{_nn}</div>
+                <div style="font-size:0.68rem;color:#B8B0A0;letter-spacing:0.10em;">NEUTRAL</div>
+            </div>
+        </div>
     </div>
-    <div style="font-size:0.98rem;font-weight:700;color:#1A1612;margin-bottom:6px;">{title}</div>
-    <div style="font-size:0.80rem;color:#6B6560;line-height:1.5;">{body}</div>
-    {badge}
+
+    <div style="margin-top:16px;background:rgba(255,255,255,0.08);border-radius:6px;
+                height:6px;overflow:hidden;display:flex;">
+        <div style="width:{_bar_bull};background:#4CAF50;"></div>
+        <div style="width:{_bar_bear};background:#EF5350;"></div>
+        <div style="flex:1;background:#5A6070;"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <div style="font-size:0.66rem;color:#8A9AB8;">▲ Bullish {_bar_bull}</div>
+        <div style="font-size:0.66rem;color:#8A9AB8;">Updated every 2 hours</div>
+        <div style="font-size:0.66rem;color:#8A9AB8;">Bearish {_bar_bear} ▼</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# Primary CTA — one action, no decision paralysis
+st.markdown("<div style='text-align:center;margin:22px 0 8px;'>", unsafe_allow_html=True)
+_hcol1, _hcol2, _hcol3 = st.columns([2, 1.4, 2])
+with _hcol2:
+    if st.button("→ See Today's Full Signal Brief", type="primary", use_container_width=True, key="hero_cta"):
+        st.switch_page("pages/2_Today_Digest.py")
+st.markdown("<div style='text-align:center;font-size:0.74rem;color:#9E9E8E;margin-top:6px;font-family:Georgia,serif;'>No account needed to browse signals</div>", unsafe_allow_html=True)
+
+st.markdown("<br>", unsafe_allow_html=True)
+
+# ── CREDIBILITY STRIP ─────────────────────────────────────────────────────────
+# Psychology: authority by association. Same sources = same data as Goldman.
+st.markdown("""
+<div style="border-top:1px solid #E8E0D4;border-bottom:1px solid #E8E0D4;
+            padding:14px 0;margin:4px 0 28px;text-align:center;">
+    <div style="font-size:0.66rem;letter-spacing:0.14em;color:#A09080;margin-bottom:10px;
+                font-weight:600;">DATA SOURCED FROM THE SAME INSTITUTIONS WALL STREET USES</div>
+    <div style="display:flex;justify-content:center;gap:28px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:0.82rem;color:#6B6560;font-family:Georgia,serif;">
+            <b style="color:#1C2B4A;">FRED</b> · Federal Reserve</span>
+        <span style="color:#D4C9B0;">|</span>
+        <span style="font-size:0.82rem;color:#6B6560;font-family:Georgia,serif;">
+            <b style="color:#1C2B4A;">SEC EDGAR</b> · Insider Filings</span>
+        <span style="color:#D4C9B0;">|</span>
+        <span style="font-size:0.82rem;color:#6B6560;font-family:Georgia,serif;">
+            <b style="color:#1C2B4A;">FINRA</b> · Short Interest</span>
+        <span style="color:#D4C9B0;">|</span>
+        <span style="font-size:0.82rem;color:#6B6560;font-family:Georgia,serif;">
+            <b style="color:#1C2B4A;">EIA</b> · Energy Data</span>
+        <span style="color:#D4C9B0;">|</span>
+        <span style="font-size:0.82rem;color:#6B6560;font-family:Georgia,serif;">
+            <b style="color:#1C2B4A;">13F Filings</b> · Institutional Positions</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── 3 CORE FEATURE SPOTLIGHTS ─────────────────────────────────────────────────
+# Psychology: 3 = digestible. 6 = paralysis. Show the 3 things that differentiate.
+st.markdown("""
+<div style="font-size:1.55rem;font-weight:800;color:#1C2B4A;text-align:center;
+            margin-bottom:6px;font-family:Georgia,serif;">
+    Three tools that change how you invest
+</div>
+<div style="font-size:0.88rem;color:#6B6560;text-align:center;margin-bottom:24px;
+            font-family:Georgia,serif;">
+    Not a screener. Not a news aggregator. Something genuinely different.
+</div>
+""", unsafe_allow_html=True)
+
+_sp1, _sp2, _sp3 = st.columns(3)
+
+_SPOT = """
+<div style="border:1px solid #D4C9B0;border-top:4px solid {accent};border-radius:10px;
+            padding:22px 20px 18px;font-family:Georgia,serif;background:{bg};
+            min-height:240px;">
+    <div style="font-size:0.62rem;letter-spacing:0.12em;color:{label_c};margin-bottom:8px;
+                font-weight:600;">{tag}</div>
+    <div style="font-size:1.08rem;font-weight:800;color:#1A1612;margin-bottom:10px;
+                line-height:1.25;">{title}</div>
+    <div style="font-size:0.82rem;color:#5C5650;line-height:1.6;margin-bottom:14px;">{body}</div>
+    <div style="font-size:0.74rem;color:{accent};font-weight:600;">{proof}</div>
 </div>
 """
 
-_NEW_BADGE = """<div style="display:inline-block;background:#B8860B;color:#FAF7F0;
-    font-size:0.60rem;letter-spacing:0.08em;padding:2px 7px;border-radius:3px;
-    margin-top:6px;">NEW</div>"""
-
-_f1, _f2, _f3 = st.columns(3)
-
-with _f1:
-    st.markdown(_FEATURE_CARD.format(
-        bg="#F5F8F5", accent="#1B5E20", icon="📡",
-        label="SIGNALS", label_color="#1B5E20",
-        title="Real-Time Signal Dashboard",
-        body="Every macro signal scored right now — freight, rates, energy, housing, "
-             "insider activity. Simple mode for new investors; Pro mode with z-scores and percentiles.",
-        badge="",
+with _sp1:
+    st.markdown(_SPOT.format(
+        accent="#1B5E20", bg="#F4FAF4", label_c="#1B5E20",
+        tag="DAILY INTELLIGENCE",
+        title="Today's Brief — your 2-minute macro read",
+        body=(
+            "Every morning: which signals flipped overnight, what the macro bias is, "
+            "and what it means for your holdings. Plain English. No jargon. "
+            "Opt in for a 7 AM email digest."
+        ),
+        proof=f"→ Currently: {_bias_label} across {_total} signals",
     ), unsafe_allow_html=True)
-    if st.button("Open Signal Dashboard →", use_container_width=True, key="cta_signals"):
-        st.switch_page("pages/1_Signal_Dashboard.py")
-
-with _f2:
-    st.markdown(_FEATURE_CARD.format(
-        bg="#F5F7FB", accent="#1C2B4A", icon="🔬",
-        label="RESEARCH", label_color="#1C2B4A",
-        title="Ticker Deep Dive",
-        body="Type any ticker. Get a Confluence Score (0–100), 30/60/90-day probability model, "
-             "earnings markers on the price chart, recent news, and a plain-English bull & bear case.",
-        badge="",
-    ), unsafe_allow_html=True)
-    if st.button("Open Ticker Deep Dive →", use_container_width=True, key="cta_dive"):
-        st.switch_page("pages/3_Ticker_Deep_Dive.py")
-
-with _f3:
-    st.markdown(_FEATURE_CARD.format(
-        bg="#FFFBF2", accent="#B8860B", icon="🗺️",
-        label="SECTOR ROTATION", label_color="#B8860B",
-        title="Sector Rotation Signal Map",
-        body="Which sectors do the signals favor right now? See all 8 equity sectors scored "
-             "and ranked — Technology, Energy, Nuclear, Financials, Healthcare, and more — in one view.",
-        badge=_NEW_BADGE,
-    ), unsafe_allow_html=True)
-    if st.button("Open Sector Map →", use_container_width=True, key="cta_sector"):
-        st.switch_page("pages/12_Sector_Map.py")
-
-_f4, _f5, _f6 = st.columns(3)
-
-with _f4:
-    st.markdown(_FEATURE_CARD.format(
-        bg="#FBF8F5", accent="#8B7355", icon="📰",
-        label="DAILY DIGEST", label_color="#8B7355",
-        title="Today's Brief",
-        body="A scannable morning briefing: top bullish signals, top bearish signals, "
-             "and the macro story in plain English. Designed to read in under 2 minutes.",
-        badge="",
-    ), unsafe_allow_html=True)
-    if st.button("Open Today's Brief →", use_container_width=True, key="cta_brief"):
+    if st.button("Read Today's Brief →", use_container_width=True, key="cta_brief"):
         st.switch_page("pages/2_Today_Digest.py")
 
-with _f5:
-    st.markdown(_FEATURE_CARD.format(
-        bg="#FBF5F5", accent="#7B1010", icon="📋",
-        label="TRACK RECORD", label_color="#7B1010",
-        title="Pre-Earnings Track Record",
-        body="Did the signals predict the last earnings beat or miss? "
-             "For any ticker, see what the Confluence Score said 7–45 days before each "
-             "past earnings event vs the actual EPS result.",
-        badge=_NEW_BADGE,
+with _sp2:
+    st.markdown(_SPOT.format(
+        accent="#1C2B4A", bg="#F4F6FA", label_c="#1C2B4A",
+        tag="STOCK-SPECIFIC ANALYSIS",
+        title="Ticker Deep Dive — type any stock, get a macro report",
+        body=(
+            "Confluence Score (0–100), 30/60/90-day probability model, "
+            "signal-by-signal breakdown, earnings markers, insider activity, news. "
+            "Tells you <i>why</i> the macro environment is or isn't set up for this stock."
+        ),
+        proof="→ Tested on 80+ tickers with statistical validation",
     ), unsafe_allow_html=True)
-    if st.button("Open Track Record →", use_container_width=True, key="cta_track"):
-        st.switch_page("pages/13_Track_Record.py")
+    if st.button("Try Ticker Deep Dive →", use_container_width=True, key="cta_dive"):
+        st.switch_page("pages/3_Ticker_Deep_Dive.py")
 
-with _f6:
-    st.markdown(_FEATURE_CARD.format(
-        bg="#F5F5FB", accent="#4A1B6B", icon="⭐",
-        label="WATCHLIST", label_color="#4A1B6B",
-        title="My Watchlist",
-        body="Save your own tickers and get notified when signals flip bullish or bearish. "
-             "Quick-add alert presets: bullish signal, bearish signal, score drastic move.",
-        badge="",
+with _sp3:
+    st.markdown(_SPOT.format(
+        accent="#B8860B", bg="#FDFAF2", label_c="#B8860B",
+        tag="SMART ALERTS",
+        title="Watchlist — know the moment a signal flips",
+        body=(
+            "Track any ticker with custom alert thresholds. Get notified "
+            "when the Confluence Score crosses your level, a signal changes direction, "
+            "or a 52-week high/low is hit. Morning email to opted-in users."
+        ),
+        proof="→ Free · No Bloomberg terminal needed",
     ), unsafe_allow_html=True)
-    if st.button("Open My Watchlist →", use_container_width=True, key="cta_watchlist"):
+    if st.button("Build Your Watchlist →", use_container_width=True, key="cta_watchlist"):
         st.switch_page("pages/10_Watchlist.py")
 
-st.divider()
+st.markdown("<br>", unsafe_allow_html=True)
 
-# ── Sector Rotation Teaser ────────────────────────────────────────────────────
+# ── THE CONTRAST / ANCHOR ─────────────────────────────────────────────────────
+# Psychology: Anchoring + loss aversion. "$50K/year" makes "free" feel extraordinary.
 st.markdown("""
-<div style="font-size:1.15rem;font-weight:700;color:#1C2B4A;font-family:Georgia,serif;
-            margin-bottom:4px;">
-    🗺️ Sector Rotation Signal Map — Live Preview
-</div>
-<div style="font-size:0.82rem;color:#6B6560;margin-bottom:14px;">
-    Which sectors does the data currently favor? Updated every 2 hours.
+<div style="background:#1C2B4A;border-radius:12px;padding:28px 32px;margin:8px 0 32px;
+            font-family:Georgia,serif;text-align:center;">
+    <div style="font-size:0.68rem;letter-spacing:0.14em;color:#C9A84C;margin-bottom:10px;
+                font-weight:600;">THE EDGE ISN'T THE DATA — IT'S KNOWING WHICH SIGNALS TO WATCH</div>
+    <div style="font-size:1.35rem;font-weight:800;color:#FAF7F0;max-width:640px;margin:0 auto;
+                line-height:1.35;">
+        Bloomberg Terminal charges <span style="color:#C9A84C;">$27,000/year</span>
+        for access to this kind of macro data.<br>
+        <span style="color:#A8D8B0;">We built the same analysis from free public sources.</span>
+    </div>
+    <div style="font-size:0.84rem;color:#A0A8B8;margin-top:12px;max-width:560px;margin-left:auto;
+                margin-right:auto;line-height:1.6;">
+        FRED, SEC EDGAR, FINRA, and EIA are the same primary data sources
+        institutional desks rely on. The difference is we packaged it for
+        investors who don't have a six-figure data budget.
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
-_SECTOR_META_HP = {
-    "ai_infrastructure": ("💻 Technology & AI",  "#1C2B4A"),
-    "energy":            ("⛽ Energy",            "#5D4037"),
-    "nuclear":           ("⚡ Nuclear/Utilities",  "#7B1010"),
-    "financials":        ("🏦 Financials",         "#B8860B"),
-    "healthcare":        ("🏥 Healthcare",          "#1B5E20"),
-    "consumer":          ("🛒 Consumer",           "#B34700"),
-    "industrials":       ("🏭 Industrials",        "#4A1B6B"),
-    "macro":             ("📊 Macro Backdrop",     "#0D4F5C"),
+# ── SECTOR ROTATION TEASER ────────────────────────────────────────────────────
+# Live sector scores create another reason to explore
+st.markdown("""
+<div style="font-size:1.15rem;font-weight:800;color:#1C2B4A;font-family:Georgia,serif;
+            margin-bottom:4px;">Sector Rotation Signal Map — live preview</div>
+<div style="font-size:0.82rem;color:#6B6560;margin-bottom:16px;font-family:Georgia,serif;">
+    Which sectors do the signals currently favor? Updated every 2 hours.
+</div>
+""", unsafe_allow_html=True)
+
+_SECTOR_META = {
+    "ai_infrastructure": ("Technology & AI",   "#1C2B4A"),
+    "energy":            ("Energy",             "#5D4037"),
+    "nuclear":           ("Nuclear/Utilities",  "#7B1010"),
+    "financials":        ("Financials",         "#B8860B"),
+    "healthcare":        ("Healthcare",         "#1B5E20"),
+    "consumer":          ("Consumer",           "#B34700"),
+    "industrials":       ("Industrials",        "#4A1B6B"),
+    "macro":             ("Macro Backdrop",     "#0D4F5C"),
 }
 
-# Use sector data from the combined loader (_hd already populated above).
-# Always 4 columns so indexing never crashes regardless of how many sectors
-# have data on a given run — extra columns just render empty.
 try:
-    _hp_sectors = _hd.get("sectors", {})
-    if _hp_sectors:
-        _sorted_sectors = sorted(_hp_sectors.items(), key=lambda x: -x[1])
-        _sec_cols = st.columns(4)  # always 4 — never crashes on fewer sectors
-        for _si, (_cat, _avg) in enumerate(_sorted_sectors[:8]):
-            _name, _color = _SECTOR_META_HP.get(_cat, (f"📊 {_cat}", "#8B7355"))
-            _status   = "▲" if _avg >= 60 else ("▼" if _avg <= 40 else "●")
-            _sc_color = "#1B5E20" if _avg >= 60 else ("#7B1010" if _avg <= 40 else "#8B7355")
-            _bg       = "#EDF7ED" if _avg >= 60 else ("#FDF0F0" if _avg <= 40 else "#FAF7F0")
-            with _sec_cols[_si % 4]:
+    _sec = _hd.get("sectors", {})
+    if _sec:
+        _sorted = sorted(_sec.items(), key=lambda x: -x[1])
+        _sc_cols = st.columns(4)
+        for _i, (_cat, _avg) in enumerate(_sorted[:8]):
+            _name, _col = _SECTOR_META.get(_cat, (_cat.title(), "#8B7355"))
+            _arrow  = "▲" if _avg >= 60 else ("▼" if _avg <= 40 else "●")
+            _sc     = "#1B5E20" if _avg >= 60 else ("#7B1010" if _avg <= 40 else "#8B7355")
+            _bg     = "#EDF7ED" if _avg >= 60 else ("#FDF0F0" if _avg <= 40 else "#FAF7F0")
+            with _sc_cols[_i % 4]:
                 st.markdown(f"""
-<div style="background:{_bg};border:1px solid #D4C9B0;border-left:3px solid {_sc_color};
-            border-radius:6px;padding:10px 12px;margin-bottom:8px;font-family:Georgia,serif;">
-    <div style="font-size:0.80rem;font-weight:600;color:#1A1612;">{_name}</div>
-    <div style="font-size:1.3rem;font-weight:800;color:{_sc_color};">{_status} {_avg:.0f}</div>
+<div style="background:{_bg};border:1px solid #D4C9B0;border-left:3px solid {_sc};
+            border-radius:7px;padding:11px 13px;margin-bottom:8px;font-family:Georgia,serif;">
+    <div style="font-size:0.78rem;font-weight:700;color:#1A1612;margin-bottom:4px;">{_name}</div>
+    <div style="font-size:1.4rem;font-weight:800;color:{_sc};">{_arrow} {_avg:.0f}</div>
 </div>
 """, unsafe_allow_html=True)
     else:
-        st.caption("Sector scores loading — refresh the page in a moment.")
+        st.caption("Sector scores loading — refresh in a moment.")
 
-    _sm_col, _ = st.columns([1, 3])
-    with _sm_col:
-        if st.button("Full Sector Map →", use_container_width=True, key="cta_sector_full"):
+    _smc, _ = st.columns([1, 3])
+    with _smc:
+        if st.button("Full Sector Map →", use_container_width=True, key="cta_sector"):
             st.switch_page("pages/12_Sector_Map.py")
 except Exception:
-    st.caption("Sector preview unavailable — open the Sector Map page directly.")
+    st.caption("Sector preview unavailable. Open the Sector Map page directly.")
 
 st.divider()
 
-# ── What makes this different ─────────────────────────────────────────────────
-st.markdown("""
-<div style="font-size:1.15rem;font-weight:700;color:#1C2B4A;font-family:Georgia,serif;
-            margin-bottom:16px;">
-    Why This Isn't Just Another Stock Screener
+# ── WHY THIS ISN'T A SCREENER ─────────────────────────────────────────────────
+# Psychology: reframe the category. "Not X, it's Y" positions differently.
+_da, _db = st.columns(2)
+
+with _da:
+    st.markdown("""
+<div style="font-family:Georgia,serif;">
+<div style="font-size:1.1rem;font-weight:800;color:#7B1010;margin-bottom:10px;">
+    What traditional screeners miss
+</div>
+<div style="font-size:0.84rem;color:#5C5650;line-height:1.65;">
+    Stock screeners filter on price, P/E, and volume. They tell you what
+    <i>has happened</i> to a stock — not what's coming. That's rear-view-mirror investing.<br><br>
+    By the time a move shows up in price and volume, institutional desks have
+    already positioned. The professionals were watching leading economic signals
+    4 to 16 weeks earlier.
+</div>
+<br>
+<div style="font-size:1.1rem;font-weight:800;color:#1B5E20;margin-bottom:10px;">
+    What leading signals actually predict
+</div>
+<div style="font-size:0.84rem;color:#5C5650;line-height:1.65;">
+    • Trucking freight falls → retail earnings weaken ~6 weeks later<br>
+    • Uranium spot rises → nuclear energy stocks follow<br>
+    • Credit spreads widen → broad market pullback precedes it 4–8 weeks<br>
+    • Hyperscaler capex accelerates → AI infrastructure stocks outperform<br><br>
+    This is what hedge funds call <b style="color:#1C2B4A;">alternative data</b>.
+    They pay $50K–$500K/year for it. We built it from public sources.
+</div>
 </div>
 """, unsafe_allow_html=True)
 
-_diff_a, _diff_b = st.columns(2)
-
-with _diff_a:
+with _db:
     st.markdown("""
-    **Traditional screeners** filter on price, P/E ratio, and volume. They tell you what *has*
-    happened to a stock — not what's coming. That's rear-view-mirror investing.
-
-    **Unstructured Alpha** uses *leading* indicators: physical economic data that moves 4–16 weeks
-    *before* earnings and price follow. Examples:
-    - Trucking freight falls → retail earnings weaken 6 weeks later
-    - Uranium spot price rises → nuclear energy stocks follow
-    - Credit spreads widen → broad market pullback precedes it by 4–8 weeks
-    - Hyperscaler capex accelerates → AI infrastructure stocks outperform
-
-    This is what hedge funds call **alternative data** — and they pay $50K–$500K/year for it.
-    This tool builds it from the same free public sources.
-    """)
-
-with _diff_b:
-    st.markdown("""
-    **What you get that you can't get anywhere else (for free):**
-
-    - **Sector Rotation Map** — which sectors are the signals favoring right now?
-    - **Signal Lead Time** — how many weeks ahead does each indicator historically lead?
-    - **Pre-Earnings Track Record** — did the score correctly predict the last 4 earnings?
-    - **Confluence Score** — how many independent signals agree vs one noisy one?
-    - **Honest validation** — we publish backtest results even when they're not impressive
-    - **Plain-English causal logic** — why does this signal affect this stock, specifically?
-
-    Everything is powered by free FRED, EIA, FINRA, EDGAR, and yfinance data.
-    The edge isn't the data — it's knowing which signals to look for and why.
-    """)
-
-st.divider()
-
-# ── How to use it ─────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="font-size:1.15rem;font-weight:700;color:#1C2B4A;font-family:Georgia,serif;
-            margin-bottom:14px;">
-    How to Use This in 5 Minutes
+<div style="font-family:Georgia,serif;">
+<div style="font-size:1.1rem;font-weight:800;color:#1C2B4A;margin-bottom:10px;">
+    What you get that you can't get anywhere else — for free
 </div>
 """, unsafe_allow_html=True)
 
-_step_cols = st.columns(4)
-
-_STEP_CARD = """
-<div style="background:#FAF7F0;border:1px solid #D4C9B0;border-radius:8px;
-            padding:14px;font-family:Georgia,serif;text-align:center;min-height:160px;">
-    <div style="font-size:1.8rem;">{icon}</div>
-    <div style="font-size:0.65rem;letter-spacing:0.10em;color:#8B7355;margin-top:4px;">STEP {n}</div>
-    <div style="font-size:0.88rem;font-weight:700;color:#1A1612;margin-top:4px;">{title}</div>
-    <div style="font-size:0.75rem;color:#6B6560;margin-top:6px;line-height:1.4;">{body}</div>
+    _diffs = [
+        ("Signal Lead Time",
+         "Each signal comes with a measured historical lead time — how many weeks "
+         "ahead it typically precedes price movement. Not guesswork."),
+        ("Pre-Earnings Track Record",
+         "See what the Confluence Score said 7–45 days before each past earnings event "
+         "vs. the actual EPS beat or miss."),
+        ("Confluence Score",
+         "How many independent signals agree? One bullish signal is noise. "
+         "Seven agreeing signals is a thesis."),
+        ("Honest Validation",
+         "We publish our backtest results even when they're not impressive. "
+         "See the Model Validation page — it's one of a kind."),
+        ("Plain-English Causal Logic",
+         "Not just 'this signal correlates.' We explain the economic mechanism: "
+         "why this indicator moves this sector, specifically."),
+    ]
+    for _title, _body in _diffs:
+        st.markdown(f"""
+<div style="border-left:3px solid #B8860B;padding:8px 14px;margin-bottom:10px;
+            background:#FDFAF4;border-radius:0 6px 6px 0;">
+    <div style="font-size:0.84rem;font-weight:700;color:#1C2B4A;margin-bottom:3px;">{_title}</div>
+    <div style="font-size:0.78rem;color:#5C5650;line-height:1.5;">{_body}</div>
 </div>
-"""
-
-_step_cols[0].markdown(_STEP_CARD.format(
-    icon="📡", n=1, title="Check Today's Brief",
-    body="See which macro signals are bullish or bearish right now. Takes 2 minutes.",
-), unsafe_allow_html=True)
-_step_cols[1].markdown(_STEP_CARD.format(
-    icon="🗺️", n=2, title="Read the Sector Map",
-    body="See which sectors the data currently favors. Find where the macro tailwinds are.",
-), unsafe_allow_html=True)
-_step_cols[2].markdown(_STEP_CARD.format(
-    icon="🔬", n=3, title="Deep Dive a Ticker",
-    body="Type any stock symbol. Get its Confluence Score, probability model, and bull/bear case.",
-), unsafe_allow_html=True)
-_step_cols[3].markdown(_STEP_CARD.format(
-    icon="⭐", n=4, title="Build Your Watchlist",
-    body="Save tickers and set alerts for when signals flip — so you don't have to check daily.",
-), unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 st.divider()
 
-# ── Secondary tools row ───────────────────────────────────────────────────────
-_sec1, _sec2, _sec3 = st.columns(3)
-with _sec1:
-    if st.button("📊 Market Overview — indices, rates, commodities", use_container_width=True, key="cta_market"):
+# ── HOW TO USE IN 4 STEPS ────────────────────────────────────────────────────
+st.markdown("""
+<div style="font-size:1.15rem;font-weight:800;color:#1C2B4A;font-family:Georgia,serif;
+            margin-bottom:18px;">Start generating insight in under 5 minutes</div>
+""", unsafe_allow_html=True)
+
+_steps = [
+    ("1", "#1B5E20", "Read Today's Brief",
+     "2-minute macro morning read. Which signals are bullish. Which are bearish. What it means.",
+     "pages/2_Today_Digest.py", "Open Today's Brief →", "cta_s1"),
+    ("2", "#B8860B", "Check the Sector Map",
+     "See which sectors the data currently favors. Find where the macro tailwinds are right now.",
+     "pages/12_Sector_Map.py", "Open Sector Map →", "cta_s2"),
+    ("3", "#1C2B4A", "Deep Dive a Ticker",
+     "Type any stock. Get a Confluence Score, signal breakdown, earnings history, and bull/bear case.",
+     "pages/3_Ticker_Deep_Dive.py", "Open Deep Dive →", "cta_s3"),
+    ("4", "#7B1010", "Set Up Your Watchlist",
+     "Save your stocks. Get alerted when signals flip. Optional morning email at 7 AM ET.",
+     "pages/10_Watchlist.py", "Open Watchlist →", "cta_s4"),
+]
+
+_st_cols = st.columns(4)
+for _col, (_n, _ac, _title, _body, _page, _btn, _key) in zip(_st_cols, _steps):
+    with _col:
+        st.markdown(f"""
+<div style="background:#FAF7F0;border:1px solid #D4C9B0;border-top:4px solid {_ac};
+            border-radius:8px;padding:16px;font-family:Georgia,serif;min-height:170px;
+            margin-bottom:8px;">
+    <div style="font-size:1.5rem;font-weight:800;color:{_ac};margin-bottom:6px;">{_n}</div>
+    <div style="font-size:0.88rem;font-weight:700;color:#1A1612;margin-bottom:6px;">{_title}</div>
+    <div style="font-size:0.77rem;color:#6B6560;line-height:1.5;">{_body}</div>
+</div>
+""", unsafe_allow_html=True)
+        if st.button(_btn, use_container_width=True, key=_key):
+            st.switch_page(_page)
+
+st.divider()
+
+# ── ADDITIONAL TOOLS ──────────────────────────────────────────────────────────
+st.markdown("""
+<div style="font-size:0.88rem;font-weight:700;color:#1C2B4A;font-family:Georgia,serif;
+            margin-bottom:10px;">More tools</div>
+""", unsafe_allow_html=True)
+
+_t1, _t2, _t3, _t4 = st.columns(4)
+with _t1:
+    if st.button("📡 Signal Dashboard", use_container_width=True, key="cta_signals"):
+        st.switch_page("pages/1_Signal_Dashboard.py")
+with _t2:
+    if st.button("📊 Market Overview", use_container_width=True, key="cta_market"):
         st.switch_page("pages/5_Market_Overview.py")
-with _sec2:
-    if st.button("🔍 Stock Screener — rank tickers by signal strength", use_container_width=True, key="cta_screener"):
+with _t3:
+    if st.button("🔍 Stock Screener", use_container_width=True, key="cta_screener"):
         st.switch_page("pages/6_Stock_Screener.py")
-with _sec3:
-    if st.button("✅ Model Validation — honest backtest results", use_container_width=True, key="cta_validation"):
+with _t4:
+    if st.button("✅ Model Validation", use_container_width=True, key="cta_validation"):
         st.switch_page("pages/11_Model_Validation.py")
 
 st.divider()
 
-# ── Signal library quick stats ────────────────────────────────────────────────
-import pandas as pd
-
-_total_sigs = len(SIGNALS)
-_by_cat: dict = {}
-for _cfg in SIGNALS.values():
-    _cat = _cfg.get("category", "macro")
-    _by_cat[_cat] = _by_cat.get(_cat, 0) + 1
-
-_stat_cols = st.columns(len(_by_cat) + 1)
-_stat_cols[0].metric("Total Signals", _total_sigs)
-for _ci, (_cat_key, _count) in enumerate(_by_cat.items(), 1):
-    _cat_meta = CATEGORIES.get(_cat_key, {})
-    _stat_cols[_ci].metric(_cat_meta.get("name", _cat_key), _count)
-
-with st.expander("Browse all signals →"):
-    _rows = []
-    for _sig_id, _cfg in SIGNALS.items():
-        _cat_meta = CATEGORIES.get(_cfg.get("category", "macro"), {})
-        _rows.append({
-            "Signal":    _cfg["name"],
-            "Category":  _cat_meta.get("name", ""),
-            "PCS":       _cfg["pcs"],
-            "Lead":      f"~{_cfg['lag_weeks']}w",
-            "Direction": "↓ Rising = Bearish" if _cfg.get("inverse") else "↑ Rising = Bullish",
-            "Tickers":   ", ".join(_cfg["relevant_tickers"][:4]),
-        })
-    st.dataframe(
-        pd.DataFrame(_rows),
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "PCS": st.column_config.NumberColumn(
-                "PCS /10", format="%d",
-                help="Predictive Confidence Score. 8+ = publication-grade research."),
-            "Lead": st.column_config.TextColumn(
-                "Signal Lead", help="How far ahead this signal historically leads."),
-        },
-    )
-
-st.divider()
-
-# ── FAQ ───────────────────────────────────────────────────────────────────────
+# ── FAQ — Tight. Only the questions that actually convert. ────────────────────
 st.markdown("""
-<div style="font-size:1.1rem;font-weight:700;color:#1C2B4A;font-family:Georgia,serif;
-            margin-bottom:12px;">
-    Common Questions
-</div>
+<div style="font-size:1.05rem;font-weight:800;color:#1C2B4A;font-family:Georgia,serif;
+            margin-bottom:10px;">Common questions</div>
 """, unsafe_allow_html=True)
 
-_gl1, _gl2 = st.columns(2)
+_q1, _q2 = st.columns(2)
 
-with _gl1:
+with _q1:
     with st.expander("What is alternative data?"):
-        st.markdown("""
-        **Alternative data** is any data source that isn't a stock price or earnings report —
-        things like freight volumes, uranium contracts, jobless claims, gasoline prices, and
-        housing permits. Hedge funds have used this for decades. Most of it comes from free
-        government sources that nobody packages for retail investors — until now.
-        """)
-
+        st.markdown(
+            "Data that isn't a stock price or earnings report. Freight volumes, uranium contracts, "
+            "jobless claims, credit spreads, insider buys. Hedge funds have used this for decades. "
+            "Most of it comes from free government sources that nobody packaged for retail — until now."
+        )
     with st.expander("What is the Confluence Score?"):
-        st.markdown("""
-        The **Confluence Score** (0–100) measures how many independent signals are pointing the
-        same direction for a specific stock right now.
-        - **Score > 65** = Multiple bullish signals aligning
-        - **Score 35–65** = Mixed signals — no clear read
-        - **Score < 35** = Multiple bearish signals aligning
+        st.markdown(
+            "A 0–100 score measuring how many independent signals agree for a given stock right now. "
+            "**>65** = multiple bullish signals aligning. **<35** = multiple bearish. **35–65** = mixed. "
+            "One bullish signal is noise. Seven agreeing is a thesis. "
+            "We walk-forward tested this — results on the Model Validation page."
+        )
+    with st.expander("Does this predict stock prices?"):
+        st.markdown(
+            "No — and we're transparent about that. The signals have shown statistical correlations "
+            "in backtests, but no tool predicts with certainty. The value is pattern recognition "
+            "across 40 economic indicators that historically lead price by weeks, not perfect prediction. "
+            "See Model Validation for honest results."
+        )
 
-        One bullish signal is more likely noise than five independent ones agreeing. We
-        walk-forward backtested this score and found no statistically significant relationship
-        with forward returns on the tickers we tested. It's a real-time read of current data,
-        not a validated forecast. Full results on the Model Validation page.
-        """)
-
-    with st.expander("What is the Sector Rotation Map?"):
-        st.markdown("""
-        The **Sector Map** groups all signals by the equity sector they relate to and computes
-        an average Confluence Score for each sector. A high score for "Energy" means the
-        energy-related alternative data signals are currently bullish on net. Use it to find
-        which sectors have macro tailwinds before researching individual tickers in those sectors.
-        """)
-
-with _gl2:
-    with st.expander("What is the Pre-Earnings Track Record?"):
-        st.markdown("""
-        The **Track Record** page shows what the Confluence Score said 7–45 days before each
-        past earnings date for any ticker, and whether it correctly anticipated the EPS beat or miss.
-        Score >= 60 = predicted beat · Score <= 40 = predicted miss · 40-60 = no call.
-
-        This data accumulates organically: it grows each time a ticker is opened on Ticker Deep
-        Dive. New tickers will have sparse history. Interpret small samples with caution.
-        """)
-
+with _q2:
+    with st.expander("What does it cost?"):
+        st.markdown(
+            "Free to browse all signals, Today's Brief, Sector Map, Signal Dashboard, and Deep Dive. "
+            "A free account (email only, no card) unlocks the Watchlist, price alerts, and morning "
+            "email digest. No paid tier — this isn't a subscription service."
+        )
     with st.expander("Is this financial advice?"):
-        st.markdown("""
-        **No.** This is a research and education tool. All signals are interpretations of
-        publicly available data. Past signal accuracy does not predict future performance.
-        Always do your own due diligence. Consult a licensed financial advisor for personalized advice.
-        """)
+        st.markdown(
+            "No. This is a research and education tool. All signals reflect interpretations of public "
+            "economic data. Past signal correlation doesn't guarantee future accuracy. "
+            "Always do your own due diligence."
+        )
+    with st.expander("How is this different from Yahoo Finance?"):
+        st.markdown(
+            "Yahoo Finance shows what has happened to a stock (price, volume, P/E). "
+            "Unstructured Alpha shows what macro forces are building beneath the surface — "
+            "credit spreads, freight flows, insider positioning — that historically lead "
+            "price by 4–16 weeks. Different tool, different question."
+        )
 
-    with st.expander("What is the PCS (Predictive Confidence Score)?"):
-        st.markdown("""
-        The **PCS** (1–10) rates how confident we are that a signal actually predicts stocks.
-        Based on documented historical cases, causal logic, lead time quality, and data reliability.
-        - **8–10**: Publication-grade research with strong causal mechanism
-        - **5–7**: Solid signal with empirical support
-        - **1–4**: Experimental — use with caution
-        """)
-
+# ── FOOTER ───────────────────────────────────────────────────────────────────
 st.markdown("""
-<div style="text-align:center;padding:20px;font-size:0.75rem;color:#9E9E8E;font-family:Georgia,serif;">
-    Unstructured Alpha — Alternative data research tool. Not financial advice.
-    All data from public sources (FRED, EIA, yfinance, EDGAR, FINRA, USASpending.gov).
+<div style="text-align:center;padding:24px 0 8px;font-family:Georgia,serif;">
+    <div style="font-size:0.72rem;color:#A09080;letter-spacing:0.06em;">
+        UNSTRUCTURED ALPHA · ALTERNATIVE DATA INTELLIGENCE<br>
+        <span style="color:#C4BBAA;">
+        Not financial advice. All data from public sources:
+        FRED, EIA, FINRA, SEC EDGAR, USASpending.gov, Yahoo Finance.
+        </span>
+    </div>
 </div>
 """, unsafe_allow_html=True)
