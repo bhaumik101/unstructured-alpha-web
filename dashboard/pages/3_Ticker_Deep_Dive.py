@@ -103,7 +103,10 @@ st.divider()
 
 # ── Ticker Selection ──────────────────────────────────────────────────────────
 # If navigating from the Stock Screener, pre-populate the ticker
-_default_ticker = st.session_state.get("selected_ticker", "CCJ")
+# Read ticker from URL query param (?ticker=NVDA) or session state (from screener/watchlist).
+# This makes shareable URLs work: unstructuredalpha.com/Ticker_Deep_Dive?ticker=NVDA
+_url_ticker = st.query_params.get("ticker", "")
+_default_ticker = _url_ticker.upper().strip() if _url_ticker else st.session_state.get("selected_ticker", "CCJ")
 
 col_top1, col_top2, col_top3 = st.columns([2, 1, 2])
 
@@ -284,6 +287,23 @@ if section == "Overview":
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+    # ── Share strip ───────────────────────────────────────────────────────────
+    _share_c1, _share_c2, _ = st.columns([1, 1, 3])
+    with _share_c1:
+        if st.button("📤 Share this analysis", key="share_btn", help="Copy a link to this ticker's analysis"):
+            st.session_state["_tdd_show_share"] = True
+    with _share_c2:
+        if st.button("⭐ Add to Watchlist", key="add_wl_btn", help="Track this ticker with alerts"):
+            st.session_state["chart_ticker"] = ticker_input
+            st.switch_page("pages/10_Watchlist.py")
+    if st.session_state.get("_tdd_show_share"):
+        _share_url = f"https://unstructuredalpha.com/Ticker_Deep_Dive?ticker={ticker_input}"
+        st.code(_share_url, language=None)
+        st.caption("Copy the link above and share it. The page loads directly to this ticker's analysis.")
+        if st.button("✕ Dismiss", key="share_dismiss"):
+            st.session_state.pop("_tdd_show_share", None)
+            st.rerun()
 
     with st.expander("What does the Confluence Score mean?"):
         st.markdown(f"""

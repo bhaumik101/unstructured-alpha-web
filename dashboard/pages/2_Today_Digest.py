@@ -136,7 +136,7 @@ st.caption(f"{_today_str} — signal state, score movers, and watchlist activity
 
 st.markdown('<div class="section-header">SIGNAL PULSE</div>', unsafe_allow_html=True)
 
-with st.spinner("Loading signal pulse (40 signals — cached 2 hours)…"):
+with st.spinner("Loading signal pulse (38 signals — cached 2 hours)…"):
     _all_scores = get_all_signal_scores()
 
 # "as of" reflects when this page rendered, which is close enough — the data
@@ -480,6 +480,44 @@ else:
                     )
                 else:
                     st.caption("No score recorded yet — open on Ticker Deep Dive to generate one.")
+
+# ── Email Digest Nudge ────────────────────────────────────────────────────────
+# Psychology: show after user has seen value (full page) — reciprocity principle.
+# Only show if not already opted-in.
+_cur_user = st.session_state.get("user")
+_already_opted_in = False
+if _cur_user:
+    try:
+        from utils.auth import get_digest_optin
+        _already_opted_in = get_digest_optin(_cur_user["id"])
+    except Exception:
+        pass
+
+if not _already_opted_in:
+    st.markdown("""
+<div style="background:#1C2B4A;border-radius:10px;padding:20px 24px;margin:20px 0 14px;
+            font-family:Georgia,serif;display:flex;align-items:center;
+            justify-content:space-between;flex-wrap:wrap;gap:14px;">
+    <div>
+        <div style="font-size:0.68rem;letter-spacing:0.12em;color:#C9A84C;font-weight:600;
+                    text-transform:uppercase;margin-bottom:4px;">WANT THIS IN YOUR INBOX?</div>
+        <div style="font-size:0.95rem;font-weight:700;color:#FAF7F0;">
+            Get Today's Brief every morning at 7 AM ET
+        </div>
+        <div style="font-size:0.80rem;color:#A0A8B8;margin-top:4px;line-height:1.5;">
+            Free. No spam. 38 signals distilled into a 2-minute read. Unsubscribe any time.
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+    _nc1, _nc2, _ = st.columns([1.4, 1.4, 2])
+    with _nc1:
+        if st.button("📬 Create free account", use_container_width=True, type="primary", key="digest_signup_cta"):
+            st.switch_page("pages/home_page.py")
+    with _nc2:
+        if _cur_user:
+            if st.button("Enable in Watchlist →", use_container_width=True, key="digest_enable_cta"):
+                st.switch_page("pages/10_Watchlist.py")
 
 st.markdown("""
 <div class="disclaimer">

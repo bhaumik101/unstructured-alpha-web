@@ -91,7 +91,7 @@ st.markdown(f"""
     </div>
     <div style="font-size:1.0rem;color:#5C5650;margin:16px auto 0;max-width:580px;
                 line-height:1.65;">
-        40 macro signals — Fed policy, energy flows, credit spreads, insider buying —
+        38 macro signals — Fed policy, energy flows, credit spreads, insider buying —
         scored in real time and mapped to the stocks you actually hold.
         The same data Goldman watches. Now accessible to everyone.
     </div>
