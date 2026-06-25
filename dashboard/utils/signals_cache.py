@@ -52,6 +52,7 @@ second fetch call. Other pages simply ignore it. The incremental pickle cost (~2
 for 40 Series) is negligible vs. the saved API round-trips.
 """
 
+import gc
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -117,4 +118,5 @@ def get_all_signal_scores(_v: int = 1) -> dict:
                 "is_synthetic":  False,
                 "error":         True,
             }
+    gc.collect()
     return results

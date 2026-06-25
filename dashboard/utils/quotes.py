@@ -60,7 +60,7 @@ def _pct_change(close: pd.Series, period: str) -> float | None:
         return None
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False, max_entries=200)
 def get_quote(ticker: str, _v: int = 5) -> dict:
     """
     Fetch full available daily history for `ticker` and pre-compute
@@ -112,7 +112,7 @@ def get_quote(ticker: str, _v: int = 5) -> dict:
         return {}
 
 
-@st.cache_data(ttl=900, show_spinner=False)
+@st.cache_data(ttl=900, show_spinner=False, max_entries=20)
 def get_batch_quotes(tickers: list, _v: int = 8) -> dict:
     """
     {ticker: get_quote(ticker) result} for every ticker in `tickers`.

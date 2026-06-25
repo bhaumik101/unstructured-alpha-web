@@ -82,7 +82,7 @@ def is_synthetic(s: pd.Series) -> bool:
     return bool(getattr(s, "attrs", {}).get("synthetic", False))
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=60)
 def fetch_fred(series_id: str, start: str, end: str, api_key: str = "") -> pd.Series:
     """
     Fetch a FRED data series.
@@ -133,7 +133,7 @@ def fetch_fred(series_id: str, start: str, end: str, api_key: str = "") -> pd.Se
 # EIA — Energy Information Administration (crude stocks, gas storage)
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=15)
 def fetch_eia(series_id: str, start: str, end: str, api_key: str = "") -> pd.Series:
     """
     Fetch an EIA data series via the API v2 backward-compatibility endpoint
@@ -178,7 +178,7 @@ def fetch_eia(series_id: str, start: str, end: str, api_key: str = "") -> pd.Ser
 # yfinance — Stock & Commodity Prices
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=150)
 def fetch_price(ticker: str, start: str, end: str) -> pd.Series:
     """Fetch daily closing price. No API key required."""
     try:
@@ -191,7 +191,7 @@ def fetch_price(ticker: str, start: str, end: str) -> pd.Series:
         return pd.Series(dtype=float, name=ticker)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=80)
 def fetch_volume(ticker: str, start: str, end: str) -> pd.Series:
     """
     Fetch daily trading volume -- a separate function from fetch_price()
@@ -213,7 +213,7 @@ def fetch_volume(ticker: str, start: str, end: str) -> pd.Series:
         return pd.Series(dtype=float, name=ticker)
 
 
-@st.cache_data(ttl=60, show_spinner=False)
+@st.cache_data(ttl=60, show_spinner=False, max_entries=100)
 def fetch_live_quote(ticker: str) -> dict:
     """
     Fetch current price, day change, and pre/post-market data for a ticker.
@@ -306,7 +306,7 @@ def fetch_signal_series(cfg: dict, start: str, end: str) -> pd.Series:
         return pd.Series(dtype=float)
 
 
-@st.cache_data(ttl=1800, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False, max_entries=10)
 def fetch_basket(tickers: list, start: str, end: str) -> pd.Series:
     """Fetch an equal-weight composite index of multiple tickers."""
     series_list = []
@@ -339,7 +339,7 @@ _COT_MARKET_MAP = {
     "silver":      "SILVER",
 }
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=10)
 def fetch_cot(market: str = "copper") -> pd.DataFrame:
     """
     Fetch CFTC Commitments of Traders data.
@@ -406,7 +406,7 @@ def fetch_cot(market: str = "copper") -> pd.DataFrame:
 # USASpending.gov — Federal Contract Award Velocity
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=7200, show_spinner=False)
+@st.cache_data(ttl=7200, show_spinner=False, max_entries=50)
 def fetch_federal_contracts(company_name: str, years: int = 2) -> pd.DataFrame:
     """
     Fetch federal contract awards for a company from USASpending.gov.
@@ -465,7 +465,7 @@ def fetch_federal_contracts(company_name: str, years: int = 2) -> pd.DataFrame:
 # SEC EDGAR — Form 4 Insider Transactions
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=50)
 def fetch_insider_trades(ticker: str, days: int = 180) -> pd.DataFrame:
     """
     Fetch recent Form 4 insider transactions from SEC EDGAR full-text search.
@@ -513,7 +513,7 @@ def fetch_insider_trades(ticker: str, days: int = 180) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=21600, show_spinner=False)
+@st.cache_data(ttl=21600, show_spinner=False, max_entries=30)
 def fetch_insider_transactions_detail(ticker: str, days: int = 180, max_filings: int = 20) -> pd.DataFrame:
     """
     Fetch and parse ACTUAL Form 4 transaction detail (buy/sell direction,
@@ -642,7 +642,7 @@ def fetch_insider_transactions_detail(ticker: str, days: int = 180, max_filings:
 # FINRA — Consolidated Equity Short Interest
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=43200, show_spinner=False)
+@st.cache_data(ttl=43200, show_spinner=False, max_entries=50)
 def fetch_short_interest(ticker: str, years: float = 1.5) -> pd.DataFrame:
     """
     Fetch real, exchange-listed short interest history from FINRA's free,
@@ -717,7 +717,7 @@ _THIRTEENF_NS = {"t": "http://www.sec.gov/edgar/document/thirteenf/informationta
 _ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=20)
 def fetch_13f_holdings(cik: str, fund_name: str, max_filings: int = 2) -> pd.DataFrame:
     """
     Fetch a fund's most recent Form 13F-HR holdings, real and live, for the
@@ -858,7 +858,7 @@ def fetch_13f_holdings(cik: str, fund_name: str, max_filings: int = 2) -> pd.Dat
 # arXiv — Quantum Computing Paper Velocity
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=5)
 def fetch_arxiv_velocity(
     query: str = "qubit error correction fault tolerant quantum computing",
     max_results: int = 300,
@@ -905,7 +905,7 @@ def fetch_arxiv_velocity(
 # openFDA — Drug Approval Velocity (healthcare differentiator)
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=86400, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=3)
 def fetch_fda_approval_velocity(max_results: int = 1000) -> pd.Series:
     """
     Fetch FDA drug application approval velocity from openFDA's free,
@@ -1007,7 +1007,7 @@ def _synthetic_signal(series_id: str, start: str, end: str) -> pd.Series:
 # yfinance — Earnings Dates + News Headlines
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=3600 * 6, show_spinner=False)
+@st.cache_data(ttl=3600 * 6, show_spinner=False, max_entries=50)
 def fetch_earnings_dates(ticker: str) -> list[dict]:
     """
     Returns up to ~5 earnings dates (last 4 quarters + next upcoming) for a
@@ -1062,7 +1062,7 @@ def fetch_earnings_dates(ticker: str) -> list[dict]:
         return []
 
 
-@st.cache_data(ttl=3600 * 2, show_spinner=False)
+@st.cache_data(ttl=3600 * 2, show_spinner=False, max_entries=50)
 def fetch_ticker_news(ticker: str) -> list[dict]:
     """
     Returns up to 12 recent news items for a ticker via yfinance.Ticker.news.
