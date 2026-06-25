@@ -218,6 +218,64 @@ signal_snapshots = Table(
 )
 
 
+# Prediction Log (added 2026-06-25). Every time the machine fires a
+# convergence event or a ticker's confluence score crosses 70+ / 35-,
+# we log the prediction with the entry price. When the forward windows
+# expire (4w / 8w / 12w), we resolve the return automatically on the
+# next page load that calls resolve_pending_predictions(). This creates
+# an auditable, public track record — something no free tool offers.
+# event_type: "convergence" | "score_cross_bull" | "score_cross_bear"
+prediction_log = Table(
+    "prediction_log", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("ticker", String(16), nullable=False),
+    Column("event_type", String(32), nullable=False),
+    Column("direction", String(8), nullable=False),     # "bull" | "bear"
+    Column("score_at_event", Float),
+    Column("signal_count", Integer),
+    Column("price_at_event", Float),
+    Column("event_date", String(10), nullable=False),   # YYYY-MM-DD
+    Column("status", String(16), nullable=False, server_default="'pending'"),  # pending | resolved
+    Column("price_4w",   Float),
+    Column("price_8w",   Float),
+    Column("price_12w",  Float),
+    Column("return_4w",  Float),   # pct
+    Column("return_8w",  Float),
+    Column("return_12w", Float),
+    Column("correct_4w",  Integer),  # 1 / 0 / NULL
+    Column("correct_8w",  Integer),
+    Column("correct_12w", Integer),
+    Column("created_at", String(64), nullable=False),
+    UniqueConstraint("ticker", "event_date", "event_type", name="uq_pred_ticker_date_type"),
+)
+
+# System notifications — global, not user-scoped.
+# Stores convergence events, regime changes, near-threshold warnings.
+# Logged once per event; the header bell icon reads unread count from here.
+# Users see all system notifications (no per-user filtering for now —
+# per-watchlist filtering is a future personalisation step).
+system_notifications = Table(
+    "system_notifications", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("notif_type", String(32), nullable=False),   # "convergence" | "regime_change" | "near_flip" | "prediction_resolved"
+    Column("title", String(255), nullable=False),
+    Column("body", Text, nullable=False),
+    Column("ticker", String(16)),                       # NULL for regime-level events
+    Column("direction", String(8)),                     # "bull" | "bear" | NULL
+    Column("created_at", String(64), nullable=False),
+)
+
+# Per-user read receipts for system notifications
+notification_reads = Table(
+    "notification_reads", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("notification_id", Integer, ForeignKey("system_notifications.id"), nullable=False),
+    Column("read_at", String(64), nullable=False),
+    UniqueConstraint("user_id", "notification_id", name="uq_notif_read"),
+)
+
+
 def _migrate_users_table() -> None:
     """
     metadata.create_all() only creates tables that don't exist yet -- it

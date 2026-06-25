@@ -408,6 +408,220 @@ def get_signal_diff(days_back: int = 7) -> dict:
         "days_back":       days_back,
     }
 
+def get_signals_near_threshold(margin: float = 5.0) -> dict:
+    """
+    Find signals within `margin` points of a status-change threshold.
+
+    Thresholds (matching signal card color bands in the UI):
+        Bearish flip: score ≤ 35  → watch for score approaching 35 from above
+        Bullish flip: score ≥ 65  → watch for score approaching 65 from below
+
+    Returns:
+        {
+            "near_bullish_flip": [  # currently neutral/bearish, approaching ≥65
+                {signal_id, name, score, pts_away, trend, velocity_per_week, category}, ...
+            ],
+            "near_bearish_flip": [  # currently neutral/bullish, approaching ≤35
+                {signal_id, name, score, pts_away, trend, velocity_per_week, category}, ...
+            ],
+        }
+
+    Each entry is sorted by pts_away ascending (closest first), velocity
+    used to estimate how many weeks until threshold.
+
+    This is the single most actionable section on the site: by the time a
+    signal HAS flipped, it's already news. This shows what's ABOUT to flip.
+    """
+    from utils.signals_cache import get_all_signal_scores
+    from utils.config import SIGNALS
+
+    BULL_THRESHOLD = 65.0
+    BEAR_THRESHOLD = 35.0
+
+    try:
+        current = get_all_signal_scores()
+        trends  = get_signal_trends(days_back=7)
+    except Exception:
+        return {"near_bullish_flip": [], "near_bearish_flip": []}
+
+    near_bull, near_bear = [], []
+
+    for sig_id, sv in current.items():
+        if sv.get("error"):
+            continue
+        score   = float(sv.get("score", 50) or 50)
+        status  = sv.get("status", "neutral")
+        name    = sv.get("name") or SIGNALS.get(sig_id, {}).get("name", sig_id)
+        category = sv.get("category") or SIGNALS.get(sig_id, {}).get("category", "")
+
+        trend_data = trends.get(sig_id, {})
+        delta_7d   = trend_data.get("delta", 0.0)           # pts change over 7 days
+        velocity   = round(delta_7d, 1)                      # pts per week
+        trend_dir  = trend_data.get("trend", "flat")
+
+        # Near bullish flip: score is below 65 but within margin, and trending UP
+        if status in ("neutral", "bearish") and (BULL_THRESHOLD - score) <= margin:
+            pts_away = round(BULL_THRESHOLD - score, 1)
+            # ETA: how many weeks at current velocity (None if flat/wrong direction)
+            eta_weeks: float | None = None
+            if velocity > 0 and pts_away > 0:
+                eta_weeks = round(pts_away / velocity, 1)
+            near_bull.append({
+                "signal_id":        sig_id,
+                "name":             name,
+                "score":            round(score, 1),
+                "pts_away":         pts_away,
+                "trend":            trend_dir,
+                "velocity_per_week": velocity,
+                "eta_weeks":        eta_weeks,
+                "category":         category,
+                "current_status":   status,
+            })
+
+        # Near bearish flip: score is above 35 but within margin, and trending DOWN
+        if status in ("neutral", "bullish") and (score - BEAR_THRESHOLD) <= margin:
+            pts_away = round(score - BEAR_THRESHOLD, 1)
+            eta_weeks = None
+            if velocity < 0 and pts_away > 0:
+                eta_weeks = round(pts_away / abs(velocity), 1)
+            near_bear.append({
+                "signal_id":        sig_id,
+                "name":             name,
+                "score":            round(score, 1),
+                "pts_away":         pts_away,
+                "trend":            trend_dir,
+                "velocity_per_week": velocity,
+                "eta_weeks":        eta_weeks,
+                "category":         category,
+                "current_status":   status,
+            })
+
+    # Sort by pts_away ascending (closest to flipping first)
+    near_bull.sort(key=lambda x: x["pts_away"])
+    near_bear.sort(key=lambda x: x["pts_away"])
+
+    return {
+        "near_bullish_flip": near_bull,
+        "near_bearish_flip": near_bear,
+    }
+
+
+def compute_signal_correlation_matrix(days_back: int = 90) -> dict:
+    """
+    Compute pairwise Pearson correlations across all signal score histories.
+
+    Returns:
+        {
+            "signals":        list[str],      # signal IDs in matrix order
+            "names":          list[str],      # display names
+            "matrix":         list[list[float]],   # n×n correlation matrix
+            "effective_n":    float,          # "independent signal count" via eigenvalues
+            "total_signals":  int,
+            "days_used":      int,
+            "sparse":         bool,           # True if <10 signals had enough history
+        }
+
+    "effective_n" is the Effective Number of Independent Signals from
+    the eigenvalue decomposition of the correlation matrix. This is the
+    number that answers: "how many truly independent data points are these
+    N signals?" If 20 signals have effective_n=6, then 14 are redundant
+    with the other 6 — bulk conviction is lower than raw count implies.
+    """
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    try:
+        with db.engine.begin() as conn:
+            rows = conn.execute(
+                select(signal_snapshots)
+                .where(signal_snapshots.c.snapshot_date >= cutoff)
+                .order_by(signal_snapshots.c.signal_id, signal_snapshots.c.snapshot_date)
+            ).mappings().all()
+    except Exception:
+        return {"sparse": True, "signals": [], "names": [], "matrix": [],
+                "effective_n": 0.0, "total_signals": 0, "days_used": days_back}
+
+    if not rows:
+        return {"sparse": True, "signals": [], "names": [], "matrix": [],
+                "effective_n": 0.0, "total_signals": 0, "days_used": days_back}
+
+    from collections import defaultdict
+    from utils.config import SIGNALS
+    from utils.signals_cache import get_all_signal_scores
+
+    # Build date × signal pivot
+    by_sig: dict[str, dict[str, float]] = defaultdict(dict)
+    for r in rows:
+        by_sig[str(r["signal_id"])][r["snapshot_date"]] = float(r["score"])
+
+    # Only keep signals with ≥14 data points (2+ weeks)
+    sig_ids   = [s for s, d in by_sig.items() if len(d) >= 14]
+    if len(sig_ids) < 3:
+        return {"sparse": True, "signals": sig_ids, "names": [],
+                "matrix": [], "effective_n": 0.0,
+                "total_signals": len(sig_ids), "days_used": days_back}
+
+    # Union of all dates
+    all_dates = sorted({d for s in sig_ids for d in by_sig[s].keys()})
+
+    # Build matrix: fill missing dates with NaN, then drop rows with >30% NaN
+    import numpy as np
+
+    n_sig  = len(sig_ids)
+    n_date = len(all_dates)
+    mat    = np.full((n_date, n_sig), np.nan)
+    for j, sig in enumerate(sig_ids):
+        for i, dt in enumerate(all_dates):
+            if dt in by_sig[sig]:
+                mat[i, j] = by_sig[sig][dt]
+
+    # Drop date rows where >30% of signals are NaN
+    valid_rows = np.sum(~np.isnan(mat), axis=1) >= (n_sig * 0.7)
+    mat = mat[valid_rows]
+
+    # Forward-fill NaN within each column (signal)
+    for j in range(n_sig):
+        col = mat[:, j]
+        mask = np.isnan(col)
+        idx  = np.where(~mask, np.arange(len(col)), 0)
+        np.maximum.accumulate(idx, out=idx)
+        col[mask] = col[idx[mask]]
+        mat[:, j] = col
+
+    # Drop columns still containing NaN after ffill
+    valid_cols = ~np.any(np.isnan(mat), axis=0)
+    mat      = mat[:, valid_cols]
+    sig_ids  = [s for s, v in zip(sig_ids, valid_cols) if v]
+
+    if mat.shape[1] < 3:
+        return {"sparse": True, "signals": sig_ids, "names": [],
+                "matrix": [], "effective_n": 0.0,
+                "total_signals": len(sig_ids), "days_used": days_back}
+
+    # Pearson correlation matrix
+    corr = np.corrcoef(mat, rowvar=False)
+
+    # Effective N: sum of eigenvalues ÷ max_eigenvalue
+    eigvals = np.linalg.eigvalsh(corr)
+    eigvals = np.maximum(eigvals, 0)  # clip tiny negatives from floating-point
+    effective_n = round(float(np.sum(eigvals) / max(eigvals.max(), 1e-9)), 2)
+
+    # Names lookup
+    curr = get_all_signal_scores()
+    names = []
+    for sid in sig_ids:
+        sv = curr.get(sid, {})
+        names.append(sv.get("name") or SIGNALS.get(sid, {}).get("name", sid))
+
+    return {
+        "signals":       sig_ids,
+        "names":         names,
+        "matrix":        corr.round(3).tolist(),
+        "effective_n":   effective_n,
+        "total_signals": len(sig_ids),
+        "days_used":     days_back,
+        "sparse":        False,
+    }
+
+
 def compute_sector_percentile(ticker: str, score: float, max_peers: int = 6) -> dict:
     """
     Where `score` (the ticker's CURRENT, just-computed score) ranks

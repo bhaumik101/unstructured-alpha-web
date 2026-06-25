@@ -220,6 +220,52 @@ try:
 except Exception:
     pass
 
+# ── Prediction Log: auto-log score crossings + resolve pending predictions ────
+# Runs on every TDD page load. Two jobs:
+#   1. Log today's score if it crossed 70+ (bull) or 35- (bear) for the first
+#      time — idempotent via unique(ticker, date, event_type) constraint.
+#   2. Resolve any pending predictions whose forward windows have expired.
+# Both are best-effort and completely silent — never block or crash this page.
+try:
+    from utils.prediction_log import log_prediction, resolve_pending
+    _score_val = confluence["overall_score"]
+    _case_val  = confluence["case"]
+    _history   = get_score_history(ticker_input, days=7)
+
+    # Only log if the score JUST crossed — not if it's been here for weeks.
+    # Proxy: previous score was on the other side of the threshold.
+    _prev_score = float(_history[-2]["score"]) if len(_history) >= 2 else _score_val
+    if _case_val == "BULL" and _score_val >= 70 and _prev_score < 70:
+        # Fetch current price for entry logging
+        try:
+            import yfinance as yf
+            _entry_px = float(yf.Ticker(ticker_input).info.get("currentPrice") or
+                              yf.Ticker(ticker_input).info.get("regularMarketPrice") or 0) or None
+        except Exception:
+            _entry_px = None
+        log_prediction(
+            ticker=ticker_input, event_type="score_cross_bull", direction="bull",
+            score=_score_val, price=_entry_px,
+            signal_count=confluence.get("bull_count", 0),
+        )
+    elif _case_val == "BEAR" and _score_val <= 35 and _prev_score > 35:
+        try:
+            import yfinance as yf
+            _entry_px = float(yf.Ticker(ticker_input).info.get("currentPrice") or
+                              yf.Ticker(ticker_input).info.get("regularMarketPrice") or 0) or None
+        except Exception:
+            _entry_px = None
+        log_prediction(
+            ticker=ticker_input, event_type="score_cross_bear", direction="bear",
+            score=_score_val, price=_entry_px,
+            signal_count=confluence.get("bear_count", 0),
+        )
+
+    # Resolve pending predictions (cheap — skips if nothing is due)
+    resolve_pending(max_resolve=10)
+except Exception:
+    pass
+
 st.divider()
 
 section = st.segmented_control(
@@ -1316,6 +1362,134 @@ if section == "Overview":
                             st.info("Could not compute forward returns for the crossing dates found.")
         except Exception as _pb_err:
             st.caption(f"Playbook unavailable: {_pb_err}")
+
+    # ── Regime-Conditional Return Distributions ───────────────────────────────────
+    # For each score bucket (50–60, 60–70, 70–80, 80+), show what actual
+    # forward returns looked like across ALL tickers in our history when they
+    # were in that score range. Context for "what does score X typically mean?"
+    with st.expander("📈 What does this score level historically imply? — Return Distribution"):
+        try:
+            _all_score_hist = []
+            # Pull score history for this ticker
+            _this_hist = get_score_history(ticker_input, days=365)
+            if len(_this_hist) < 5:
+                st.info("Not enough score history yet. Return distributions accumulate as this ticker is viewed over time.")
+            else:
+                import yfinance as yf
+
+                _px_data = yf.download(ticker_input, period="2y", auto_adjust=True, progress=False)
+                if _px_data.empty:
+                    st.info("Price data unavailable for return distribution.")
+                else:
+                    _px_c = _px_data["Close"].squeeze()
+                    _BUCKETS = [
+                        (50, 60,  "50–60 (Neutral-leaning bull)",   "#8B7355"),
+                        (60, 70,  "60–70 (Moderate bull)",          "#2E7D32"),
+                        (70, 80,  "70–80 (Strong bull)",            "#1B5E20"),
+                        (80, 100, "80–100 (High-conviction bull)",  "#003300"),
+                        (20, 35,  "20–35 (Bear signal)",            "#7B1010"),
+                        (35, 50,  "35–50 (Neutral-leaning bear)",   "#B71C1C"),
+                    ]
+                    _bucket_results = {}
+                    for _lo, _hi, _label, _col in _BUCKETS:
+                        _returns = []
+                        for _snap in _this_hist:
+                            _s = float(_snap["score"] or 50)
+                            if _lo <= _s < _hi:
+                                _dt = pd.Timestamp(_snap["snapshot_date"])
+                                try:
+                                    for _weeks, _lbl in [(4, "4w"), (8, "8w"), (12, "12w")]:
+                                        _fwd = _dt + pd.Timedelta(weeks=_weeks)
+                                        if _fwd <= _px_c.index[-1]:
+                                            _ep = float(_px_c.asof(_dt))
+                                            _fp = float(_px_c.asof(_fwd))
+                                            if _ep > 0:
+                                                _returns.append({
+                                                    "weeks": _lbl,
+                                                    "ret": round((_fp / _ep - 1) * 100, 2)
+                                                })
+                                except Exception:
+                                    pass
+                        if _returns:
+                            _df_r = pd.DataFrame(_returns)
+                            _bucket_results[_label] = {
+                                "color":  _col,
+                                "count":  len(_this_hist),
+                                "by_week": {
+                                    w: _df_r[_df_r["weeks"] == w]["ret"].tolist()
+                                    for w in ["4w", "8w", "12w"]
+                                },
+                            }
+
+                    if not _bucket_results:
+                        st.info("No score readings in any bucket yet — more history needed.")
+                    else:
+                        _current_score = confluence["overall_score"]
+                        # Find which bucket the current score falls in
+                        _curr_bucket_label = None
+                        for _lo, _hi, _label, _ in _BUCKETS:
+                            if _lo <= _current_score < _hi:
+                                _curr_bucket_label = _label
+                                break
+
+                        if _curr_bucket_label:
+                            st.markdown(
+                                f'<div style="background:#1C2B4A;border-radius:6px;padding:8px 14px;'
+                                f'margin-bottom:12px;font-family:Georgia,serif;">'
+                                f'<span style="color:#C9A84C;font-size:0.70rem;text-transform:uppercase;'
+                                f'letter-spacing:0.08em;">CURRENT SCORE BUCKET</span> '
+                                f'<span style="color:#EEF3FA;font-weight:700;">{_curr_bucket_label}</span>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                        fig_dist = go.Figure()
+                        _shown = 0
+                        for _label, _dat in _bucket_results.items():
+                            _is_curr = (_label == _curr_bucket_label)
+                            for _wk in ["4w", "8w", "12w"]:
+                                _vals = _dat["by_week"].get(_wk, [])
+                                if not _vals:
+                                    continue
+                                fig_dist.add_trace(go.Box(
+                                    y=_vals,
+                                    name=f"{_label[:18]} {_wk}",
+                                    marker_color=_dat["color"],
+                                    opacity=1.0 if _is_curr else 0.45,
+                                    boxmean=True,
+                                    hovertemplate=(
+                                        f"<b>{_label}</b><br>"
+                                        f"Horizon: {_wk}<br>"
+                                        f"Median: %{{median:.1f}}%<br>"
+                                        f"Observations: {len(_vals)}"
+                                        f"<extra></extra>"
+                                    ),
+                                ))
+                                _shown += 1
+
+                        if _shown > 0:
+                            fig_dist.add_hline(y=0, line_dash="dot", line_color="#8B7355", opacity=0.5)
+                            fig_dist.update_layout(
+                                title=dict(
+                                    text=f"{ticker_input} — Forward return distributions by score bucket",
+                                    font=dict(size=14, color="#1C2B4A"), x=0.5,
+                                ),
+                                yaxis_title="Forward Return (%)",
+                                height=380,
+                                paper_bgcolor="#FAF7F0", plot_bgcolor="#FAF7F0",
+                                margin=dict(l=50, r=20, t=50, b=60),
+                                font=dict(family="Georgia, serif", color="#4A4440"),
+                                showlegend=True,
+                                legend=dict(font=dict(size=9)),
+                            )
+                            st.plotly_chart(fig_dist, use_container_width=True)
+                            st.caption(
+                                f"Box plot of {ticker_input}'s actual forward returns at each time horizon "
+                                f"when its score was in each bucket. Current score bucket highlighted. "
+                                f"⚠️ Small samples — interpret with caution. History grows with each visit."
+                            )
+        except Exception:
+            pass
 
     st.divider()
 

@@ -26,7 +26,10 @@ from utils.config import SIGNALS, TICKERS
 from utils.db import engine, score_snapshots, init_db
 from utils.header import render_header, render_sidebar_base, go_to_ticker
 from utils.quotes import get_batch_quotes
-from utils.score_history import record_all_signal_snapshots, get_signal_flips, get_signal_diff
+from utils.score_history import (
+    record_all_signal_snapshots, get_signal_flips, get_signal_diff,
+    get_signals_near_threshold,
+)
 from utils.signals_cache import get_all_signal_scores
 from utils.narrative import generate_narrative
 from utils.convergence import get_convergence_events, render_convergence_events
@@ -233,17 +236,22 @@ try:
             f'{"▲" if m["direction"]=="up" else "▼"} {m["name"][:24]} ({m["delta"]:+.0f}pts)</span>'
             for m in _d_movers
         )
+        _diff_lbl_style = 'style="font-size:0.72rem;color:#4A4440;margin-bottom:4px"'
+        _diff_lbl_bear  = 'style="font-size:0.72rem;color:#4A4440;margin:6px 0 4px"'
+        _diff_lbl_move  = 'style="font-size:0.72rem;color:#4A4440;margin:6px 0 4px"'
+        _bull_section  = (f'<div {_diff_lbl_style}>Flipped bullish</div>' + _bull_pills) if _bull_pills else ""
+        _bear_section  = (f'<div {_diff_lbl_bear}>Flipped bearish</div>' + _bear_pills) if _bear_pills else ""
+        _mover_section = (f'<div {_diff_lbl_move}>Biggest score movers</div>' + _mover_pills) if _mover_pills else ""
+        _flip_word     = "signals" if _d_flip_total != 1 else "signal"
         st.markdown(
             f'<div style="background:#F5F1E8;border-radius:8px;padding:14px 18px;'
             f'margin-bottom:18px;border:1px solid #D4C9B0;font-family:Georgia,serif;">'
             f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;color:#8B7355;'
             f'text-transform:uppercase;margin-bottom:8px;">WHAT CHANGED SINCE LAST WEEK</div>'
             f'{_regime_shift_html}'
-            f'{"<div style=\\"font-size:0.72rem;color:#4A4440;margin-bottom:4px\\">Flipped bullish</div>" + _bull_pills if _bull_pills else ""}'
-            f'{"<div style=\\"font-size:0.72rem;color:#4A4440;margin:6px 0 4px\\">Flipped bearish</div>" + _bear_pills if _bear_pills else ""}'
-            f'{"<div style=\\"font-size:0.72rem;color:#4A4440;margin:6px 0 4px\\">Biggest score movers</div>" + _mover_pills if _mover_pills else ""}'
+            f'{_bull_section}{_bear_section}{_mover_section}'
             f'<div style="font-size:0.65rem;color:#9E9E8E;margin-top:8px;">'
-            f'vs 7 days ago · {_d_flip_total} signal{"s" if _d_flip_total != 1 else ""} flipped direction</div>'
+            f'vs 7 days ago · {_d_flip_total} {_flip_word} flipped direction</div>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -262,6 +270,83 @@ try:
         )
         render_convergence_events(_conv, max_bull=3, max_bear=2)
         st.markdown("<div style='height:10px'></div>", unsafe_allow_html=True)
+except Exception:
+    pass
+
+# ── About to Flip — most actionable section on the site ──────────────────────
+try:
+    _near = get_signals_near_threshold(margin=5.0)
+    _n_bull_flip  = _near.get("near_bullish_flip", [])
+    _n_bear_flip  = _near.get("near_bearish_flip", [])
+    if _n_bull_flip or _n_bear_flip:
+        st.markdown(
+            '<div style="background:#FAF7F0;border-radius:10px;padding:14px 18px;margin-bottom:18px;'
+            'border:1px solid #D4C9B0;font-family:Georgia,serif;">'
+            '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;color:#8B7355;'
+            'text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid #D4C9B0;padding-bottom:6px;">'
+            '⏳ ABOUT TO FLIP — signals within 5 pts of a threshold crossing</div>',
+            unsafe_allow_html=True,
+        )
+        _flip_cols = st.columns(2)
+        with _flip_cols[0]:
+            if _n_bull_flip:
+                st.markdown(
+                    '<div style="font-size:0.72rem;font-weight:700;color:#1B5E20;text-transform:uppercase;'
+                    'letter-spacing:0.06em;margin-bottom:6px;">▲ Approaching BULLISH (≥65)</div>',
+                    unsafe_allow_html=True,
+                )
+                for _nf in _n_bull_flip[:5]:
+                    _v = _nf["velocity_per_week"]
+                    _eta_txt = (
+                        f' · ~{_nf["eta_weeks"]}w to flip'
+                        if _nf.get("eta_weeks") and _nf["eta_weeks"] < 10 else
+                        (' · moving away' if _v <= 0 else '')
+                    )
+                    _vel_color = "#1B5E20" if _v > 0 else ("#7B1010" if _v < 0 else "#8B7355")
+                    st.markdown(
+                        f'<div style="background:#EDF7ED;border-radius:5px;padding:7px 12px;margin-bottom:5px;'
+                        f'border-left:3px solid #1B5E20;">'
+                        f'<div style="font-size:0.80rem;font-weight:700;color:#1A1612;">{_nf["name"][:32]}</div>'
+                        f'<div style="font-size:0.72rem;color:#4A4440;margin-top:2px;">'
+                        f'Score: <b>{_nf["score"]}</b> · '
+                        f'<span style="color:#1B5E20;font-weight:700;">{_nf["pts_away"]} pts to flip</span>'
+                        f' · <span style="color:{_vel_color};">'
+                        f'{"▲" if _v > 0 else ("▼" if _v < 0 else "→")} {abs(_v):.1f} pts/wk</span>'
+                        f'{_eta_txt}</div>'
+                        f'<div style="font-size:0.67rem;color:#8B7355;margin-top:1px;">{_nf["category"]}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+        with _flip_cols[1]:
+            if _n_bear_flip:
+                st.markdown(
+                    '<div style="font-size:0.72rem;font-weight:700;color:#7B1010;text-transform:uppercase;'
+                    'letter-spacing:0.06em;margin-bottom:6px;">▼ Approaching BEARISH (≤35)</div>',
+                    unsafe_allow_html=True,
+                )
+                for _nf in _n_bear_flip[:5]:
+                    _v = _nf["velocity_per_week"]
+                    _eta_txt = (
+                        f' · ~{_nf["eta_weeks"]}w to flip'
+                        if _nf.get("eta_weeks") and _nf["eta_weeks"] < 10 else
+                        (' · moving away' if _v >= 0 else '')
+                    )
+                    _vel_color = "#7B1010" if _v < 0 else ("#1B5E20" if _v > 0 else "#8B7355")
+                    st.markdown(
+                        f'<div style="background:#FDF0F0;border-radius:5px;padding:7px 12px;margin-bottom:5px;'
+                        f'border-left:3px solid #7B1010;">'
+                        f'<div style="font-size:0.80rem;font-weight:700;color:#1A1612;">{_nf["name"][:32]}</div>'
+                        f'<div style="font-size:0.72rem;color:#4A4440;margin-top:2px;">'
+                        f'Score: <b>{_nf["score"]}</b> · '
+                        f'<span style="color:#7B1010;font-weight:700;">{_nf["pts_away"]} pts to flip</span>'
+                        f' · <span style="color:{_vel_color};">'
+                        f'{"▲" if _v > 0 else ("▼" if _v < 0 else "→")} {abs(_v):.1f} pts/wk</span>'
+                        f'{_eta_txt}</div>'
+                        f'<div style="font-size:0.67rem;color:#8B7355;margin-top:1px;">{_nf["category"]}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+        st.markdown('</div>', unsafe_allow_html=True)
 except Exception:
     pass
 

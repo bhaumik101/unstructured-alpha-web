@@ -1,0 +1,404 @@
+"""
+utils/prediction_log.py
+=======================
+Auditable prediction logging and auto-resolution.
+
+Every convergence event and score crossing is logged here with a timestamp
+and entry price. When the 4w/8w/12w forward windows expire, resolve_pending()
+automatically fills in actual returns and marks predictions correct/incorrect.
+
+The resulting track record is the most credibility-building feature on the
+site: a public, machine-generated, auditable log of every prediction made,
+with real outcomes attached. Nobody else offers this for free.
+
+Honesty constraints enforced in this module:
+- Predictions only logged ONCE per (ticker, event_date, event_type) via
+  the unique constraint — no retroactive backdating.
+- Resolutions only written when the forward date is in the past and price
+  data is actually available — never estimated or interpolated.
+- "correct" is defined simply and conservatively:
+    - bull prediction: correct if return_Nw > 0
+    - bear prediction: correct if return_Nw < 0
+  No cherry-picking of thresholds after the fact.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+
+from sqlalchemy import select, update
+
+from utils import db
+from utils.db import prediction_log, system_notifications, upsert_stmt
+
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+
+def log_prediction(
+    ticker: str,
+    event_type: str,        # "convergence" | "score_cross_bull" | "score_cross_bear"
+    direction: str,         # "bull" | "bear"
+    score: float,
+    price: float | None,
+    signal_count: int = 0,
+) -> bool:
+    """
+    Log one prediction. Returns True if a new row was inserted, False if
+    this (ticker, today, event_type) already existed (idempotent).
+
+    Caller is responsible for fetching the current price — this module
+    doesn't import yfinance to keep it fast and avoid circular imports.
+    """
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    try:
+        stmt = upsert_stmt(prediction_log, ["ticker", "event_date", "event_type"]).values(
+            ticker=ticker.upper(),
+            event_type=event_type,
+            direction=direction,
+            score_at_event=round(score, 1),
+            signal_count=signal_count,
+            price_at_event=price,
+            event_date=today,
+            status="pending",
+            created_at=now_iso,
+        )
+        # ON CONFLICT DO NOTHING — don't overwrite an existing prediction
+        if db.IS_SQLITE:
+            from sqlalchemy.dialects.sqlite import insert as _si
+            stmt = _si(prediction_log).values(
+                ticker=ticker.upper(),
+                event_type=event_type,
+                direction=direction,
+                score_at_event=round(score, 1),
+                signal_count=signal_count,
+                price_at_event=price,
+                event_date=today,
+                status="pending",
+                created_at=now_iso,
+            ).on_conflict_do_nothing(
+                index_elements=["ticker", "event_date", "event_type"]
+            )
+        else:
+            from sqlalchemy.dialects.postgresql import insert as _pi
+            stmt = _pi(prediction_log).values(
+                ticker=ticker.upper(),
+                event_type=event_type,
+                direction=direction,
+                score_at_event=round(score, 1),
+                signal_count=signal_count,
+                price_at_event=price,
+                event_date=today,
+                status="pending",
+                created_at=now_iso,
+            ).on_conflict_do_nothing(
+                index_elements=["ticker", "event_date", "event_type"]
+            )
+        with db.engine.begin() as conn:
+            result = conn.execute(stmt)
+            inserted = result.rowcount > 0
+
+        # Also post a system notification for convergence events
+        if inserted and event_type == "convergence":
+            _post_notification(
+                notif_type="convergence",
+                title=f"⚡ Convergence: {ticker.upper()} ({direction.upper()})",
+                body=f"{signal_count} macro signals aligned {direction} for {ticker.upper()}. "
+                     f"Score: {score:.0f}/100. Prediction logged for 4w/8w/12w resolution.",
+                ticker=ticker.upper(),
+                direction=direction,
+            )
+        return inserted
+    except Exception:
+        return False
+
+
+def _post_notification(
+    notif_type: str,
+    title: str,
+    body: str,
+    ticker: str | None = None,
+    direction: str | None = None,
+) -> None:
+    """Insert a system notification. Best-effort — never raises."""
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with db.engine.begin() as conn:
+            conn.execute(
+                system_notifications.insert().values(
+                    notif_type=notif_type,
+                    title=title,
+                    body=body,
+                    ticker=ticker,
+                    direction=direction,
+                    created_at=now_iso,
+                )
+            )
+    except Exception:
+        pass
+
+
+# ── Resolution ────────────────────────────────────────────────────────────────
+
+def resolve_pending(max_resolve: int = 20) -> int:
+    """
+    Check all pending predictions whose event_date is ≥4 weeks ago and
+    attempt to fill in actual forward returns. Returns number resolved.
+
+    Runs on every TDD page load (cheap — most of the time there are 0-5
+    pending rows, and the yfinance fetch only happens for those).
+    max_resolve caps worst-case work per call.
+    """
+    import yfinance as yf
+    import pandas as pd
+
+    four_weeks_ago = (datetime.now(timezone.utc) - timedelta(weeks=4)).strftime("%Y-%m-%d")
+
+    try:
+        with db.engine.begin() as conn:
+            pending = conn.execute(
+                select(prediction_log)
+                .where(prediction_log.c.status == "pending")
+                .where(prediction_log.c.event_date <= four_weeks_ago)
+                .where(prediction_log.c.price_at_event.isnot(None))
+                .order_by(prediction_log.c.event_date)
+                .limit(max_resolve)
+            ).mappings().all()
+    except Exception:
+        return 0
+
+    if not pending:
+        return 0
+
+    # Batch fetch: unique tickers only
+    tickers_needed = list({row["ticker"] for row in pending})
+    try:
+        px_data = yf.download(
+            tickers_needed, period="2y", auto_adjust=True, progress=False, group_by="ticker"
+        )
+    except Exception:
+        return 0
+
+    resolved_count = 0
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    for row in pending:
+        ticker = row["ticker"]
+        entry_price = row["price_at_event"]
+        event_dt = pd.Timestamp(row["event_date"])
+        direction = row["direction"]
+
+        try:
+            # Extract price series for this ticker
+            if len(tickers_needed) == 1:
+                closes = px_data["Close"].squeeze()
+            else:
+                closes = px_data["Close"][ticker].squeeze()
+
+            closes = closes.dropna()
+
+            updates: dict = {}
+            all_resolved = True
+
+            for weeks, col_p, col_r, col_c in [
+                (4,  "price_4w",  "return_4w",  "correct_4w"),
+                (8,  "price_8w",  "return_8w",  "correct_8w"),
+                (12, "price_12w", "return_12w", "correct_12w"),
+            ]:
+                fwd_dt = event_dt + pd.Timedelta(weeks=weeks)
+                if fwd_dt > closes.index[-1]:
+                    all_resolved = False   # window not yet expired
+                    continue
+                fwd_price = float(closes.asof(fwd_dt))
+                ret = (fwd_price / entry_price - 1) * 100
+                correct = 1 if (direction == "bull" and ret > 0) or \
+                               (direction == "bear" and ret < 0) else 0
+                updates[col_p] = round(fwd_price, 4)
+                updates[col_r] = round(ret, 2)
+                updates[col_c] = correct
+
+            if updates:
+                updates["status"] = "resolved" if all_resolved else "pending"
+                with db.engine.begin() as conn:
+                    conn.execute(
+                        update(prediction_log)
+                        .where(prediction_log.c.id == row["id"])
+                        .values(**updates)
+                    )
+                if all_resolved:
+                    resolved_count += 1
+                    # Post resolution notification
+                    best_ret = updates.get("return_12w") or updates.get("return_8w") or updates.get("return_4w")
+                    if best_ret is not None:
+                        _post_notification(
+                            notif_type="prediction_resolved",
+                            title=f"📊 Prediction resolved: {ticker} {direction.upper()}",
+                            body=f"Called on {row['event_date']}. "
+                                 f"12w return: {best_ret:+.1f}% "
+                                 f"({'✓ correct' if updates.get('correct_12w') == 1 else '✗ incorrect'}).",
+                            ticker=ticker,
+                            direction=direction,
+                        )
+        except Exception:
+            continue
+
+    return resolved_count
+
+
+# ── Track Record ──────────────────────────────────────────────────────────────
+
+def get_track_record() -> dict:
+    """
+    Aggregate accuracy stats across all resolved predictions.
+
+    Returns:
+        {
+            "total":        int,
+            "resolved":     int,
+            "pending":      int,
+            "accuracy_4w":  float | None,   # % correct at 4-week horizon
+            "accuracy_8w":  float | None,
+            "accuracy_12w": float | None,
+            "median_ret_4w":  float | None,
+            "median_ret_8w":  float | None,
+            "median_ret_12w": float | None,
+            "by_type":      dict,           # event_type → {accuracy, count}
+            "recent":       list[dict],     # last 10 resolved predictions
+        }
+    """
+    try:
+        with db.engine.begin() as conn:
+            all_rows = conn.execute(
+                select(prediction_log)
+                .order_by(prediction_log.c.event_date.desc())
+            ).mappings().all()
+    except Exception:
+        return _empty_track_record()
+
+    rows = [dict(r) for r in all_rows]
+    if not rows:
+        return _empty_track_record()
+
+    total    = len(rows)
+    resolved = [r for r in rows if r["status"] == "resolved"]
+    pending  = [r for r in rows if r["status"] == "pending"]
+
+    def _accuracy(field: str) -> float | None:
+        vals = [r[field] for r in resolved if r.get(field) is not None]
+        return round(100 * sum(vals) / len(vals), 1) if vals else None
+
+    def _median_ret(field: str) -> float | None:
+        import statistics
+        vals = [r[field] for r in resolved if r.get(field) is not None]
+        return round(statistics.median(vals), 2) if vals else None
+
+    # By event type
+    by_type: dict[str, dict] = {}
+    for r in resolved:
+        et = r["event_type"]
+        if et not in by_type:
+            by_type[et] = {"correct_12w": [], "count": 0}
+        by_type[et]["count"] += 1
+        if r.get("correct_12w") is not None:
+            by_type[et]["correct_12w"].append(r["correct_12w"])
+    for et, d in by_type.items():
+        vals = d.pop("correct_12w")
+        d["accuracy_12w"] = round(100 * sum(vals) / len(vals), 1) if vals else None
+
+    return {
+        "total":          total,
+        "resolved":       len(resolved),
+        "pending":        len(pending),
+        "accuracy_4w":    _accuracy("correct_4w"),
+        "accuracy_8w":    _accuracy("correct_8w"),
+        "accuracy_12w":   _accuracy("correct_12w"),
+        "median_ret_4w":  _median_ret("return_4w"),
+        "median_ret_8w":  _median_ret("return_8w"),
+        "median_ret_12w": _median_ret("return_12w"),
+        "by_type":        by_type,
+        "recent":         resolved[:10],
+    }
+
+
+def _empty_track_record() -> dict:
+    return {
+        "total": 0, "resolved": 0, "pending": 0,
+        "accuracy_4w": None, "accuracy_8w": None, "accuracy_12w": None,
+        "median_ret_4w": None, "median_ret_8w": None, "median_ret_12w": None,
+        "by_type": {}, "recent": [],
+    }
+
+
+# ── Notification helpers ──────────────────────────────────────────────────────
+
+def get_unread_notification_count(user_id: int | None) -> int:
+    """
+    Return count of system_notifications the user hasn't read yet.
+    For anonymous users, returns total unread in last 7 days.
+    """
+    from datetime import datetime, timedelta, timezone
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    try:
+        with db.engine.begin() as conn:
+            total = conn.execute(
+                select(db.system_notifications)
+                .where(db.system_notifications.c.created_at >= cutoff)
+            ).rowcount
+            if user_id is None:
+                # Just count recent notifications for anonymous visitors
+                rows = conn.execute(
+                    select(db.system_notifications.c.id)
+                    .where(db.system_notifications.c.created_at >= cutoff)
+                ).fetchall()
+                return len(rows)
+            read_ids = conn.execute(
+                select(db.notification_reads.c.notification_id)
+                .where(db.notification_reads.c.user_id == user_id)
+            ).scalars().all()
+            all_ids = conn.execute(
+                select(db.system_notifications.c.id)
+                .where(db.system_notifications.c.created_at >= cutoff)
+            ).scalars().all()
+        return len(set(all_ids) - set(read_ids))
+    except Exception:
+        return 0
+
+
+def get_recent_notifications(limit: int = 20) -> list[dict]:
+    """Return the most recent system notifications for the bell feed."""
+    try:
+        with db.engine.begin() as conn:
+            rows = conn.execute(
+                select(db.system_notifications)
+                .order_by(db.system_notifications.c.id.desc())
+                .limit(limit)
+            ).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
+def mark_all_read(user_id: int) -> None:
+    """Mark all current notifications as read for this user."""
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with db.engine.begin() as conn:
+            all_ids = conn.execute(
+                select(db.system_notifications.c.id)
+            ).scalars().all()
+            existing = set(conn.execute(
+                select(db.notification_reads.c.notification_id)
+                .where(db.notification_reads.c.user_id == user_id)
+            ).scalars().all())
+            for nid in all_ids:
+                if nid not in existing:
+                    conn.execute(
+                        db.notification_reads.insert().values(
+                            user_id=user_id,
+                            notification_id=nid,
+                            read_at=now_iso,
+                        )
+                    )
+    except Exception:
+        pass

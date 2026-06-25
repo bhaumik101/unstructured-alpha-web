@@ -12,7 +12,7 @@ import streamlit as st
 
 from utils.config import CATEGORIES, SIGNALS, TICKERS
 from utils.header import render_header, render_sidebar_base, ticker_chips, render_synthetic_data_banner
-from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks
+from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
@@ -600,3 +600,133 @@ else:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+# ── Signal Correlation Matrix (Pro mode) ─────────────────────────────────────
+if mode == "Pro":
+    st.divider()
+    st.markdown(
+        '<div class="section-header">SIGNAL INDEPENDENCE — PAIRWISE CORRELATION MATRIX</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "How correlated are our signals with each other? If 6 signals are bullish but they're "
+        "all reading the same underlying phenomenon, that's really only 1 independent data point. "
+        "'Effective N' is the number of truly independent signals based on eigenvalue decomposition."
+    )
+
+    with st.spinner("Computing pairwise correlations across signal history…"):
+        _corr_data = compute_signal_correlation_matrix(days_back=90)
+
+    if _corr_data.get("sparse") or not _corr_data.get("signals"):
+        st.info(
+            "Not enough signal history yet to compute correlations. "
+            "This section populates after Today's Brief has been visited daily for 14+ days — "
+            "each visit records a snapshot of all 38 signals."
+        )
+    else:
+        _eff_n      = _corr_data["effective_n"]
+        _total_n    = _corr_data["total_signals"]
+        _matrix     = _corr_data["matrix"]
+        _sig_names  = _corr_data["names"]
+        _days_used  = _corr_data["days_used"]
+
+        # Effective N interpretation
+        _indep_pct  = round(100 * _eff_n / max(_total_n, 1), 0)
+        _eff_color  = "#1B5E20" if _indep_pct >= 60 else ("#B8860B" if _indep_pct >= 40 else "#7B1010")
+
+        _cn1, _cn2, _cn3 = st.columns(3)
+        with _cn1:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div class="stat-label">Signals with history</div>'
+                f'<div class="stat-value">{_total_n}</div>'
+                f'<div class="stat-change flat">of 38 total</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with _cn2:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div class="stat-label">Effective Independent N</div>'
+                f'<div class="stat-value" style="color:{_eff_color};">{_eff_n:.1f}</div>'
+                f'<div class="stat-change flat">{_indep_pct:.0f}% truly independent</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        with _cn3:
+            st.markdown(
+                f'<div class="stat-box">'
+                f'<div class="stat-label">History window</div>'
+                f'<div class="stat-value">{_days_used}d</div>'
+                f'<div class="stat-change flat">rolling pairwise</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        import numpy as np
+        _mat_arr = np.array(_matrix)
+
+        # Truncate names for readability
+        _short_names = [n[:20] for n in _sig_names]
+
+        _fig_corr = go.Figure(go.Heatmap(
+            z=_mat_arr,
+            x=_short_names,
+            y=_short_names,
+            colorscale=[
+                [0.0,  "#7B1010"],
+                [0.25, "#C0392B"],
+                [0.45, "#FAF7F0"],
+                [0.55, "#FAF7F0"],
+                [0.75, "#1B5E20"],
+                [1.0,  "#003300"],
+            ],
+            zmid=0, zmin=-1, zmax=1,
+            text=np.round(_mat_arr, 2).tolist(),
+            texttemplate="%{text:.1f}",
+            textfont=dict(size=7),
+            hovertemplate="%{y} × %{x}<br>Correlation: %{z:.3f}<extra></extra>",
+            colorbar=dict(
+                title="r",
+                tickvals=[-1, -0.5, 0, 0.5, 1],
+                ticktext=["-1.0", "-0.5", "0", "+0.5", "+1.0"],
+                tickfont=dict(size=9),
+            ),
+        ))
+        _matrix_height = max(400, len(_sig_names) * 18)
+        _fig_corr.update_layout(
+            height=_matrix_height,
+            paper_bgcolor="#FAF7F0",
+            plot_bgcolor="#FAF7F0",
+            margin=dict(l=140, r=20, t=10, b=140),
+            xaxis=dict(tickangle=-45, tickfont=dict(size=8, color="#4A4440"), side="bottom"),
+            yaxis=dict(tickfont=dict(size=8, color="#4A4440"), autorange="reversed"),
+            font=dict(family="Georgia, serif"),
+        )
+        st.plotly_chart(_fig_corr, use_container_width=True)
+
+        # Find and call out the most highly correlated pairs (≥0.7)
+        _high_pairs = []
+        _names_arr = _sig_names
+        for _i in range(len(_names_arr)):
+            for _j in range(_i + 1, len(_names_arr)):
+                _r = _mat_arr[_i, _j]
+                if abs(_r) >= 0.70:
+                    _high_pairs.append((_names_arr[_i], _names_arr[_j], round(_r, 2)))
+
+        if _high_pairs:
+            _high_pairs.sort(key=lambda x: -abs(x[2]))
+            _pair_html = " &nbsp;·&nbsp; ".join(
+                f'<b>{a[:20]}</b> & <b>{b[:20]}</b> (r={r:+.2f})'
+                for a, b, r in _high_pairs[:6]
+            )
+            st.markdown(
+                f'<div style="background:#FFF8E7;border-left:3px solid #B8860B;padding:8px 12px;'
+                f'border-radius:4px;font-family:Georgia,serif;font-size:0.75rem;color:#5C4A1A;">'
+                f'⚠️ <b>High-correlation pairs (r ≥ 0.70)</b> — these signal pairs are reading similar '
+                f'phenomena and should not be double-counted as independent confirmation:<br>'
+                f'{_pair_html}</div>',
+                unsafe_allow_html=True,
+            )

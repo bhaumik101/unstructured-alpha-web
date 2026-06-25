@@ -159,6 +159,30 @@ def render_convergence_events(
     bull_events = [e for e in events if e["direction"] == "bullish"][:max_bull]
     bear_events = [e for e in events if e["direction"] == "bearish"][:max_bear]
 
+    # Auto-log convergence events to the prediction log (idempotent — unique
+    # constraint prevents double-logging the same ticker+date+type combo).
+    try:
+        from utils.prediction_log import log_prediction
+        import yfinance as yf
+        for _ev in (bull_events + bear_events):
+            _dir = "bull" if _ev["direction"] == "bullish" else "bear"
+            try:
+                _px = float(yf.Ticker(_ev["ticker"]).info.get(
+                    "currentPrice") or yf.Ticker(_ev["ticker"]).info.get(
+                    "regularMarketPrice") or 0) or None
+            except Exception:
+                _px = None
+            log_prediction(
+                ticker=_ev["ticker"],
+                event_type="convergence",
+                direction=_dir,
+                score=_ev.get("score", 50),
+                price=_px,
+                signal_count=_ev.get("count", 0),
+            )
+    except Exception:
+        pass
+
     if not bull_events and not bear_events:
         st.caption("No convergence events detected in the last 7 days.")
         return

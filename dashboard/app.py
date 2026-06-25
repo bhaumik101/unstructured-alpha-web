@@ -64,6 +64,8 @@ pg = st.navigation(
         ],
         "Research": [
             st.Page("pages/3_Ticker_Deep_Dive.py",  title="Ticker Deep Dive"),
+            st.Page("pages/17_Portfolio_Analyzer.py", title="Portfolio Analyzer"),
+            st.Page("pages/16_Short_Squeeze_Radar.py", title="Short Squeeze Radar"),
             st.Page("pages/13_Track_Record.py",     title="Earnings Track Record"),
             st.Page("pages/4_Power_Supercycle.py",  title="Power Supercycle"),
         ],
