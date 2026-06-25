@@ -28,7 +28,7 @@ services:
   - type: web
     name: unstructured-alpha
     runtime: python
-    plan: free  # change to "starter" ($7/mo) for always-on, no cold start
+    plan: starter  # always-on, no cold start
     rootDir: dashboard
     buildCommand: pip install -r requirements.txt
     startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
