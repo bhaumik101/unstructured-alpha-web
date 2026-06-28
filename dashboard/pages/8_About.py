@@ -117,32 +117,30 @@ with m2:
     """)
 
 st.markdown("**Backtest Results — Confluence & Power Supercycle Scores**")
-st.markdown("""
-<div style="background:#FFF0F0;border-radius:6px;padding:14px 18px;border:1px solid #E8B4B4;
-            font-size:0.86rem;color:#5D2020;margin-bottom:8px;font-family:Georgia,serif;line-height:1.7;">
-We walk-forward backtested the actual scoring functions above (not a simplified version — the
-real production code) against 6 tickers spanning the Power Supercycle thesis (CEG, VST, NEE, ETN,
-VRT, PWR — chosen because none are mechanical constituents of any signal being tested, e.g. URA's
-largest holding is Cameco, so CCJ was excluded to avoid circularity), at ~19 monthly checkpoints,
-using only data available as of each checkpoint date (no lookahead).
-
-<b>Result:</b> pooled across all 6 tickers (96–108 observations depending on horizon), there is
-no statistically significant relationship between either score and 1/2/3-month forward returns
-(all |r| &lt; 0.07, p &gt; 0.5). Two of the six tickers — the two with the most narrative-extended,
-momentum-driven price action in the test window — showed a significant <i>negative</i> relationship
-in isolation (high score coincided with a cyclical top, not a forward rally); the other four showed
-no significant relationship in either direction. None of the individual-ticker results survive
-correction for testing multiple tickers/horizons at once.
-
-<b>What this means in practice:</b> these scores are an honest, real-time read of how many
-independent alternative-data signals currently agree — useful context, and the methodology behind
-them (lag-scanning, statistical significance filtering on individual signals, PCS weighting) is
-sound. But the combined score has not been shown to predict forward price moves, on this sample.
-Treat it as descriptive, not predictive, until a larger backtest says otherwise. We are not hiding
-this finding because it's the inconvenient one — building this product on a score we can verify
-beats building it on a score that just sounds good.
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+"<div style='background:#FFF0F0;border-radius:6px;padding:14px 18px;border:1px solid #E8B4B4;"
+"font-size:0.86rem;color:#5D2020;margin-bottom:8px;font-family:Georgia,serif;line-height:1.7;'>"
+"We walk-forward backtested the actual scoring functions above (not a simplified version — the "
+"real production code) against 6 tickers spanning the Power Supercycle thesis (CEG, VST, NEE, ETN, "
+"VRT, PWR — chosen because none are mechanical constituents of any signal being tested, e.g. URA's "
+"largest holding is Cameco, so CCJ was excluded to avoid circularity), at ~19 monthly checkpoints, "
+"using only data available as of each checkpoint date (no lookahead).<br><br>"
+"<b>Result:</b> pooled across all 6 tickers (96–108 observations depending on horizon), there is "
+"no statistically significant relationship between either score and 1/2/3-month forward returns "
+"(all |r| &lt; 0.07, p &gt; 0.5). Two of the six tickers — the two with the most narrative-extended, "
+"momentum-driven price action in the test window — showed a significant <i>negative</i> relationship "
+"in isolation (high score coincided with a cyclical top, not a forward rally); the other four showed "
+"no significant relationship in either direction. None of the individual-ticker results survive "
+"correction for testing multiple tickers/horizons at once.<br><br>"
+"<b>What this means in practice:</b> these scores are an honest, real-time read of how many "
+"independent alternative-data signals currently agree — useful context, and the methodology behind "
+"them (lag-scanning, statistical significance filtering on individual signals, PCS weighting) is "
+"sound. But the combined score has not been shown to predict forward price moves, on this sample. "
+"Treat it as descriptive, not predictive, until a larger backtest says otherwise. We are not hiding "
+"this finding because it's the inconvenient one — building this product on a score we can verify "
+"beats building it on a score that just sounds good."
+"</div>",
+unsafe_allow_html=True)
 
 # ── Signal Library ─────────────────────────────────────────────────────────────
 st.divider()
@@ -293,55 +291,42 @@ for title, desc in refs:
 st.divider()
 st.markdown('<div class="section-header">LEGAL DISCLAIMER</div>', unsafe_allow_html=True)
 
-st.markdown("""
-<div style="background:#F0EBE1;border:1px solid #D4C9B0;border-radius:6px;padding:20px 24px;
-            font-family:Georgia,serif;font-size:0.82rem;color:#6B6560;line-height:1.8;">
-
-<b style="color:#1C2B4A;font-size:0.90rem;">NOT FINANCIAL ADVICE — GENERAL, IMPERSONAL COMMENTARY ONLY</b><br><br>
-
-Unstructured Alpha is an analytical research tool intended for educational and informational purposes only.
-Nothing on this platform constitutes investment advice, financial advice, trading advice, or any other
-sort of advice, and you should not treat any of the content as such.
-
-Every signal score, Confluence Score, Power Supercycle score, and bull/bear case on this platform is
-<b>general and impersonal</b>: it is generated by the same published methodology applied identically to
-every reader, is not tailored to any individual's portfolio, financial situation, risk tolerance, or
-investment objectives, and is not based on any information about you personally. We do not know who is
-reading any given page, and the content does not change based on who is reading it. This platform does
-not manage money, does not exercise discretion over any reader's investments, and does not provide
-ongoing or individualized investment management services to anyone.
-
-Unstructured Alpha does not recommend that any security should be bought, sold, or held by you. A score
-above or below any threshold described on this platform is a description of how current publicly
-available data compares to its own historical range — it is not, and should not be read as, a
-recommendation or solicitation to buy or sell any financial instrument or to make any investment.
-
-<b>Unstructured Alpha is not a registered investment adviser or broker-dealer</b> with the SEC, FINRA, or
-any state securities regulator, and nothing on this platform should be construed as implying otherwise.
-
-All signals, confluence scores, and analyses are based on publicly available data and the application of
-quantitative methods that may have significant limitations. We have walk-forward backtested the Confluence
-and Power Supercycle scores against historical data and found no statistically significant relationship
-with forward returns on the sample tested (see Methodology, above) — past performance of any signal or
-indicator, and any current reading of any signal or indicator, is not indicative of future results.
-
-<br><b style="color:#1C2B4A;">DATA ACCURACY</b><br><br>
-
-While we strive to ensure the accuracy of the information displayed, we make no warranty, expressed or
-implied, as to the accuracy, completeness, or timeliness of the data. All data is sourced from third-party
-providers (FRED, CFTC, SEC, Yahoo Finance, USASpending.gov) and is subject to errors, omissions,
-and revisions by those providers.
-
-<br><b style="color:#1C2B4A;">RISK DISCLOSURE</b><br><br>
-
-Investing in securities involves substantial risk of loss. You should carefully consider your investment
-objectives, risk tolerance, and financial situation before making any investment decisions. You should
-consult with a licensed financial advisor before making any investment decisions.
-
-<br><b style="color:#1C2B4A;">NO AFFILIATION</b><br><br>
-
-Unstructured Alpha is not affiliated with, endorsed by, or sponsored by Bloomberg L.P., the Wall Street
-Journal, the Federal Reserve, the CFTC, the SEC, or any other data provider referenced on this platform.
-
-</div>
-""", unsafe_allow_html=True)
+st.markdown(
+"<div style='background:#F0EBE1;border:1px solid #D4C9B0;border-radius:6px;padding:20px 24px;"
+"font-family:Georgia,serif;font-size:0.82rem;color:#6B6560;line-height:1.8;'>"
+"<b style='color:#1C2B4A;font-size:0.90rem;'>NOT FINANCIAL ADVICE — GENERAL, IMPERSONAL COMMENTARY ONLY</b><br><br>"
+"Unstructured Alpha is an analytical research tool intended for educational and informational purposes only. "
+"Nothing on this platform constitutes investment advice, financial advice, trading advice, or any other "
+"sort of advice, and you should not treat any of the content as such.<br><br>"
+"Every signal score, Confluence Score, Power Supercycle score, and bull/bear case on this platform is "
+"<b>general and impersonal</b>: it is generated by the same published methodology applied identically to "
+"every reader, is not tailored to any individual's portfolio, financial situation, risk tolerance, or "
+"investment objectives, and is not based on any information about you personally. We do not know who is "
+"reading any given page, and the content does not change based on who is reading it. This platform does "
+"not manage money, does not exercise discretion over any reader's investments, and does not provide "
+"ongoing or individualized investment management services to anyone.<br><br>"
+"Unstructured Alpha does not recommend that any security should be bought, sold, or held by you. A score "
+"above or below any threshold described on this platform is a description of how current publicly "
+"available data compares to its own historical range — it is not, and should not be read as, a "
+"recommendation or solicitation to buy or sell any financial instrument or to make any investment.<br><br>"
+"<b>Unstructured Alpha is not a registered investment adviser or broker-dealer</b> with the SEC, FINRA, or "
+"any state securities regulator, and nothing on this platform should be construed as implying otherwise.<br><br>"
+"All signals, confluence scores, and analyses are based on publicly available data and the application of "
+"quantitative methods that may have significant limitations. We have walk-forward backtested the Confluence "
+"and Power Supercycle scores against historical data and found no statistically significant relationship "
+"with forward returns on the sample tested (see Methodology, above) — past performance of any signal or "
+"indicator, and any current reading of any signal or indicator, is not indicative of future results.<br><br>"
+"<b style='color:#1C2B4A;'>DATA ACCURACY</b><br><br>"
+"While we strive to ensure the accuracy of the information displayed, we make no warranty, expressed or "
+"implied, as to the accuracy, completeness, or timeliness of the data. All data is sourced from third-party "
+"providers (FRED, CFTC, SEC, Yahoo Finance, USASpending.gov) and is subject to errors, omissions, "
+"and revisions by those providers.<br><br>"
+"<b style='color:#1C2B4A;'>RISK DISCLOSURE</b><br><br>"
+"Investing in securities involves substantial risk of loss. You should carefully consider your investment "
+"objectives, risk tolerance, and financial situation before making any investment decisions. You should "
+"consult with a licensed financial advisor before making any investment decisions.<br><br>"
+"<b style='color:#1C2B4A;'>NO AFFILIATION</b><br><br>"
+"Unstructured Alpha is not affiliated with, endorsed by, or sponsored by Bloomberg L.P., the Wall Street "
+"Journal, the Federal Reserve, the CFTC, the SEC, or any other data provider referenced on this platform."
+"</div>",
+unsafe_allow_html=True)

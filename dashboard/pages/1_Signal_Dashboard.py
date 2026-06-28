@@ -355,7 +355,7 @@ for row_start in range(0, len(visible_signals), COLS):
             _trend_badge = ""  # "new" — no prior history yet
 
         # Signal fatigue streak badge
-        _streak = _streak_lookup.get(sid, {})
+        _streak = _streak_lookup.get(sig_id, {})
         _streak_label = _streak.get("label", "")
         _streak_days  = _streak.get("days", 0)
         # Only show fatigue for Extended/Exhausted — Fresh/Established add noise
