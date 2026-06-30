@@ -1,70 +1,72 @@
 """
-utils/theme.py — Unstructured Alpha WSJ/Bloomberg Color System
+utils/theme.py — Unstructured Alpha Modern Dark Design System
 All chart styling flows through style_chart() for consistency.
+Robinhood-inspired: dark backgrounds, green/purple gradient accents, glassmorphism cards.
 """
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 
 # Backgrounds
-BG_PAGE    = "#FAF7F0"   # warm cream page
-BG_CARD    = "#F0EBE1"   # slightly darker cream for cards
-BG_PLOT    = "#FFFFFF"   # pure white chart area
-BG_SIDEBAR = "#1C2B4A"   # deep navy sidebar
+BG_PAGE         = "#0B0D12"   # near-black page background
+BG_CARD         = "#12151E"   # card surface
+BG_CARD_RAISED  = "#1A1E2C"   # hover / elevated card
+BG_PLOT         = "#0F1118"   # chart plot area
+BG_SIDEBAR      = "#0D0F1A"   # sidebar
 
 # Typography
-TEXT_PRIMARY   = "#1A1612"  # near-black warm
-TEXT_SECONDARY = "#6B6560"  # warm gray
-TEXT_SIDEBAR   = "#F0EBE1"  # cream on navy
-TEXT_CAPTION   = "#9E9E8E"  # muted warm gray
+TEXT_PRIMARY   = "#E8EEFF"   # cool near-white
+TEXT_SECONDARY = "#8892AA"   # muted blue-gray
+TEXT_MUTED     = "#434E6A"   # very muted
+TEXT_CAPTION   = "#2E3650"   # barely visible label
 
-# Brand accent
-GOLD        = "#B8860B"   # dark goldenrod — primary
-GOLD_LIGHT  = "#C9A84C"   # lighter gold for hover/accents
-NAVY        = "#1C2B4A"   # deep navy
-TEAL        = "#0D4F5C"   # deep teal accent
+# Brand accents
+GREEN       = "#00D566"   # primary green (Robinhood-style)
+GREEN_DARK  = "#00A847"   # darker green variant
+GREEN_DIM   = "#001A0D"   # dimmed green for backgrounds
+PURPLE      = "#7C3AED"   # violet accent
+PURPLE_DIM  = "#1A0A3D"   # dimmed purple
+CYAN        = "#00C8E0"   # secondary accent
+AMBER       = "#F59E0B"   # warning/watch amber
 
 # Signal status
-BULL_GREEN  = "#1B5E20"   # dark forest green (bullish)
-BEAR_RED    = "#7B1010"   # dark burgundy (bearish)
-NEUTRAL_TAN = "#8B7355"   # warm brown (neutral)
+BULL_GREEN  = "#00D566"   # bullish green
+BEAR_RED    = "#FF4444"   # bearish red
+BEAR_DIM    = "#4D0000"   # dimmed red
+NEUTRAL     = "#6B7FBF"   # neutral blue-gray
 
 # Chart grid & borders
-GRID_COLOR  = "#E8E0CE"   # warm beige grid lines
-BORDER_LIGHT = "#D4C9B0"  # card borders
-DIVIDER     = "#D4C9B0"   # section dividers
+GRID_COLOR   = "rgba(255,255,255,0.04)"
+BORDER_LIGHT = "rgba(255,255,255,0.07)"
+DIVIDER      = "rgba(255,255,255,0.05)"
 
-# Data series colors (WSJ palette — works on white backgrounds)
+# Data series — vibrant on dark
 SERIES_COLORS = [
-    "#1C2B4A",  # navy
-    "#B8860B",  # gold
-    "#1B5E20",  # forest green
-    "#7B1010",  # burgundy
-    "#5D4037",  # warm brown
-    "#0D4F5C",  # teal
-    "#4A1B6B",  # deep purple
-    "#B34700",  # burnt orange
+    "#00D566",   # green (primary)
+    "#7C3AED",   # purple
+    "#00C8E0",   # cyan
+    "#FF4444",   # red
+    "#F59E0B",   # amber
+    "#06B6D4",   # sky
+    "#EC4899",   # pink
+    "#34D399",   # emerald
 ]
 
-# COT / categorical colors
-COT_SPEC  = "#1C2B4A"   # navy for speculators
-COT_COMM  = "#B8860B"   # gold for commercials
-
-# Heatmap colorscale (bear → neutral → bull)
+# Heatmap colorscale (bear → neutral → bull) — dark-friendly
 HEATMAP_COLORSCALE = [
-    [0.00, "#5C0A0A"],   # deep burgundy
-    [0.25, "#7B1010"],   # bear red
-    [0.40, "#C8AD7F"],   # warm tan (neutral-bear)
-    [0.50, "#E8D5A3"],   # neutral cream
-    [0.60, "#A8C09A"],   # neutral-bull green
-    [0.75, "#4A8C3F"],   # mid green
-    [1.00, "#0F3D0F"],   # deep forest green
+    [0.00, "#3D0000"],
+    [0.25, "#FF4444"],
+    [0.45, "#1A1E2C"],
+    [0.50, "#20243A"],
+    [0.55, "#0A2018"],
+    [0.75, "#00D566"],
+    [1.00, "#003D1A"],
 ]
 
 # ── Chart Style Helper ────────────────────────────────────────────────────────
 
 def style_chart(fig, height: int = 350, title: str = "") -> object:
     """
-    Apply the WSJ/Bloomberg light theme to any Plotly figure.
+    Apply the Unstructured Alpha dark theme to any Plotly figure.
 
     Usage:
         fig = go.Figure(...)
@@ -75,35 +77,44 @@ def style_chart(fig, height: int = 350, title: str = "") -> object:
         height=height,
         title=dict(
             text=title,
-            font=dict(family="Georgia, serif", size=14, color=TEXT_PRIMARY),
+            font=dict(family="Inter, -apple-system, sans-serif", size=13, color=TEXT_SECONDARY),
             x=0,
             xanchor="left",
         ) if title else None,
         paper_bgcolor=BG_PAGE,
         plot_bgcolor=BG_PLOT,
-        font=dict(family="Georgia, serif", color=TEXT_PRIMARY),
+        font=dict(family="Inter, -apple-system, sans-serif", color=TEXT_SECONDARY),
         hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor=BG_CARD_RAISED,
+            bordercolor=BORDER_LIGHT,
+            font=dict(family="Inter, sans-serif", size=12, color=TEXT_PRIMARY),
+        ),
         legend=dict(
-            bgcolor="rgba(250,247,240,0.92)",
+            bgcolor="rgba(18,21,30,0.85)",
             bordercolor=BORDER_LIGHT,
             borderwidth=1,
-            font=dict(size=11, color=TEXT_PRIMARY),
+            font=dict(size=11, color=TEXT_SECONDARY, family="Inter, sans-serif"),
         ),
-        margin=dict(l=0, r=0, t=30 if title else 10, b=0),
+        margin=dict(l=0, r=0, t=32 if title else 12, b=0),
         xaxis=dict(
             showgrid=True,
             gridcolor=GRID_COLOR,
             gridwidth=1,
-            tickfont=dict(color=TEXT_SECONDARY, size=10),
-            linecolor=BORDER_LIGHT,
+            tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
+            linecolor=DIVIDER,
             zeroline=False,
+            showspikes=True,
+            spikecolor=BORDER_LIGHT,
+            spikethickness=1,
+            spikedash="dot",
         ),
         yaxis=dict(
             showgrid=True,
             gridcolor=GRID_COLOR,
             gridwidth=1,
-            tickfont=dict(color=TEXT_SECONDARY, size=10),
-            linecolor=BORDER_LIGHT,
+            tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
+            linecolor=DIVIDER,
             zeroline=False,
         ),
     )
@@ -113,39 +124,44 @@ def style_chart(fig, height: int = 350, title: str = "") -> object:
 def style_chart_secondary(fig, height: int = 380,
                            y1_title: str = "Signal",
                            y2_title: str = "Price",
-                           y1_color: str = NAVY,
-                           y2_color: str = GOLD) -> object:
+                           y1_color: str = GREEN,
+                           y2_color: str = PURPLE) -> object:
     """Style a dual-axis chart (make_subplots secondary_y=True)."""
     fig.update_layout(
         height=height,
         paper_bgcolor=BG_PAGE,
         plot_bgcolor=BG_PLOT,
-        font=dict(family="Georgia, serif", color=TEXT_PRIMARY),
+        font=dict(family="Inter, -apple-system, sans-serif", color=TEXT_SECONDARY),
         hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor=BG_CARD_RAISED,
+            bordercolor=BORDER_LIGHT,
+            font=dict(family="Inter, sans-serif", size=12, color=TEXT_PRIMARY),
+        ),
         legend=dict(
-            bgcolor="rgba(250,247,240,0.92)",
+            bgcolor="rgba(18,21,30,0.85)",
             bordercolor=BORDER_LIGHT,
             borderwidth=1,
-            font=dict(size=11, color=TEXT_PRIMARY),
+            font=dict(size=11, color=TEXT_SECONDARY, family="Inter, sans-serif"),
         ),
         margin=dict(l=0, r=0, t=20, b=0),
         xaxis=dict(
             showgrid=True,
             gridcolor=GRID_COLOR,
-            tickfont=dict(color=TEXT_SECONDARY, size=10),
+            tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
         ),
     )
     fig.update_yaxes(
         title_text=y1_title, secondary_y=False,
         gridcolor=GRID_COLOR,
-        tickfont=dict(color=TEXT_SECONDARY, size=10),
-        title_font=dict(color=y1_color),
+        tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
+        title_font=dict(color=y1_color, family="Inter, sans-serif", size=11),
     )
     fig.update_yaxes(
         title_text=y2_title, secondary_y=True,
         gridcolor="rgba(0,0,0,0)",
-        tickfont=dict(color=TEXT_SECONDARY, size=10),
-        title_font=dict(color=y2_color),
+        tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
+        title_font=dict(color=y2_color, family="Inter, sans-serif", size=11),
     )
     return fig
 
@@ -163,54 +179,67 @@ def signal_card_html(
     trend: float,
     lag_weeks: int,
 ) -> str:
-    """Return an HTML card for a signal status widget."""
-    status_color = {
-        "bullish": BULL_GREEN,
-        "bearish": BEAR_RED,
-        "neutral": NEUTRAL_TAN,
-        "insufficient_data": "#9E9E9E",
-    }.get(status, NEUTRAL_TAN)
-
-    status_emoji = {
-        "bullish": "▲",
-        "bearish": "▼",
-        "neutral": "●",
-        "insufficient_data": "○",
-    }.get(status, "●")
+    """Return an HTML card for a signal status widget — modern dark glassmorphism design."""
+    STATUS_MAP = {
+        "bullish":           ("#00D566", "BULLISH",  "▲", "rgba(0,213,102,0.07)",  "rgba(0,213,102,0.25)"),
+        "bearish":           ("#FF4444", "BEARISH",  "▼", "rgba(255,68,68,0.07)",  "rgba(255,68,68,0.25)"),
+        "neutral":           ("#6B7FBF", "NEUTRAL",  "●", "rgba(107,127,191,0.05)", "rgba(107,127,191,0.20)"),
+        "insufficient_data": ("#434E6A", "NO DATA",  "○", "rgba(18,21,30,0.4)",    "rgba(255,255,255,0.08)"),
+    }
+    color, label, arrow, bg_tint, border_color = STATUS_MAP.get(
+        status, STATUS_MAP["neutral"]
+    )
 
     trend_arrow = "↑" if trend > 1 else ("↓" if trend < -1 else "→")
+    trend_color = "#00D566" if trend > 1 else ("#FF4444" if trend < -1 else "#6B7FBF")
+
+    # Score bar fill %
+    bar_pct = min(max(score, 0), 100)
 
     return f"""
-    <div style="
-        background:{BG_CARD};
-        border-radius:8px;
-        padding:14px 16px;
-        border-left:4px solid {status_color};
-        border-top:1px solid {BORDER_LIGHT};
-        border-right:1px solid {BORDER_LIGHT};
-        border-bottom:1px solid {BORDER_LIGHT};
-        margin-bottom:10px;
-        min-height:130px;
-        font-family:Georgia,serif;
-    ">
-        <div style="font-size:0.72rem;color:{TEXT_CAPTION};margin-bottom:4px;letter-spacing:0.03em;">
-            {icon} {cat_name.upper()} · PCS {pcs}/10
+<div style="
+    background:{bg_tint};
+    border:1px solid {border_color};
+    border-radius:12px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    font-family:'Inter',-apple-system,sans-serif;
+    backdrop-filter:blur(8px);
+    transition:all 0.2s cubic-bezier(0.4,0,0.2,1);
+    position:relative;
+    overflow:hidden;
+">
+    <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:{color};border-radius:12px 0 0 12px;"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div style="font-size:0.60rem;color:#434E6A;letter-spacing:0.10em;text-transform:uppercase;font-weight:700;">
+            {icon} {cat_name} &nbsp;·&nbsp; PCS {pcs}/10
         </div>
-        <div style="font-weight:700;font-size:0.92rem;color:{TEXT_PRIMARY};margin-bottom:8px;line-height:1.3;">
-            {name[:48]}
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;">
-            <div>
-                <div style="font-size:1.5rem;font-weight:700;color:{status_color};">
-                    {status_emoji} {score:.0f}
-                </div>
-                <div style="font-size:0.70rem;color:{TEXT_CAPTION};">/100</div>
+        <div style="
+            font-size:0.60rem;font-weight:700;letter-spacing:0.08em;
+            color:{color};background:{'rgba(0,213,102,0.1)' if status=='bullish' else ('rgba(255,68,68,0.1)' if status=='bearish' else 'rgba(107,127,191,0.1)')};
+            padding:2px 7px;border-radius:4px;
+        ">{arrow} {label}</div>
+    </div>
+    <div style="font-weight:600;font-size:0.88rem;color:#E8EEFF;margin-bottom:10px;line-height:1.35;letter-spacing:-0.1px;">
+        {name[:52]}
+    </div>
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:12px;">
+        <div>
+            <div style="font-size:2.2rem;font-weight:800;color:{color};letter-spacing:-1.5px;line-height:1.0;">
+                {score:.0f}
             </div>
-            <div style="font-size:0.80rem;color:{TEXT_SECONDARY};line-height:1.6;">
-                <div><b>Dev:</b> {dev:+.1f}% vs 52w avg</div>
-                <div><b>Trend:</b> {trend_arrow} {trend:+.1f}%</div>
-                <div><b>Lead:</b> ~{lag_weeks}w</div>
+            <div style="font-size:0.60rem;color:#434E6A;margin-top:1px;">/100</div>
+        </div>
+        <div style="flex:1;padding-bottom:6px;">
+            <div style="height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;margin-bottom:8px;">
+                <div style="height:100%;width:{bar_pct}%;background:{color};border-radius:2px;transition:width 0.5s ease;"></div>
+            </div>
+            <div style="font-size:0.72rem;color:#8892AA;line-height:1.7;">
+                <div><span style="color:#434E6A;">Dev</span> &nbsp;<b style="color:#B8C0D4;">{dev:+.1f}%</b> vs 52w avg</div>
+                <div><span style="color:#434E6A;">Trend</span> &nbsp;<b style="color:{trend_color};">{trend_arrow} {trend:+.1f}%</b></div>
+                <div><span style="color:#434E6A;">Lead</span> &nbsp;<b style="color:#B8C0D4;">~{lag_weeks}w</b></div>
             </div>
         </div>
     </div>
-    """
+</div>
+"""

@@ -7,358 +7,377 @@ import streamlit as st
 
 from utils.config import TICKERS
 
-# ── Shared WSJ / Bloomberg CSS ──────────────────────────────────────────────
+# ── Modern Dark Design System CSS ────────────────────────────────────────────
 _CSS = """
 <style>
-/* ── Typography ─────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+/* ── Base typography ─────────────────────────────────────────────────────── */
 html, body, [class*="css"] {
-    font-family: Georgia, "Times New Roman", serif !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
     font-variant-numeric: tabular-nums;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     line-height: 1.55;
 }
-/* Monospace for figures — stops digits from "jiggling" in grids */
-.stat-value, .score-number, [data-testid="stMetricValue"], .mono-num {
-    font-family: "SF Mono", "Roboto Mono", "Consolas", "Menlo", monospace !important;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-}
 
-/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
-::-webkit-scrollbar              { width: 5px; height: 5px; }
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar              { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track        { background: transparent; }
-::-webkit-scrollbar-thumb        { background: rgba(201,168,76,0.35); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover  { background: rgba(201,168,76,0.65); }
+::-webkit-scrollbar-thumb        { background: rgba(0,213,102,0.22); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover  { background: rgba(0,213,102,0.45); }
 
-/* ── Page background ─────────────────────────────────────────────────────────── */
-.main { background-color: #FAF7F0 !important; }
+/* ── Page background ─────────────────────────────────────────────────────── */
+.main                 { background-color: #0B0D12 !important; }
+.block-container      { background-color: #0B0D12 !important; padding-top: 0.75rem !important; }
+[data-testid="stAppViewContainer"] { background-color: #0B0D12 !important; }
 
-/* ── Sidebar ─────────────────────────────────────────────────────────────────── */
-section[data-testid="stSidebar"] { background-color: #1C2B4A !important; }
-section[data-testid="stSidebar"] * { color: #F0EBE1 !important; }
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #0D0F1A 0%, #0A0C14 100%) !important;
+    border-right: 1px solid rgba(255,255,255,0.04) !important;
+}
+section[data-testid="stSidebar"] * { color: #8892AA !important; }
 section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] a,
-section[data-testid="stSidebar"] .stSelectbox label,
-section[data-testid="stSidebar"] .stTextInput label { color: #C9A84C !important; }
+section[data-testid="stSidebar"] a { color: #8892AA !important; }
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3 {
-    color: #FAF7F0 !important;
-    border-bottom: 1px solid rgba(201,168,76,0.30);
-    padding-bottom: 4px;
+    color: #E8EEFF !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+    padding-bottom: 4px !important;
 }
-/* Nav section group header pills */
 [data-testid="stNavSectionHeader"] {
-    background: rgba(201,168,76,0.13) !important;
-    border-radius: 4px !important;
+    background: rgba(0,213,102,0.07) !important;
+    border-radius: 6px !important;
     padding: 3px 8px !important;
-    margin-top: 10px !important;
-    margin-bottom: 2px !important;
+    margin-top: 12px !important;
+    margin-bottom: 3px !important;
 }
 [data-testid="stNavSectionHeader"] p {
-    font-size: 0.68rem !important;
+    font-size: 0.62rem !important;
     font-weight: 700 !important;
-    letter-spacing: 0.09em !important;
+    letter-spacing: 0.12em !important;
     text-transform: uppercase !important;
-    color: #C9A84C !important;
+    color: #00D566 !important;
 }
-/* Sidebar buttons */
+[data-testid="stSidebarNavItems"] a[aria-selected="true"],
+[data-testid="stSidebarNavItems"] [aria-selected="true"] {
+    background: rgba(0,213,102,0.09) !important;
+    border-radius: 6px !important;
+}
+[data-testid="stSidebarNavItems"] a[aria-selected="true"] p,
+[data-testid="stSidebarNavItems"] [aria-selected="true"] p { color: #00D566 !important; }
 section[data-testid="stSidebar"] .stButton > button {
-    background-color: #B8860B !important;
-    color: #FAF7F0 !important;
-    border: none !important;
-    transition: filter 0.15s ease, box-shadow 0.15s ease;
+    background: rgba(0,213,102,0.09) !important;
+    border: 1px solid rgba(0,213,102,0.22) !important;
+    color: #00D566 !important;
+    border-radius: 8px !important;
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
-    filter: brightness(1.10);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    background: rgba(0,213,102,0.16) !important;
+    box-shadow: 0 0 12px rgba(0,213,102,0.14) !important;
 }
 section[data-testid="stSidebar"] .stButton > button span,
-section[data-testid="stSidebar"] .stButton > button p { color: #FAF7F0 !important; }
+section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !important; }
 
-/* ── Masthead ─────────────────────────────────────────────────────────────────── */
+/* ── Masthead ────────────────────────────────────────────────────────────── */
 .market-status-badge {
     display: inline-flex; align-items: center; gap: 5px;
-    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.08em;
-    padding: 2px 8px; border-radius: 3px;
-    font-family: "SF Mono", "Roboto Mono", "Consolas", monospace !important;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em;
+    padding: 3px 8px; border-radius: 5px;
+    font-family: 'Inter', sans-serif !important;
 }
-.market-status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.market-status-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
 .ua-header {
     display: flex; align-items: flex-end; justify-content: space-between;
-    border-bottom: 3px solid #1C2B4A; padding-bottom: 10px; margin-bottom: 0;
+    padding-bottom: 12px; margin-bottom: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+}
+.ua-header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0;
+    width: 140px; height: 2px;
+    background: linear-gradient(90deg, #00D566, #00C8E0, #7C3AED);
+    border-radius: 1px;
 }
 .ua-wordmark {
-    font-size: 2.0rem; font-weight: 700; color: #1C2B4A;
-    font-family: Georgia, serif; letter-spacing: -0.5px; line-height: 1.15;
+    font-size: 1.75rem; font-weight: 800; color: #E8EEFF;
+    font-family: 'Inter', sans-serif; letter-spacing: -0.6px; line-height: 1.1;
 }
-.ua-wordmark span { color: #B8860B; }
+.ua-wordmark span {
+    background: linear-gradient(135deg, #00D566 0%, #00C8E0 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
 .ua-tagline {
-    font-size: 0.82rem; color: #8B7355; font-family: Georgia, serif;
-    font-style: italic; margin-top: 1px; letter-spacing: 0.02em;
+    font-size: 0.73rem; color: #434E6A; font-family: 'Inter', sans-serif;
+    margin-top: 2px; letter-spacing: 0.01em;
 }
 .ua-header-right {
-    text-align: right; font-size: 0.78rem; color: #8B7355;
-    font-family: Georgia, serif; padding-bottom: 2px;
+    text-align: right; font-size: 0.73rem; color: #8892AA; font-family: 'Inter', sans-serif;
 }
-.ua-header-right b { color: #1C2B4A; }
+.ua-header-right b { color: #C8D0E4; font-weight: 600; }
 .gold-rule {
-    height: 3px;
-    background: linear-gradient(90deg, #B8860B, #C9A84C, #B8860B);
-    border: none; margin: 0 0 18px 0;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0,213,102,0.5), rgba(0,200,224,0.3) 40%, rgba(124,58,237,0.3) 70%, transparent);
+    border: none; margin: 0 0 14px 0;
 }
 
-/* ── Cards ───────────────────────────────────────────────────────────────────── */
+/* ── Cards ───────────────────────────────────────────────────────────────── */
 .metric-card {
-    background: #F0EBE1; border-radius: 6px; padding: 16px 20px;
-    border: 1px solid #D4C9B0; border-left: 4px solid #B8860B;
-    margin-bottom: 10px; font-family: Georgia, serif;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    transition: box-shadow 0.18s ease, transform 0.18s ease;
+    background: rgba(18,21,30,0.8);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px; padding: 16px 18px; margin-bottom: 10px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    position: relative; overflow: hidden;
 }
+.metric-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px; background: rgba(255,255,255,0.08);
+    border-radius: 12px 0 0 12px;
+}
+.metric-card.bull::before  { background: #00D566; }
+.metric-card.bear::before  { background: #FF4444; }
+.metric-card.neutral::before { background: #6B7FBF; }
 .metric-card:hover {
-    box-shadow: 0 4px 12px rgba(0,0,0,0.09);
-    transform: translateY(-1px);
+    border-color: rgba(0,213,102,0.22);
+    box-shadow: 0 0 24px rgba(0,213,102,0.07), 0 8px 24px rgba(0,0,0,0.4);
+    transform: translateY(-2px);
 }
-.metric-card.bull    { border-left-color: #1B5E20; }
-.metric-card.bear    { border-left-color: #7B1010; }
-.metric-card.neutral { border-left-color: #8B7355; }
-.metric-card b       { color: #1A1612; }
-.metric-card span    { color: #6B6560; }
+.metric-card b { color: #E8EEFF; }
+.metric-card span { color: #8892AA; }
 
 .page-card {
-    background: #F0EBE1; border-radius: 6px; padding: 18px 20px;
-    border: 1px solid #D4C9B0; border-left: 4px solid #B8860B;
-    margin-bottom: 12px; font-family: Georgia, serif;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    transition: border-left-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    background: rgba(18,21,30,0.7);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 18px 20px; margin-bottom: 10px;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+    position: relative; overflow: hidden;
 }
+.page-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, #00D566, #7C3AED);
+    border-radius: 12px 0 0 12px;
+    opacity: 0; transition: opacity 0.2s ease;
+}
+.page-card:hover::before { opacity: 1; }
 .page-card:hover {
-    border-left-color: #1C2B4A;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.09);
+    border-color: rgba(0,213,102,0.18);
+    box-shadow: 0 0 24px rgba(0,213,102,0.07), 0 12px 32px rgba(0,0,0,0.5);
+    transform: translateY(-2px);
+}
+.page-card .page-title { font-size: 0.94rem; font-weight: 600; color: #E8EEFF; margin-bottom: 4px; letter-spacing: -0.1px; }
+.page-card .page-desc  { font-size: 0.79rem; color: #8892AA; line-height: 1.55; }
+
+/* ── Section header ──────────────────────────────────────────────────────── */
+.section-header {
+    font-size: 0.63rem; font-weight: 700; color: #434E6A;
+    font-family: 'Inter', sans-serif; letter-spacing: 0.13em;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding-bottom: 8px; margin-bottom: 14px;
+}
+
+/* ── Score numbers ───────────────────────────────────────────────────────── */
+.score-number { font-size: 2.8rem; font-weight: 800; line-height: 1.0; font-family: 'Inter', sans-serif; letter-spacing: -1.5px; }
+.score-bull {
+    background: linear-gradient(135deg, #00D566, #00C8E0);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.score-bear {
+    background: linear-gradient(135deg, #FF4444, #FF8888);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.score-neutral { color: #6B7FBF; }
+
+/* ── Stat boxes ──────────────────────────────────────────────────────────── */
+.stat-box {
+    background: rgba(18,21,30,0.8); border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 14px 16px; text-align: center;
+    font-family: 'Inter', sans-serif;
+    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+.stat-box:hover {
+    border-color: rgba(0,213,102,0.2);
+    box-shadow: 0 0 16px rgba(0,213,102,0.07);
     transform: translateY(-1px);
 }
-.page-card .page-title { font-size: 1.0rem; font-weight: 700; color: #1C2B4A; margin-bottom: 4px; }
-.page-card .page-desc  { font-size: 0.83rem; color: #6B6560; line-height: 1.55; }
+.stat-box .stat-label  { font-size: 0.60rem; text-transform: uppercase; letter-spacing: 0.11em; color: #434E6A; margin-bottom: 6px; font-weight: 700; }
+.stat-box .stat-value  { font-size: 1.4rem; font-weight: 700; color: #E8EEFF; letter-spacing: -0.5px; }
+.stat-box .stat-change { font-size: 0.76rem; margin-top: 3px; font-weight: 500; }
+.stat-box .stat-change.pos  { color: #00D566; }
+.stat-box .stat-change.neg  { color: #FF4444; }
+.stat-box .stat-change.flat { color: #6B7FBF; }
 
-/* ── Section header ──────────────────────────────────────────────────────────── */
-.section-header {
-    font-size: 0.72rem; font-weight: 700; color: #8B7355;
-    font-family: Georgia, serif; letter-spacing: 0.10em;
-    text-transform: uppercase; border-bottom: 1px solid #D4C9B0;
-    padding-bottom: 6px; margin-bottom: 14px;
-}
-
-/* ── Score ───────────────────────────────────────────────────────────────────── */
-.score-number { font-size: 2.4rem; font-weight: 700; line-height: 1.1; font-family: Georgia, serif; }
-.score-bull    { color: #1B5E20; }
-.score-bear    { color: #7B1010; }
-.score-neutral { color: #8B7355; }
-
-/* ── Info / disclaimer ───────────────────────────────────────────────────────── */
+/* ── Info / disclaimer ───────────────────────────────────────────────────── */
 .disclaimer {
-    background: #F0EBE1; border: 1px solid #D4C9B0; border-radius: 6px;
-    padding: 10px 14px; font-size: 0.76rem; color: #8B7355; margin-top: 16px;
-    font-family: Georgia, serif;
+    background: rgba(18,21,30,0.6); border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 8px; padding: 10px 14px; font-size: 0.72rem;
+    color: #434E6A; margin-top: 16px; font-family: 'Inter', sans-serif;
 }
 .info-box {
-    background: #EEF3F7; border: 1px solid #A8BCD0; border-radius: 6px;
-    padding: 12px 16px; margin-bottom: 12px; font-size: 0.87rem;
-    color: #1C2B4A; font-family: Georgia, serif;
+    background: rgba(0,213,102,0.05); border: 1px solid rgba(0,213,102,0.15);
+    border-radius: 8px; padding: 12px 16px; margin-bottom: 12px;
+    font-size: 0.83rem; color: #A8E8C0; font-family: 'Inter', sans-serif;
 }
 
-/* ── Tables ──────────────────────────────────────────────────────────────────── */
-.comparison-table { width: 100%; border-collapse: collapse; font-family: Georgia, serif; font-size: 0.87rem; }
-.comparison-table th { background: #1C2B4A; color: #FAF7F0; padding: 8px 12px; text-align: left; font-weight: 600; }
-.comparison-table td { padding: 7px 12px; border-bottom: 1px solid #D4C9B0; color: #1A1612; }
-.comparison-table tr:nth-child(even) td { background: #F0EBE1; }
-.comparison-table tr.highlight td { background: #FFF8E7; font-weight: 600; }
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+.comparison-table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 0.83rem; }
+.comparison-table th {
+    background: rgba(0,213,102,0.08); color: #00D566;
+    padding: 9px 12px; text-align: left; font-weight: 700;
+    font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border-bottom: 1px solid rgba(0,213,102,0.18);
+}
+.comparison-table td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #C8D0E4; }
+.comparison-table tr:hover td { background: rgba(255,255,255,0.02); }
+.comparison-table tr.highlight td { background: rgba(0,213,102,0.06); color: #E8EEFF; font-weight: 600; }
 
-.ua-data-table { width: 100%; border-collapse: collapse; font-family: Georgia, serif; font-size: 0.84rem; }
+.ua-data-table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 0.81rem; }
 .ua-data-table th {
-    background: #1C2B4A; color: #FAF7F0; padding: 8px 10px; text-align: left;
-    font-weight: 600; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase;
+    background: rgba(18,21,30,0.95); color: #434E6A;
+    padding: 9px 12px; text-align: left; font-weight: 700;
+    font-size: 0.60rem; letter-spacing: 0.10em; text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
 }
-.ua-data-table td { padding: 8px 10px; border-bottom: 1px solid #E8E0CE; color: #1A1612; vertical-align: middle; }
-.ua-data-table tr:nth-child(even) td { background: #F5F1E8; }
-.ua-data-table tr:hover td { background: #EAE3D2; transition: background 0.10s ease; }
-.ua-data-table .bull    { color: #1B5E20; font-weight: 700; }
-.ua-data-table .bear    { color: #7B1010; font-weight: 700; }
-.ua-data-table .neutral { color: #8B7355; }
+.ua-data-table td { padding: 9px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: #B8C0D4; vertical-align: middle; }
+.ua-data-table tr:hover td { background: rgba(255,255,255,0.02); transition: background 0.1s ease; }
+.ua-data-table .bull    { color: #00D566; font-weight: 600; }
+.ua-data-table .bear    { color: #FF4444; font-weight: 600; }
+.ua-data-table .neutral { color: #6B7FBF; }
 
-/* ── Stat box ────────────────────────────────────────────────────────────────── */
-.stat-box {
-    background: #F0EBE1; border: 1px solid #D4C9B0; border-radius: 6px;
-    padding: 14px 16px; text-align: center; font-family: Georgia, serif;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-}
-.stat-box .stat-label  { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.09em; color: #8B7355; margin-bottom: 4px; }
-.stat-box .stat-value  { font-size: 1.35rem; font-weight: 700; color: #1C2B4A; }
-.stat-box .stat-change { font-size: 0.82rem; margin-top: 2px; }
-.stat-box .stat-change.pos  { color: #1B5E20; }
-.stat-box .stat-change.neg  { color: #7B1010; }
-.stat-box .stat-change.flat { color: #8B7355; }
-
-/* ── Streamlit native overrides ─────────────────────────────────────────────── */
+/* ── Streamlit native overrides ──────────────────────────────────────────── */
 /* Metrics */
-.stMetric label                              { color: #6B6560 !important; font-size: 0.78rem !important; letter-spacing: 0.03em !important; }
-.stMetric [data-testid="stMetricValue"]      { color: #1C2B4A !important; font-family: Georgia, serif !important; font-size: 1.5rem !important; }
-.stMetric [data-testid="stMetricDelta"]      { font-size: 0.82rem !important; }
+.stMetric label { color: #434E6A !important; font-size: 0.70rem !important; letter-spacing: 0.06em !important; font-family: 'Inter', sans-serif !important; text-transform: uppercase !important; font-weight: 600 !important; }
+.stMetric [data-testid="stMetricValue"] { color: #E8EEFF !important; font-family: 'Inter', sans-serif !important; font-size: 1.65rem !important; font-weight: 700 !important; letter-spacing: -0.5px !important; }
+.stMetric [data-testid="stMetricDelta"] { font-size: 0.78rem !important; font-weight: 500 !important; }
 
 /* Expanders */
-div[data-testid="stExpander"]               { background: #F5F1E8 !important; border: 1px solid #D4C9B0 !important; border-radius: 6px !important; }
-.streamlit-expanderHeader                   { color: #1C2B4A !important; font-family: Georgia, serif !important; font-weight: 600 !important; font-size: 0.90rem !important; }
+div[data-testid="stExpander"] { background: rgba(18,21,30,0.6) !important; border: 1px solid rgba(255,255,255,0.06) !important; border-radius: 10px !important; }
+.streamlit-expanderHeader { color: #C8D0E4 !important; font-family: 'Inter', sans-serif !important; font-weight: 600 !important; font-size: 0.86rem !important; }
 
 /* Tabs */
-.stTabs [data-baseweb="tab-list"]           { border-bottom: 2px solid #D4C9B0 !important; gap: 0 !important; background: transparent !important; }
-.stTabs [data-baseweb="tab"]                { font-family: Georgia, serif !important; font-size: 0.85rem !important; padding: 8px 20px !important; color: #8B7355 !important; background: transparent !important; border: none !important; }
-.stTabs [aria-selected="true"]              { color: #1C2B4A !important; border-bottom: 2px solid #B8860B !important; font-weight: 600 !important; }
-.stTabs [data-baseweb="tab-highlight"]      { background: #B8860B !important; height: 2px !important; }
-.stTabs [data-baseweb="tab-panel"]          { padding-top: 18px !important; }
+.stTabs [data-baseweb="tab-list"]  { border-bottom: 1px solid rgba(255,255,255,0.06) !important; gap: 0 !important; background: transparent !important; }
+.stTabs [data-baseweb="tab"]       { font-family: 'Inter', sans-serif !important; font-size: 0.83rem !important; font-weight: 500 !important; padding: 8px 18px !important; color: #434E6A !important; background: transparent !important; border: none !important; }
+.stTabs [aria-selected="true"]     { color: #E8EEFF !important; border-bottom: 2px solid #00D566 !important; font-weight: 600 !important; }
+.stTabs [data-baseweb="tab-highlight"] { background: #00D566 !important; height: 2px !important; }
+.stTabs [data-baseweb="tab-panel"] { padding-top: 16px !important; }
 
-/* Buttons (main content area) */
+/* Buttons */
 .stButton > button {
-    font-family: Georgia, serif !important;
-    border-radius: 4px !important;
-    transition: filter 0.15s ease, box-shadow 0.15s ease;
+    font-family: 'Inter', sans-serif !important;
+    border-radius: 8px !important; font-weight: 500 !important; font-size: 0.83rem !important;
+    transition: all 0.18s cubic-bezier(0.4,0,0.2,1) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    background: rgba(18,21,30,0.8) !important; color: #C8D0E4 !important;
 }
 .stButton > button:hover {
-    filter: brightness(1.06);
-    box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+    border-color: rgba(0,213,102,0.4) !important; color: #00D566 !important;
+    box-shadow: 0 0 14px rgba(0,213,102,0.12) !important;
+    transform: translateY(-1px);
+}
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #00D566, #00A847) !important;
+    color: #001A0D !important; border: none !important; font-weight: 700 !important;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 0 22px rgba(0,213,102,0.35) !important; filter: brightness(1.05);
 }
 
-/* Text inputs + selectboxes */
+/* Inputs */
 .stTextInput > div > div > input {
-    border: 1px solid #D4C9B0 !important;
-    border-radius: 4px !important;
-    font-family: Georgia, serif !important;
-    background: #FFFFFF !important;
+    background: rgba(18,21,30,0.8) !important; border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 8px !important; color: #E8EEFF !important;
+    font-family: 'Inter', sans-serif !important;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .stTextInput > div > div > input:focus {
-    border-color: #B8860B !important;
-    box-shadow: 0 0 0 2px rgba(184,134,11,0.18) !important;
-    outline: none !important;
+    border-color: rgba(0,213,102,0.5) !important;
+    box-shadow: 0 0 0 3px rgba(0,213,102,0.08) !important; outline: none !important;
 }
+.stTextInput > div > div > input::placeholder { color: #434E6A !important; }
+
+/* Selectbox */
 .stSelectbox > div > div {
-    border: 1px solid #D4C9B0 !important;
-    border-radius: 4px !important;
-    font-family: Georgia, serif !important;
-    background: #FFFFFF !important;
+    background: rgba(18,21,30,0.8) !important; border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 8px !important; color: #E8EEFF !important; font-family: 'Inter', sans-serif !important;
 }
 
+/* Multiselect */
+.stMultiSelect > div > div {
+    background: rgba(18,21,30,0.8) !important; border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 8px !important;
+}
+.stMultiSelect span[data-baseweb="tag"] {
+    background: rgba(0,213,102,0.10) !important; border-color: rgba(0,213,102,0.25) !important;
+    color: #00D566 !important;
+}
+
+/* Number / Date input */
+.stNumberInput > div > div > input,
+.stDateInput > div > div > input {
+    background: rgba(18,21,30,0.8) !important; border: 1px solid rgba(255,255,255,0.08) !important;
+    border-radius: 8px !important; color: #E8EEFF !important; font-family: 'Inter', sans-serif !important;
+}
+
+/* Sliders */
+.stSlider [data-baseweb="slider"] [role="progressbar"] { background: linear-gradient(90deg, #00D566, #00C8E0) !important; }
+.stSlider [data-baseweb="thumb"] { background: #00D566 !important; border-color: #00D566 !important; box-shadow: 0 0 8px rgba(0,213,102,0.5) !important; }
+
+/* Toggle */
+.stToggle [data-baseweb="switch"] [data-checked="true"] { background: #00D566 !important; }
+
+/* Progress bars */
+.stProgress > div > div > div { background: linear-gradient(90deg, #00D566, #00C8E0) !important; border-radius: 4px !important; }
+.stProgress > div > div { background: rgba(255,255,255,0.05) !important; border-radius: 4px !important; }
+
 /* Dividers */
-hr { border-color: #D4C9B0 !important; opacity: 0.6; }
+hr { border-color: rgba(255,255,255,0.05) !important; opacity: 1 !important; }
 
 /* Spinner */
-.stSpinner > div { border-top-color: #B8860B !important; }
+.stSpinner > div { border-top-color: #00D566 !important; }
+
+/* H1/H2/H3 */
+h1, h2, h3 { color: #E8EEFF !important; font-family: 'Inter', sans-serif !important; font-weight: 700 !important; letter-spacing: -0.3px !important; }
+h1 { font-size: 1.75rem !important; }
+h2 { font-size: 1.3rem !important; }
+h3 { font-size: 1.05rem !important; }
+p  { color: #B8C0D4 !important; font-family: 'Inter', sans-serif !important; }
+
+/* Radio / Checkbox */
+.stRadio label, .stCheckbox label { color: #B8C0D4 !important; font-family: 'Inter', sans-serif !important; }
+
+/* Caption */
+.stCaption, small { color: #434E6A !important; font-family: 'Inter', sans-serif !important; }
+
+/* Dataframe */
+[data-testid="stDataFrame"] { border: 1px solid rgba(255,255,255,0.06) !important; border-radius: 10px !important; overflow: hidden !important; }
+
+/* Alerts */
+.stAlert { border-radius: 10px !important; border: none !important; }
+
+/* Success/Info/Warning/Error alerts (dark-friendly backgrounds) */
+div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="success"] { background: rgba(0,213,102,0.08) !important; border: 1px solid rgba(0,213,102,0.2) !important; }
+div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="info"]    { background: rgba(0,200,224,0.08) !important; border: 1px solid rgba(0,200,224,0.2) !important; }
+div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="warning"] { background: rgba(245,158,11,0.08) !important; border: 1px solid rgba(245,158,11,0.2) !important; }
+div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="error"]   { background: rgba(255,68,68,0.08) !important; border: 1px solid rgba(255,68,68,0.2) !important; }
 </style>
 """
 
+# _DARK_CSS is kept for backward compat but no longer needed — dark IS the default.
+_DARK_CSS = "<style>/* dark mode is now the default design */</style>"
 
-_DARK_CSS = """
-<style>
-/* ── Dark Mode Overrides ──────────────────────────────────────────────────── */
-/* Activated when data-theme="dark" is set via JS on <html> or via class injection.
-   We use a body class approach here: inject .ua-dark on the stApp root. */
-body.ua-dark, body.ua-dark [class*="css"] {
-    background-color: #0F1217 !important;
-    color: #E8E0CE !important;
-}
-body.ua-dark .main { background-color: #0F1217 !important; }
-body.ua-dark .block-container { background-color: #0F1217 !important; }
-
-/* Cards */
-body.ua-dark .metric-card { background: #1A1F2E !important; border-color: #2C3347 !important; color: #E8E0CE !important; }
-body.ua-dark .page-card   { background: #1A1F2E !important; border-color: #2C3347 !important; }
-body.ua-dark .page-card .page-title { color: #E8E0CE !important; }
-body.ua-dark .page-card .page-desc  { color: #9A9080 !important; }
-
-/* Text */
-body.ua-dark h1, body.ua-dark h2, body.ua-dark h3 { color: #E8E0CE !important; }
-body.ua-dark p, body.ua-dark li { color: #BDB5A0 !important; }
-
-/* Inputs */
-body.ua-dark .stTextInput > div > div > input { background: #1A1F2E !important; color: #E8E0CE !important; border-color: #3C4357 !important; }
-body.ua-dark .stSelectbox > div > div        { background: #1A1F2E !important; color: #E8E0CE !important; border-color: #3C4357 !important; }
-
-/* Tables */
-body.ua-dark .ua-data-table th { background: #1C2B4A !important; }
-body.ua-dark .ua-data-table td { border-color: #2C3347 !important; color: #E8E0CE !important; }
-body.ua-dark .ua-data-table tr:nth-child(even) td { background: #151A26 !important; }
-body.ua-dark .ua-data-table tr:hover td { background: #1F2A3E !important; }
-
-/* Tabs */
-body.ua-dark .stTabs [data-baseweb="tab-list"] { border-color: #2C3347 !important; }
-body.ua-dark .stTabs [data-baseweb="tab"]      { color: #8B7355 !important; }
-body.ua-dark .stTabs [aria-selected="true"]    { color: #C9A84C !important; }
-
-/* Expanders */
-body.ua-dark div[data-testid="stExpander"] { background: #1A1F2E !important; border-color: #2C3347 !important; }
-
-/* Metrics */
-body.ua-dark .stMetric [data-testid="stMetricValue"] { color: #E8E0CE !important; }
-body.ua-dark .stMetric label { color: #8B7355 !important; }
-
-/* Dividers */
-body.ua-dark hr { border-color: #2C3347 !important; }
-
-/* Info/disclaimer boxes */
-body.ua-dark .disclaimer { background: #1A1F2E !important; border-color: #2C3347 !important; color: #8B7355 !important; }
-body.ua-dark .info-box   { background: #1A2030 !important; border-color: #2C3A5A !important; color: #A8BCD0 !important; }
-
-/* Stat boxes */
-body.ua-dark .stat-box { background: #1A1F2E !important; border-color: #2C3347 !important; }
-body.ua-dark .stat-box .stat-value { color: #E8E0CE !important; }
-
-/* Section headers */
-body.ua-dark .section-header { color: #8B7355 !important; border-color: #2C3347 !important; }
-
-/* Streamlit native dark fills */
-body.ua-dark [data-testid="stDataFrame"] { background: #1A1F2E !important; }
-body.ua-dark [data-testid="stDataFrame"] div { background: #1A1F2E !important; color: #E8E0CE !important; }
-</style>
-"""
-
-_DARK_JS = """
-<script>
-(function() {
-    function applyDark(on) {
-        document.body.classList[on ? 'add' : 'remove']('ua-dark');
-    }
-    // Read preference from localStorage (set by the Streamlit toggle)
-    try {
-        var pref = localStorage.getItem('ua_dark_mode');
-        if (pref === 'true') applyDark(true);
-    } catch(e) {}
-
-    // Poll for toggle changes (Streamlit re-injects the page, so we poll)
-    setInterval(function() {
-        try {
-            var pref = localStorage.getItem('ua_dark_mode');
-            applyDark(pref === 'true');
-        } catch(e) {}
-    }, 500);
-})();
-</script>
-"""
+_DARK_JS = ""  # No longer needed — dark is the permanent design.
 
 
 def render_dark_mode_toggle() -> None:
-    """
-    Render a dark mode toggle in the sidebar. Stores preference in
-    st.session_state and localStorage so it persists across pages.
-    Called by render_sidebar_base().
-    """
-    _dark = st.session_state.get("ua_dark_mode", False)
-    _new  = st.toggle("🌙 Dark mode", value=_dark, key="_dm_toggle")
-    if _new != _dark:
-        st.session_state["ua_dark_mode"] = _new
-        # Write to localStorage via injected JS
-        _val = "true" if _new else "false"
-        st.markdown(
-            f'<script>try{{localStorage.setItem("ua_dark_mode","{_val}")}}catch(e){{}}</script>',
-            unsafe_allow_html=True,
-        )
-        st.rerun()
+    """No-op: dark mode is now the permanent base design, toggle removed."""
+    pass
 
 
 def render_synthetic_data_banner(n_synthetic: int, n_total: int) -> None:
@@ -371,14 +390,14 @@ def render_synthetic_data_banner(n_synthetic: int, n_total: int) -> None:
     if n_synthetic <= 0:
         return
     st.markdown(f"""
-    <div style="background:#7B1010;color:#FAF7F0;border-radius:6px;padding:12px 18px;
-                margin-bottom:14px;font-family:Georgia,serif;font-size:0.88rem;
-                border:2px solid #5C0A0A;">
-        <b>DEMO DATA — {n_synthetic} of {n_total} signals on this page are showing
-        synthetic placeholder data</b>, not real values. This happens when no FRED API
+    <div style="background:rgba(255,68,68,0.08);color:#FF8888;border-radius:10px;padding:12px 18px;
+                margin-bottom:14px;font-family:Inter,sans-serif;font-size:0.83rem;
+                border:1px solid rgba(255,68,68,0.3);border-left:3px solid #FF4444;">
+        <b style="color:#FF4444;">⚠ DEMO DATA</b> — {n_synthetic} of {n_total} signals on this page are showing
+        synthetic placeholder data, not real values. This happens when no FRED API
         key is configured or a live fetch fails. Add a free key in the sidebar under
         "Setup" for real data — until then, treat any bullish/bearish reading from
-        these signals as illustrative only, not an actual market signal.
+        these signals as illustrative only.
     </div>
     """, unsafe_allow_html=True)
 
@@ -465,8 +484,6 @@ def render_header(page_subtitle: str = "") -> None:
     from datetime import datetime
 
     st.markdown(_CSS, unsafe_allow_html=True)
-    # Dark mode CSS + JS persistence (always inject — harmless when dark is off)
-    st.markdown(_DARK_CSS + _DARK_JS, unsafe_allow_html=True)
 
     # Market open/closed status — NYSE regular hours, Mon-Fri 9:30-16:00 ET.
     # Best-effort only (no holiday calendar) — falls back to local time if
@@ -519,27 +536,28 @@ def render_header(page_subtitle: str = "") -> None:
         _rbp = _rb / _rto
         _rrp = _rr / _rto
         if _rbp >= 0.58:
-            _regime_lbl, _regime_col, _regime_bg = "RISK-ON", "#1B5E20", "rgba(27,94,32,0.08)"
+            _regime_lbl, _regime_col, _regime_bg = "RISK-ON", "#00D566", "rgba(0,213,102,0.06)"
         elif _rrp >= 0.52:
-            _regime_lbl, _regime_col, _regime_bg = "RISK-OFF", "#7B1010", "rgba(123,16,16,0.08)"
+            _regime_lbl, _regime_col, _regime_bg = "RISK-OFF", "#FF4444", "rgba(255,68,68,0.06)"
         elif _rbp >= 0.48:
-            _regime_lbl, _regime_col, _regime_bg = "LEANING BULLISH", "#2E6B35", "rgba(46,107,53,0.07)"
+            _regime_lbl, _regime_col, _regime_bg = "LEANING BULLISH", "#00A847", "rgba(0,168,71,0.05)"
         elif _rrp >= 0.44:
-            _regime_lbl, _regime_col, _regime_bg = "LEANING BEARISH", "#8B2020", "rgba(139,32,32,0.07)"
+            _regime_lbl, _regime_col, _regime_bg = "LEANING BEARISH", "#CC3333", "rgba(204,51,51,0.05)"
         else:
-            _regime_lbl, _regime_col, _regime_bg = "MIXED SIGNALS", "#8B7355", "rgba(139,115,85,0.07)"
+            _regime_lbl, _regime_col, _regime_bg = "MIXED SIGNALS", "#6B7FBF", "rgba(107,127,191,0.05)"
         st.markdown(
-            f'<div style="background:{_regime_bg};border:1px solid {_regime_col}22;'
-            f'border-radius:5px;padding:5px 14px;margin-bottom:10px;'
-            f'display:flex;align-items:center;gap:16px;font-family:Georgia,serif;">'
-            f'<span style="font-size:0.65rem;color:#8B7355;text-transform:uppercase;letter-spacing:0.08em;">MACRO REGIME</span>'
-            f'<span style="font-size:0.78rem;font-weight:700;color:{_regime_col};">● {_regime_lbl}</span>'
-            f'<span style="font-size:0.70rem;color:#6B6560;">'
-            f'<span style="color:#1B5E20;">▲ {_rb} bull</span>'
-            f' · <span style="color:#7B1010;">▼ {_rr} bear</span>'
-            f' · <span style="color:#8B7355;">→ {_rn} neutral</span>'
+            f'<div style="background:{_regime_bg};border:1px solid rgba(255,255,255,0.06);'
+            f'border-left:3px solid {_regime_col};'
+            f'border-radius:8px;padding:6px 14px;margin-bottom:12px;'
+            f'display:flex;align-items:center;gap:16px;font-family:Inter,sans-serif;">'
+            f'<span style="font-size:0.60rem;color:#434E6A;text-transform:uppercase;letter-spacing:0.11em;font-weight:700;">MACRO REGIME</span>'
+            f'<span style="font-size:0.75rem;font-weight:700;color:{_regime_col};">● {_regime_lbl}</span>'
+            f'<span style="font-size:0.68rem;color:#434E6A;">'
+            f'<span style="color:#00D566;">▲ {_rb}</span>'
+            f' · <span style="color:#FF4444;">▼ {_rr}</span>'
+            f' · <span style="color:#6B7FBF;">→ {_rn}</span>'
             f'</span>'
-            f'<span style="font-size:0.65rem;color:#9E9E8E;margin-left:auto;">38 signals · 2h cache</span>'
+            f'<span style="font-size:0.60rem;color:#2E3650;margin-left:auto;">38 signals · 2h cache</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -571,7 +589,7 @@ def render_header(page_subtitle: str = "") -> None:
         _uid = (st.session_state.get("user") or {}).get("id")
         _unread = get_unread_notification_count(_uid)
         _badge_html = (
-            f'<sup style="background:#7B1010;color:#FAF7F0;font-size:0.58rem;'
+            f'<sup style="background:#FF4444;color:#fff;font-size:0.55rem;'
             f'padding:1px 4px;border-radius:6px;margin-left:1px;">{min(_unread, 99)}</sup>'
             if _unread > 0 else ""
         )
@@ -580,9 +598,9 @@ def render_header(page_subtitle: str = "") -> None:
         with _bell_col:
             with st.popover(f"🔔{_badge_html if _unread else ''}", use_container_width=True):
                 st.markdown(
-                    '<div style="font-size:0.68rem;font-weight:700;color:#8B7355;letter-spacing:0.10em;'
-                    'text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid #D4C9B0;'
-                    'padding-bottom:6px;">System Notifications</div>',
+                    '<div style="font-size:0.62rem;font-weight:700;color:#434E6A;letter-spacing:0.12em;'
+                    'text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);'
+                    'padding-bottom:6px;font-family:Inter,sans-serif;">System Notifications</div>',
                     unsafe_allow_html=True,
                 )
                 _notifs = get_recent_notifications(limit=15)
@@ -597,18 +615,21 @@ def render_header(page_subtitle: str = "") -> None:
                     }
                     for _n in _notifs:
                         _icon = _NOTIF_ICONS.get(_n.get("notif_type", ""), "●")
-                        _n_bg = "#EDF7ED" if _n.get("direction") == "bull" else (
-                                "#FDF0F0" if _n.get("direction") == "bear" else "#FAF7F0"
+                        _n_bg = "rgba(0,213,102,0.06)" if _n.get("direction") == "bull" else (
+                                "rgba(255,68,68,0.06)" if _n.get("direction") == "bear" else "rgba(18,21,30,0.6)"
+                        )
+                        _n_border = "#00D566" if _n.get("direction") == "bull" else (
+                                    "#FF4444" if _n.get("direction") == "bear" else "rgba(255,255,255,0.07)"
                         )
                         _n_ts = _n.get("created_at", "")[:10]
                         st.markdown(
-                            f'<div style="background:{_n_bg};border-radius:6px;padding:8px 10px;'
-                            f'margin-bottom:6px;border-left:3px solid #D4C9B0;font-family:Georgia,serif;">'
-                            f'<div style="font-size:0.78rem;font-weight:700;color:#1A1612;">'
+                            f'<div style="background:{_n_bg};border-radius:8px;padding:8px 10px;'
+                            f'margin-bottom:6px;border-left:3px solid {_n_border};font-family:Inter,sans-serif;">'
+                            f'<div style="font-size:0.76rem;font-weight:600;color:#E8EEFF;">'
                             f'{_icon} {_n.get("title","")}</div>'
-                            f'<div style="font-size:0.72rem;color:#4A4440;margin-top:3px;line-height:1.4;">'
+                            f'<div style="font-size:0.70rem;color:#8892AA;margin-top:3px;line-height:1.4;">'
                             f'{_n.get("body","")}</div>'
-                            f'<div style="font-size:0.64rem;color:#9E9E8E;margin-top:4px;">{_n_ts}</div>'
+                            f'<div style="font-size:0.60rem;color:#434E6A;margin-top:4px;">{_n_ts}</div>'
                             f'</div>',
                             unsafe_allow_html=True,
                         )
