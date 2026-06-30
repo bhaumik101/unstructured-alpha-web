@@ -14,7 +14,7 @@ from utils.config import CATEGORIES, SIGNALS, TICKERS
 from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
 from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
-from utils.theme import inject_skeleton_css, skeleton_cards
+from utils.theme import inject_skeleton_css, skeleton_cards, source_badge
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
 render_header("Signal Dashboard")
@@ -38,6 +38,71 @@ with _ref_col:
     if st.button("↺ Refresh", key="sd_refresh", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
+
+# ── Methodology Callout ───────────────────────────────────────────────────────
+with st.expander("ℹ️ How these signals work", expanded=False):
+    _m_css = (
+        "background:rgba(18,21,30,0.8);border:1px solid rgba(255,255,255,0.07);"
+        "border-radius:10px;padding:14px 16px;height:100%;"
+    )
+    _m_title = (
+        "font-weight:700;font-size:0.82rem;letter-spacing:0.04em;"
+        "color:#E8EEFF;margin-bottom:6px;font-family:Inter,sans-serif;"
+    )
+    _m_body = (
+        "font-size:0.78rem;color:#8892AA;line-height:1.55;font-family:Inter,sans-serif;"
+    )
+    _m_badge = (
+        "display:inline-block;font-size:0.68rem;font-weight:600;letter-spacing:0.05em;"
+        "padding:2px 7px;border-radius:4px;margin-right:4px;margin-bottom:4px;"
+    )
+    _mc1, _mc2, _mc3, _mc4 = st.columns(4)
+    with _mc1:
+        st.markdown(f"""
+<div style="{_m_css}">
+  <div style="{_m_title}">📡 DATA SOURCES</div>
+  <div style="{_m_body}">
+    Signals are fetched daily from public APIs and government data releases — no scraped or
+    estimated data. Each series is mapped to an official source ID so you can verify it directly.
+  </div>
+  <div style="margin-top:10px;">
+    <span style="{_m_badge}background:rgba(0,200,224,0.12);color:#00C8E0;">FRED</span>
+    <span style="{_m_badge}background:rgba(0,200,224,0.12);color:#00C8E0;">EIA</span>
+    <span style="{_m_badge}background:rgba(0,200,224,0.12);color:#00C8E0;">SEC EDGAR</span>
+    <span style="{_m_badge}background:rgba(0,200,224,0.12);color:#00C8E0;">FINRA</span>
+    <span style="{_m_badge}background:rgba(0,200,224,0.12);color:#00C8E0;">yfinance</span>
+  </div>
+</div>""", unsafe_allow_html=True)
+    with _mc2:
+        st.markdown(f"""
+<div style="{_m_css}">
+  <div style="{_m_title}">📐 SCORING METHOD</div>
+  <div style="{_m_body}">
+    Each signal is converted to a 0–100 percentile rank within its own trailing 2-year
+    distribution. Values above 65 are bullish, below 35 are bearish. This normalises
+    across very different units (yield spreads, barrel counts, filing counts).
+  </div>
+</div>""", unsafe_allow_html=True)
+    with _mc3:
+        st.markdown(f"""
+<div style="{_m_css}">
+  <div style="{_m_title}">🔗 CONFLUENCE SCORE</div>
+  <div style="{_m_body}">
+    The per-ticker Confluence Score is a correlation-weighted average of all 38 signals,
+    where signals that historically co-move with that ticker's price get more weight.
+    It is re-computed every time you load Ticker Deep Dive.
+  </div>
+</div>""", unsafe_allow_html=True)
+    with _mc4:
+        st.markdown(f"""
+<div style="{_m_css}">
+  <div style="{_m_title}">🧪 WHAT'S VALIDATED</div>
+  <div style="{_m_body}">
+    Signal lead-times are tested out-of-sample with Bonferroni correction for multiple
+    comparisons. Many signals have <em>not</em> been validated and are marked as such.
+    See the <b>Model Validation</b> page for full per-signal results.
+  </div>
+</div>""", unsafe_allow_html=True)
 
 inject_skeleton_css()
 _sk_ph = st.empty()
@@ -462,6 +527,9 @@ for row_start in range(0, len(visible_signals), COLS):
                         f'<div>Trend: {trend_arrow} {_trend_fmt}% / 4w · Lead ~{cfg.get("lag_weeks", 0)}w{("  " + _streak_label) if _streak_label else ""}</div>'
                         f'</div></div>'
                         f'{_pro_flip_html}'
+                        f'<div style="margin-top:8px;">'
+                        f'{source_badge(cfg.get("source",""), cfg.get("series_id",""))}'
+                        f'</div>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )

@@ -54,7 +54,7 @@ from utils.analysis import (
 )
 from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
 from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
-from utils.theme import confluence_gauge_svg, style_area_chart
+from utils.theme import confluence_gauge_svg, style_area_chart, source_badge
 from utils.audit_ui import render_evidence_expander
 from utils.lead_time_research import (
     build_insider_intensity_series, build_short_interest_change_series,
@@ -861,6 +861,11 @@ if section == "Overview":
                 "doubleClick": "reset",
                 "modeBarButtonsToRemove": ["lasso2d", "select2d"],
             })
+            st.markdown(
+                source_badge("yfinance", "Daily OHLCV") + "&nbsp;&nbsp;" +
+                source_badge("yfinance", "Confluence Score · UA internal"),
+                unsafe_allow_html=True,
+            )
 
             # Price stats
             if len(price_series) > 50:
@@ -1113,6 +1118,7 @@ if section == "Overview":
                     f"Bars colored green when above the trailing 50-day average volume "
                     f"({_vol_avg:,.0f}), tan when below — a rough proxy for unusually active days."
                 )
+                st.markdown(source_badge("yfinance", "Daily Volume"), unsafe_allow_html=True)
             else:
                 st.info(f"Volume data unavailable for {ticker_input}.")
 
@@ -1153,6 +1159,7 @@ if section == "Overview":
                         "momentum indicator, not a buy/sell signal on its own; extreme readings can "
                         "persist during strong trends rather than immediately reversing."
                     )
+                    st.markdown(source_badge("yfinance", "RSI·14 · computed"), unsafe_allow_html=True)
             else:
                 st.info(f"Not enough price history yet to compute RSI for {ticker_input}.")
 

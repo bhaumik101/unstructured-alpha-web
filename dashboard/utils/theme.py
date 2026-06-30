@@ -496,6 +496,38 @@ def skeleton_chart_block(height: int = 300, title_lines: int = 1) -> str:
     )
 
 
+def source_badge(source: str, series_id: str = "", extra: str = "") -> str:
+    """
+    Return a compact HTML provenance badge string like:
+        「 FRED · TRUCKD11 」  or  「 EIA · PET.WCESTUS1.W 」
+    Suitable for embedding directly inside a card's HTML markup.
+    `extra` is appended after the series_id (e.g. " · SEC EDGAR").
+    """
+    _SOURCE_LABELS: dict[str, tuple[str, str]] = {
+        "fred":    ("FRED",      "#00C8E0"),
+        "eia":     ("EIA",       "#F59E0B"),
+        "sec":     ("SEC EDGAR", "#A78BFA"),
+        "finra":   ("FINRA",     "#A78BFA"),
+        "yfinance":("yfinance",  "#6B7FBF"),
+        "google":  ("Google Trends", "#6B7FBF"),
+        "fomc":    ("FOMC",      "#6B7FBF"),
+    }
+    label, color = _SOURCE_LABELS.get(source.lower(), (source.upper(), "#6B7FBF"))
+    parts = [label]
+    if series_id:
+        parts.append(series_id)
+    if extra:
+        parts.append(extra)
+    text = " · ".join(parts)
+    return (
+        f'<span style="display:inline-block;font-size:0.65rem;font-weight:600;'
+        f'letter-spacing:0.04em;color:{color};background:rgba(255,255,255,0.04);'
+        f'border:1px solid rgba(255,255,255,0.08);border-radius:4px;'
+        f'padding:1px 6px;font-family:Inter,monospace;">'
+        f'{text}</span>'
+    )
+
+
 def skeleton_stat_row(n: int = 4) -> str:
     """
     Return HTML for a row of `n` small stat-box skeletons (metric cards).

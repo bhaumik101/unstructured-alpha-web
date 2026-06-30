@@ -33,15 +33,16 @@ render_page_header(
     icon="🧪",
 )
 
-st.markdown("# Model Validation Dashboard")
 st.markdown("""
-<div style="background:#FFF8E7;border-radius:6px;padding:14px 18px;border:1px solid #E8D9A8;
-            font-size:0.9rem;color:#5D4426;margin-bottom:16px;font-family:Georgia,serif;">
-<b>What this page is for:</b> every score on this site traces back to a real, checkable validation
-status — backtested with real significance numbers, validated per-ticker on demand, or explicitly
-<b>not</b> validated and documented as to why. Most platforms that show a composite "smart score"
-disclose none of this. This page is the single place that does, including for the cases where the
-honest answer is "this hasn't held up" — that's the point, not an embarrassment to hide.
+<div style="background:rgba(0,200,224,0.07);border-left:3px solid #00C8E0;border-radius:8px;
+            padding:14px 18px;font-size:0.85rem;color:#B8C0D4;margin-bottom:20px;
+            font-family:Inter,sans-serif;line-height:1.6;">
+<b style="color:#E8EEFF;">What this page is for:</b> every score on this site traces back to a
+real, checkable validation status — backtested with real significance numbers, validated
+per-ticker on demand, or explicitly <b>not</b> validated and documented as to why. Most platforms
+that show a composite "smart score" disclose none of this. This page is the single place that does,
+including for the cases where the honest answer is "this hasn't held up" — that's the point, not
+an embarrassment to hide.
 </div>
 """, unsafe_allow_html=True)
 
@@ -49,20 +50,31 @@ honest answer is "this hasn't held up" — that's the point, not an embarrassmen
 st.markdown('<div class="section-header">COMPOSITE SCORES & DIFFERENTIATOR SIGNALS</div>', unsafe_allow_html=True)
 
 _STATUS_COLOR = {
-    "Backtested — NOT validated": "#7B1010",
-    "Validated methodology available — per-ticker, on demand": "#B8860B",
-    "Deliberately NOT lag-scanned": "#5D4426",
+    "Backtested — NOT validated":                              "#FF4444",
+    "Validated methodology available — per-ticker, on demand": "#F59E0B",
+    "Deliberately NOT lag-scanned":                            "#6B7FBF",
+}
+_STATUS_ICON = {
+    "Backtested — NOT validated":                              "⚠️",
+    "Validated methodology available — per-ticker, on demand": "🔬",
+    "Deliberately NOT lag-scanned":                            "ℹ️",
 }
 
 for entry in get_static_validation_summary():
-    color = _STATUS_COLOR.get(entry["status"], "#1C2B4A")
+    color = _STATUS_COLOR.get(entry["status"], "#6B7FBF")
+    icon  = _STATUS_ICON.get(entry["status"], "•")
     st.markdown(f"""
-    <div style="border-left:4px solid {color};background:#FAF7F0;border-radius:4px;
-                padding:12px 16px;margin-bottom:10px;">
-        <div style="font-weight:700;color:#1C2B4A;font-size:1.0rem;">{entry['category']}</div>
-        <div style="color:{color};font-weight:700;font-size:0.85rem;margin:2px 0 6px 0;">{entry['status']}</div>
-        <div style="color:#1A1612;font-size:0.88rem;">{entry['detail']}</div>
-        <div style="color:#8B7355;font-size:0.75rem;margin-top:6px;font-style:italic;">Source: {entry['source']}</div>
+    <div style="border-left:3px solid {color};background:rgba(18,21,30,0.8);
+                border:1px solid rgba(255,255,255,0.06);border-left:3px solid {color};
+                border-radius:8px;padding:12px 16px;margin-bottom:10px;
+                font-family:Inter,sans-serif;">
+        <div style="font-weight:700;color:#E8EEFF;font-size:0.92rem;">{entry['category']}</div>
+        <div style="color:{color};font-weight:600;font-size:0.78rem;margin:3px 0 6px 0;
+                    letter-spacing:0.03em;">{icon} {entry['status']}</div>
+        <div style="color:#B8C0D4;font-size:0.82rem;line-height:1.5;">{entry['detail']}</div>
+        <div style="color:#6B7FBF;font-size:0.72rem;margin-top:6px;">
+            Source: {entry['source']}
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -159,9 +171,12 @@ with st.expander("How is this different from the simpler backtest on the About p
     )
 
 st.markdown("""
-<div class="disclaimer">
-<b>Not financial advice.</b> Validation status describes how a score's methodology has performed
-against historical data — it is not a guarantee of future performance, and a "validated" signal can
-still be wrong on any individual occasion. Do your own research before making any investment decision.
+<div style="background:rgba(18,21,30,0.6);border:1px solid rgba(255,255,255,0.05);border-radius:8px;
+            padding:12px 16px;font-size:0.75rem;color:#6B7FBF;font-family:Inter,sans-serif;
+            line-height:1.5;margin-top:16px;">
+<b style="color:#8892AA;">Not financial advice.</b> Validation status describes how a score's
+methodology has performed against historical data — it is not a guarantee of future performance,
+and a "validated" signal can still be wrong on any individual occasion. Do your own research
+before making any investment decision.
 </div>
 """, unsafe_allow_html=True)
