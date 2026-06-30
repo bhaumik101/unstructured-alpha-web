@@ -35,12 +35,18 @@ from __future__ import annotations
 import streamlit as st
 
 from utils.config import TICKERS
-from utils.header import render_header, render_sidebar_base, go_to_ticker
+from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker
 from utils.db import init_db
 
 st.set_page_config(page_title="Short Squeeze Radar — UA", layout="wide")
 render_header("Short Squeeze Radar")
 render_sidebar_base()
+
+render_page_header(
+    "Short Squeeze Radar",
+    "High short interest + bullish macro + insider buying — the squeeze setup.",
+    icon="🎯",
+)
 init_db()
 
 # ── Data loading ──────────────────────────────────────────────────────────────

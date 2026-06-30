@@ -26,7 +26,7 @@ import yfinance as yf
 from utils.config import TICKERS
 from utils import alerts_db
 from utils.alerts import evaluate_watchlist
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.auth_ui import require_login
 from utils.quotes import get_batch_quotes, mini_sparkline
 from utils.auth import set_digest_optin, get_digest_optin
@@ -83,6 +83,12 @@ QUICK_ADD_PRESETS = {
 st.set_page_config(page_title="My Watchlist — UA", layout="wide")
 render_header("My Watchlist")
 render_sidebar_base()
+
+render_page_header(
+    "My Watchlist",
+    "Track confluence scores and alerts for your saved tickers.",
+    icon="⭐",
+)
 
 alerts_db.init_db()
 

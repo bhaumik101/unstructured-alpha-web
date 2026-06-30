@@ -385,3 +385,130 @@ def style_area_chart(fig, line_color: str = GREEN, fill_opacity: float = 0.12,
         )
 
     return style_chart(fig, height=height, title=title)
+
+
+# ── Skeleton / Shimmer Loading System ────────────────────────────────────────
+# Usage pattern (in any page):
+#
+#   from utils.theme import inject_skeleton_css, skeleton_cards, skeleton_chart_block
+#
+#   inject_skeleton_css()       # once per page, injects global CSS
+#
+#   # Show skeleton while data loads
+#   ph = st.empty()
+#   ph.markdown(skeleton_cards(n=3, height=110), unsafe_allow_html=True)
+#   data = expensive_load()
+#   ph.empty()                  # replace with real content
+#
+# All skeleton elements use the `.ua-sk` class so they won't conflict with
+# any Streamlit or external CSS already on the page.
+
+_SKELETON_CSS = """
+<style>
+@keyframes ua_shimmer {
+  0%   { background-position: -1200px 0; }
+  100% { background-position:  1200px 0; }
+}
+.ua-sk {
+  background: linear-gradient(
+    90deg,
+    rgba(26,30,44,0.9)   0%,
+    rgba(42,48,72,0.95)  35%,
+    rgba(55,62,90,0.90)  50%,
+    rgba(42,48,72,0.95)  65%,
+    rgba(26,30,44,0.9)  100%
+  );
+  background-size: 1200px 100%;
+  animation: ua_shimmer 1.8s infinite linear;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.ua-sk-line {
+  background: linear-gradient(
+    90deg,
+    rgba(26,30,44,0.9)  0%,
+    rgba(42,48,72,0.95) 40%,
+    rgba(26,30,44,0.9) 100%
+  );
+  background-size: 1200px 100%;
+  animation: ua_shimmer 1.8s infinite linear;
+  border-radius: 4px;
+  height: 11px;
+  margin-bottom: 8px;
+}
+.ua-sk-wrap {
+  background: rgba(18,21,30,0.8);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+</style>
+"""
+
+
+def inject_skeleton_css() -> None:
+    """
+    Inject the skeleton/shimmer CSS into the page. Call once near the top of
+    any page that uses skeleton placeholders. Safe to call multiple times —
+    Streamlit deduplicates identical markdown injections within a session.
+    """
+    import streamlit as st
+    st.markdown(_SKELETON_CSS, unsafe_allow_html=True)
+
+
+def skeleton_cards(n: int = 3, height: int = 110, cols: int = 1) -> str:
+    """
+    Return HTML for `n` stacked shimmer card placeholders.
+    Use `cols` to lay them out in a CSS grid (1–4 columns).
+
+    Args:
+        n:      number of skeleton cards
+        height: card height in pixels
+        cols:   number of grid columns
+    """
+    card = (
+        f'<div class="ua-sk-wrap">'
+        f'  <div class="ua-sk" style="height:{height}px;width:100%;"></div>'
+        f'</div>'
+    )
+    grid_css = f"display:grid;grid-template-columns:repeat({cols},1fr);gap:10px;"
+    return f'<div style="{grid_css}">{"".join([card] * n)}</div>'
+
+
+def skeleton_chart_block(height: int = 300, title_lines: int = 1) -> str:
+    """
+    Return HTML for a shimmer chart placeholder (full-width).
+
+    Args:
+        height:      chart area height in pixels
+        title_lines: number of fake title/label lines above the chart area
+    """
+    lines_html = "".join(
+        f'<div class="ua-sk-line" style="width:{w}%;margin-bottom:6px;"></div>'
+        for w in ([40] + [25] * (title_lines - 1))[:title_lines]
+    )
+    return (
+        f'<div class="ua-sk-wrap">'
+        f'  {lines_html}'
+        f'  <div class="ua-sk" style="height:{height}px;width:100%;margin-top:8px;"></div>'
+        f'</div>'
+    )
+
+
+def skeleton_stat_row(n: int = 4) -> str:
+    """
+    Return HTML for a row of `n` small stat-box skeletons (metric cards).
+    Typically used to placeholder a row of KPI chips above a chart.
+    """
+    card = (
+        '<div class="ua-sk-wrap" style="flex:1;min-width:0;">'
+        '  <div class="ua-sk-line" style="width:60%;"></div>'
+        '  <div class="ua-sk" style="height:36px;width:80%;margin-top:4px;"></div>'
+        '</div>'
+    )
+    return (
+        f'<div style="display:flex;gap:10px;margin-bottom:10px;">'
+        f'{"".join([card] * n)}'
+        f'</div>'
+    )

@@ -26,11 +26,17 @@ from datetime import datetime
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 
 st.set_page_config(page_title="Sector Map — UA", layout="wide")
 render_header("Sector Map")
 render_sidebar_base()
+
+render_page_header(
+    "Sector Rotation Map",
+    "Signal-driven sector strength heatmap and rotation signals.",
+    icon="🗺️",
+)
 
 st.markdown("# Sector Rotation Signal Map")
 st.caption(

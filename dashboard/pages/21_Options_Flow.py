@@ -14,11 +14,17 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 
 st.set_page_config(page_title="Options Flow — UA", layout="wide")
 render_header("Unusual Options Activity")
 render_sidebar_base()
+
+render_page_header(
+    "Unusual Options Activity",
+    "Detect outsized options positioning as a potential directional signal.",
+    icon="📡",
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -17,7 +17,8 @@ import yfinance as yf
 import numpy as np
 
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import style_chart, BG_PAGE, BG_PLOT, TEXT_PRIMARY, TEXT_SECONDARY, BORDER_LIGHT
+from utils.theme import (style_chart, BG_PAGE, BG_PLOT, TEXT_PRIMARY, TEXT_SECONDARY, BORDER_LIGHT,
+                         inject_skeleton_css, skeleton_chart_block, skeleton_stat_row)
 from utils.signals_cache import get_all_signal_scores
 
 st.set_page_config(page_title="Market Heatmap — UA", layout="wide")
@@ -179,18 +180,23 @@ def _score_to_color(score: float) -> str:
 
 
 # ── Load data ─────────────────────────────────────────────────────────────────
+inject_skeleton_css()
 cache_v = st.session_state.get("cache_v", 1)
 
-with st.spinner("Loading signal scores…"):
-    sector_scores = _compute_sector_scores_from_signals(cache_v)
+_sk_ph = st.empty()
+_sk_ph.markdown(
+    skeleton_stat_row(4) + skeleton_chart_block(height=560, title_lines=0),
+    unsafe_allow_html=True,
+)
+sector_scores = _compute_sector_scores_from_signals(cache_v)
 
 # Collect all unique tickers + ETFs for single batch price fetch
 all_tickers = list({t for tickers in SECTOR_TICKERS.values() for t in tickers})
 all_etfs    = list(SECTOR_ETFS.values())
 all_syms    = tuple(sorted(set(all_tickers + all_etfs)))
 
-with st.spinner("Fetching prices…"):
-    prices = _fetch_prices(all_syms)
+prices = _fetch_prices(all_syms)
+_sk_ph.empty()
 
 # ── View mode ─────────────────────────────────────────────────────────────────
 view_mode = st.segmented_control(

@@ -23,9 +23,15 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-from utils.header import render_header
+from utils.header import render_header, render_sidebar_base, render_page_header
 
 render_header()
+
+render_page_header(
+    "Signal Backtester",
+    "Build and backtest custom signal combinations against historical price data.",
+    icon="⚗️",
+)
 
 # ── Imports ───────────────────────────────────────────────────────────────────
 import html as _html_mod

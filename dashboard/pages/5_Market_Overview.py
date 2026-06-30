@@ -28,12 +28,18 @@ import plotly.graph_objects as go
 import streamlit as st
 import yfinance as yf
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.fetchers import fetch_live_quote
 
 st.set_page_config(page_title="Market Overview — UA", layout="wide")
 render_header("Market Overview")
 render_sidebar_base()
+
+render_page_header(
+    "Market Overview",
+    "Live snapshot of equities, rates, commodities, and macro regime indicators.",
+    icon="📈",
+)
 
 st.divider()
 

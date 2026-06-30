@@ -34,9 +34,15 @@ st.set_page_config(
 
 import html as _html_mod  # must be at module level — used in archive section outside else block
 
-from utils.header import render_header
+from utils.header import render_header, render_sidebar_base, render_page_header
 
 render_header()
+
+render_page_header(
+    "Weekly Brief",
+    "AI-generated macro research notes published every Sunday.",
+    icon="📰",
+)
 
 # ── Imports ───────────────────────────────────────────────────────────────────
 from utils.narrative_engine import (

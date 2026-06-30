@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 from utils.config import SIGNALS, TICKERS
 from utils.db import engine, score_snapshots, init_db
-from utils.header import render_header, render_sidebar_base, go_to_ticker
+from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker
 from utils.quotes import get_batch_quotes
 from utils.score_history import (
     record_all_signal_snapshots, get_signal_flips, get_signal_diff,
@@ -37,6 +37,12 @@ from utils.convergence import get_convergence_events, render_convergence_events
 st.set_page_config(page_title="Today's Brief — UA", layout="wide")
 render_header("Today's Brief")
 render_sidebar_base()
+
+render_page_header(
+    "Today's Brief",
+    "What the macro machine sees right now — signals, regime, and top opportunities.",
+    icon="📋",
+)
 
 init_db()
 

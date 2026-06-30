@@ -26,11 +26,17 @@ from utils.fetchers import (
 from utils.analysis import (
     score_signal, score_cot, compute_supercycle_score, score_contract_velocity,
 )
-from utils.header import render_header, render_sidebar_base, ticker_chips, render_synthetic_data_banner
+from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
 
 st.set_page_config(page_title="Power Supercycle — UA", layout="wide")
 render_header("Power Supercycle")
 render_sidebar_base()
+
+render_page_header(
+    "Power Supercycle",
+    "Tracking the multi-year bull thesis in energy infrastructure, nuclear, and AI.",
+    icon="⚡",
+)
 
 END   = datetime.now().strftime("%Y-%m-%d")
 START = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")

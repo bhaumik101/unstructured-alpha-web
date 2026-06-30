@@ -24,13 +24,19 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.express as px
 
-from utils.header import render_header, render_sidebar_base, go_to_ticker
+from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker
 from utils.config import TICKERS, SIGNALS
 from utils.db import init_db
 
 st.set_page_config(page_title="Portfolio Analyzer — UA", layout="wide")
 render_header("Portfolio Analyzer")
 render_sidebar_base()
+
+render_page_header(
+    "Portfolio Analyzer",
+    "Macro factor exposure and confluence scores across your holdings.",
+    icon="💼",
+)
 init_db()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────

@@ -23,13 +23,19 @@ import yfinance as yf
 from utils.config import SIGNALS, TICKERS
 from utils.fetchers import fetch_live_quote, fetch_signal_series
 from utils.analysis import compute_confluence, score_signal
-from utils.header import render_header, render_sidebar_base, render_synthetic_data_banner
+from utils.header import render_header, render_sidebar_base, render_page_header, render_synthetic_data_banner
 from utils.quotes import get_batch_quotes
 from utils.signals_cache import get_all_signal_scores
 
 st.set_page_config(page_title="Stock Screener — UA", layout="wide")
 render_header("Stock Screener")
 render_sidebar_base()
+
+render_page_header(
+    "Stock Screener",
+    "Filter 80+ tickers by confluence score, sector, and price momentum.",
+    icon="🔍",
+)
 
 st.markdown(
     '<div style="font-size:0.76rem;color:#6B7FBF;font-family:Inter,sans-serif;'

@@ -53,7 +53,7 @@ from utils.analysis import (
     score_contract_velocity, build_narrative, compute_rsi,
 )
 from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
-from utils.header import render_header, render_sidebar_base, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
+from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
 from utils.theme import confluence_gauge_svg, style_area_chart
 from utils.audit_ui import render_evidence_expander
 from utils.lead_time_research import (
@@ -67,6 +67,12 @@ from utils.score_history import record_score_snapshot, get_score_history, comput
 st.set_page_config(page_title="Ticker Deep Dive — UA", layout="wide")
 render_header("Ticker Deep Dive")
 render_sidebar_base()
+
+render_page_header(
+    "Ticker Deep Dive",
+    "Deep-dive analysis: signal correlations, score history, fundamentals, and catalysts.",
+    icon="🔬",
+)
 
 # Note: signal/price date ranges (START/END/PRICE_START) now live inside
 # utils/ticker_score.compute_full_ticker_score() -- that's the single place
@@ -668,12 +674,13 @@ if section == "Overview":
             # smooth, gap-free, solid line plotted from the same real Close
             # series is both more honest about what data this actually is
             # AND the more professional-looking choice.
-            fig_price = go.Figure(go.Scatter(
+            fig_price = make_subplots(specs=[[{"secondary_y": True}]])
+            fig_price.add_trace(go.Scatter(
                 x=price_view.index, y=price_view.values,
                 mode="lines", line=dict(color="#00C8E0", width=2.5, shape="spline", smoothing=0.3),
                 fill="tozeroy", fillcolor="rgba(0,200,224,0.08)",
                 name=ticker_input,
-            ))
+            ), secondary_y=False)
 
             # 50-day and 200-day MAs (from full series, trimmed to view window).
             # Solid, thin, distinct colors -- a dashed/dotted overlay reads as
@@ -686,14 +693,14 @@ if section == "Overview":
                 fig_price.add_trace(go.Scatter(
                     x=ma50_view.index, y=ma50_view.values, name="50-day MA",
                     mode="lines", line=dict(color="#7C3AED", width=1.5, shape="spline", smoothing=0.3),
-                ))
+                ), secondary_y=False)
             if len(price_series) >= 200 and price_period in ("1Y", "2Y", "YTD", "ALL"):
                 ma200 = price_series.rolling(200).mean()
                 ma200_view = ma200[ma200.index >= price_view.index[0]]
                 fig_price.add_trace(go.Scatter(
                     x=ma200_view.index, y=ma200_view.values, name="200-day MA",
                     mode="lines", line=dict(color="#FF4444", width=1.5, shape="spline", smoothing=0.3),
-                ))
+                ), secondary_y=False)
 
             # ── Earnings date markers ──────────────────────────────────────
             # Vertical dashed lines on the price chart for each earnings date
@@ -748,6 +755,42 @@ if section == "Overview":
             except Exception:
                 pass  # Never let an earnings fetch failure break the price chart
 
+            # ── Confluence Score overlay (secondary Y-axis) ────────────────────
+            # Show score history as a thin purple step-line on the right axis
+            # so viewers can directly see when macro tailwinds turned bullish/
+            # bearish relative to the price action. If no history yet, draw
+            # the current score as a dotted horizontal reference instead.
+            _score_color = ("#00D566" if score_val >= 65 else
+                            "#FF4444" if score_val <= 35 else "#7C3AED")
+            if len(_score_hist) >= 2:
+                _sh_dates  = [pd.Timestamp(r["snapshot_date"]) for r in _score_hist]
+                _sh_scores = [float(r["score"]) for r in _score_hist]
+                fig_price.add_trace(go.Scatter(
+                    x=_sh_dates, y=_sh_scores,
+                    name="Confluence Score",
+                    mode="lines+markers",
+                    line=dict(color=_score_color, width=2),
+                    marker=dict(size=5, color="#F59E0B", symbol="circle"),
+                    fill="tozeroy", fillcolor=f"rgba({','.join(str(int(_score_color.lstrip('#')[i:i+2],16)) for i in (0,2,4))},0.06)",
+                    hovertemplate="Score: <b>%{y:.1f}</b><extra>Confluence</extra>",
+                ), secondary_y=True)
+            else:
+                # Single horizontal reference line at current score
+                _x0 = price_view.index[0] if not price_view.empty else pd.Timestamp("today")
+                _x1 = price_view.index[-1] if not price_view.empty else pd.Timestamp("today")
+                fig_price.add_trace(go.Scatter(
+                    x=[_x0, _x1], y=[score_val, score_val],
+                    name=f"Current Score ({score_val:.0f})",
+                    mode="lines",
+                    line=dict(color=_score_color, width=1.5, dash="dot"),
+                    hovertemplate="Score: <b>%{y:.0f}</b><extra>Confluence (current)</extra>",
+                ), secondary_y=True)
+            # Threshold guide lines on score axis
+            fig_price.add_hline(y=65, line_dash="dot", line_color="rgba(0,213,102,0.25)",
+                                line_width=1, yref="y2")
+            fig_price.add_hline(y=35, line_dash="dot", line_color="rgba(255,68,68,0.25)",
+                                line_width=1, yref="y2")
+
             fig_price.update_layout(
                 height=380, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
                 font=dict(size=13, color="#E8EEFF"),
@@ -786,6 +829,30 @@ if section == "Overview":
                             bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
                 margin=dict(l=0, r=0, t=40, b=0),
                 dragmode="zoom",
+            )
+            # Configure primary price axis (left)
+            fig_price.update_yaxes(
+                title_text="Price (USD)",
+                secondary_y=False,
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.05)",
+                tickfont=dict(color="#8892AA", size=11),
+                title_font=dict(color="#8892AA", size=11),
+                tickprefix="$",
+                autorange=True,
+                fixedrange=False,
+            )
+            # Configure Confluence Score axis (right)
+            fig_price.update_yaxes(
+                title_text="Confluence Score",
+                secondary_y=True,
+                range=[0, 100],
+                showgrid=False,
+                tickfont=dict(color=_score_color, size=10, family="Inter, sans-serif"),
+                title_font=dict(color=_score_color, size=11, family="Inter, sans-serif"),
+                fixedrange=True,
+                tickvals=[0, 35, 65, 100],
+                ticktext=["0", "35 Bear", "65 Bull", "100"],
             )
             st.plotly_chart(fig_price, use_container_width=True, config={
                 "displayModeBar": True,

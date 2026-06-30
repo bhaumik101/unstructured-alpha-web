@@ -16,11 +16,17 @@ import streamlit as st
 import yfinance as yf
 
 from utils.config import TICKERS
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 
 st.set_page_config(page_title="Stock Viewer — UA", layout="wide")
 render_header("Stock Viewer")
 render_sidebar_base()
+
+render_page_header(
+    "Stock Viewer",
+    "Interactive price charts with volume, RSI, and technical overlays.",
+    icon="📉",
+)
 
 # ── Dark design system palette ────────────────────────────────────────────────
 _BULL  = "#00D566"          # bullish green

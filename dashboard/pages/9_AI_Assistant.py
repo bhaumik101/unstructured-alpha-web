@@ -10,11 +10,17 @@ from datetime import datetime
 
 import streamlit as st
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 
 st.set_page_config(page_title="AI Assistant — UA", layout="wide")
 render_header("AI Research Assistant")
 render_sidebar_base()
+
+render_page_header(
+    "AI Research Assistant",
+    "Ask anything about signals, tickers, or current macro conditions.",
+    icon="🤖",
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

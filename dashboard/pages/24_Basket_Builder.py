@@ -30,7 +30,7 @@ import plotly.graph_objects as go
 import yfinance as yf
 from datetime import datetime, timedelta
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.signals_cache import get_all_signal_scores
 from utils.config import SIGNALS, TICKERS as TICKER_CFG
 
@@ -41,6 +41,12 @@ st.set_page_config(
 )
 render_header()
 render_sidebar_base()
+
+render_page_header(
+    "Thematic Basket Builder",
+    "Build and backtest thematic stock baskets aligned with macro signals.",
+    icon="🧺",
+)
 
 st.markdown("""
 <style>

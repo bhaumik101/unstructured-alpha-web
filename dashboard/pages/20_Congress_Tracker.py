@@ -17,11 +17,17 @@ import plotly.graph_objects as go
 import requests
 import streamlit as st
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 
 st.set_page_config(page_title="Congress Tracker — UA", layout="wide")
 render_header("Congressional Trade Tracker")
 render_sidebar_base()
+
+render_page_header(
+    "Congressional Trade Tracker",
+    "Follow insider-adjacent congressional stock trades with signal overlay.",
+    icon="🏛️",
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

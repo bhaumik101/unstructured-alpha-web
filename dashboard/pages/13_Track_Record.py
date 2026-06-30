@@ -27,13 +27,19 @@ not an edge claim.
 import datetime as _dt
 import streamlit as st
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.fetchers import fetch_earnings_dates
 from utils.score_history import get_score_history
 
 st.set_page_config(page_title="Earnings Track Record — UA", layout="wide")
 render_header("Earnings Track Record")
 render_sidebar_base()
+
+render_page_header(
+    "Earnings Track Record",
+    "Historical model accuracy around earnings events across 80+ tickers.",
+    icon="📊",
+)
 
 st.markdown("# Pre-Earnings Signal Track Record")
 st.caption(

@@ -19,13 +19,19 @@ accurate -- nothing here is allowed to be approximated or rounded up.
 import pandas as pd
 import streamlit as st
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.config import SIGNALS, CATEGORIES
 from utils.validation_status import validate_all_macro_signals, get_static_validation_summary
 
 st.set_page_config(page_title="Model Validation — UA", layout="wide")
 render_header("Model Validation Dashboard")
 render_sidebar_base()
+
+render_page_header(
+    "Model Validation",
+    "Out-of-sample backtest results and signal reliability metrics.",
+    icon="🧪",
+)
 
 st.markdown("# Model Validation Dashboard")
 st.markdown("""

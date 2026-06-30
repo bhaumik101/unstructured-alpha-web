@@ -34,7 +34,7 @@ import numpy as np
 import plotly.graph_objects as go
 from datetime import datetime, timedelta, date
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.signals_cache import get_all_signal_scores
 from utils.config import SIGNALS
 
@@ -45,6 +45,12 @@ st.set_page_config(
 )
 render_header()
 render_sidebar_base()
+
+render_page_header(
+    "Event Forecaster",
+    "Model-based probability estimates for upcoming macro and earnings events.",
+    icon="🎲",
+)
 
 st.markdown("""
 <style>

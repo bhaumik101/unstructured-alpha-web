@@ -14,6 +14,7 @@ from utils.config import CATEGORIES, SIGNALS, TICKERS
 from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
 from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
+from utils.theme import inject_skeleton_css, skeleton_cards
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
 render_header("Signal Dashboard")
@@ -38,8 +39,11 @@ with _ref_col:
         st.cache_data.clear()
         st.rerun()
 
-with st.spinner("Loading signal data…"):
-    all_signals = get_all_signal_scores()
+inject_skeleton_css()
+_sk_ph = st.empty()
+_sk_ph.markdown(skeleton_cards(n=6, height=110, cols=3), unsafe_allow_html=True)
+all_signals = get_all_signal_scores()
+_sk_ph.empty()
 
 render_synthetic_data_banner(
     sum(1 for sv in all_signals.values() if sv.get("is_synthetic")),

@@ -43,7 +43,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta, timezone
 
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.signals_cache import get_all_signal_scores
 from utils.config import SIGNALS, CATEGORIES
 
@@ -54,6 +54,12 @@ st.set_page_config(
 )
 render_header()
 render_sidebar_base()
+
+render_page_header(
+    "Regime Playbook",
+    "Historical playbook: how each macro regime has affected sectors and tickers.",
+    icon="📖",
+)
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
