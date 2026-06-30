@@ -22,15 +22,15 @@ st.set_page_config(page_title="Stock Viewer — UA", layout="wide")
 render_header("Stock Viewer")
 render_sidebar_base()
 
-# ── Brand palette ──────────────────────────────────────────────────────────────
-_NAVY  = "#1C2B4A"
-_GOLD  = "#B8860B"
-_BULL  = "#1B5E20"
-_BEAR  = "#7B1010"
-_TAN   = "#8B7355"
-_CREAM = "#FAF7F0"
-_GRID  = "#EBEBEB"
-_BG    = "#FFFFFF"
+# ── Dark design system palette ────────────────────────────────────────────────
+_BULL  = "#00D566"          # bullish green
+_BEAR  = "#FF4444"          # bearish red
+_NAVY  = "#E8EEFF"          # primary text (near-white on dark)
+_GOLD  = "#F59E0B"          # amber accent (RSI, MA9)
+_TAN   = "#8892AA"          # muted text
+_CREAM = "#0B0D12"          # page bg (unused in chart, kept for compat)
+_GRID  = "rgba(255,255,255,0.05)"  # subtle grid lines
+_BG    = "#0F1118"          # chart plot area
 
 # ── Minimal CSS — only what the built-in components can't handle ───────────────
 st.markdown("""
@@ -84,8 +84,10 @@ _IND_DEFAULT = ["MA 20", "MA 50", "RSI (14)"]
 _c1, _c2, _c3 = st.columns([1.3, 6.2, 2.5])
 
 with _c1:
-    _raw   = st.text_input("Symbol", key="_sc_ticker", max_chars=10,
-                            label_visibility="collapsed", placeholder="Ticker…")
+    _raw   = st.text_input("Symbol", key="_sc_ticker", max_chars=20,
+                            label_visibility="collapsed",
+                            placeholder="Any symbol: SPY, AAPL, BTC-USD, ^GSPC…",
+                            help="Supports any Yahoo Finance symbol worldwide: US stocks, ETFs, indices (^GSPC, ^FTSE), crypto (BTC-USD), FX (EURUSD=X), international (BABA, NVO, MC.PA)")
     TICKER = (_raw or "SPY").strip().upper()
 
 with _c2:
@@ -173,16 +175,16 @@ if pre_price and abs(pre_price - last_price) > 0.005:
     _pc = (pre_price - last_price) / last_price * 100
     _cc = _BULL if _pc >= 0 else _BEAR
     _ext_parts.append(
-        f'<span style="font-size:0.76rem;color:{_cc};background:rgba(0,0,0,0.045);'
-        f'padding:2px 7px;border-radius:4px;margin-left:8px;">'
+        f'<span style="font-size:0.76rem;color:{_cc};background:rgba(255,255,255,0.06);'
+        f'padding:2px 8px;border-radius:6px;margin-left:8px;border:1px solid {_cc}33;">'
         f'Pre ${pre_price:,.2f} ({_pc:+.2f}%)</span>'
     )
 if post_price and abs(post_price - last_price) > 0.005:
     _pc = (post_price - last_price) / last_price * 100
     _cc = _BULL if _pc >= 0 else _BEAR
     _ext_parts.append(
-        f'<span style="font-size:0.76rem;color:{_cc};background:rgba(0,0,0,0.045);'
-        f'padding:2px 7px;border-radius:4px;margin-left:8px;">'
+        f'<span style="font-size:0.76rem;color:{_cc};background:rgba(255,255,255,0.06);'
+        f'padding:2px 8px;border-radius:6px;margin-left:8px;border:1px solid {_cc}33;">'
         f'Post ${post_price:,.2f} ({_pc:+.2f}%)</span>'
     )
 
@@ -190,16 +192,16 @@ if post_price and abs(post_price - last_price) > 0.005:
 _hc1, _hc2 = st.columns([5, 1])
 with _hc1:
     st.markdown(
-        f'<div style="margin-bottom:1px;">'
-        f'<span style="font-size:1.45rem;font-weight:700;color:{_NAVY};font-family:Georgia,serif;">'
+        f'<div style="margin-bottom:2px;font-family:Inter,sans-serif;">'
+        f'<span style="font-size:1.3rem;font-weight:700;color:#E8EEFF;">'
         f'{company_name}</span>'
-        f'<span style="font-size:0.85rem;color:{_TAN};margin-left:9px;font-family:Georgia,serif;">'
+        f'<span style="font-size:0.82rem;color:#8892AA;margin-left:9px;font-weight:500;">'
         f'{TICKER}</span>'
         f'</div>'
-        f'<div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">'
-        f'<span style="font-size:1.9rem;font-weight:700;color:{_NAVY};font-family:Georgia,serif;">'
+        f'<div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">'
+        f'<span style="font-size:2.0rem;font-weight:800;color:#E8EEFF;letter-spacing:-1px;">'
         f'${last_price:,.2f}</span>'
-        f'<span style="font-size:0.9rem;font-weight:600;color:{chg_color};">'
+        f'<span style="font-size:0.92rem;font-weight:600;color:{chg_color};">'
         f'{chg_arrow} {abs(chg):,.2f} ({chg_pct:+.2f}%)</span>'
         f'{"".join(_ext_parts)}'
         f'</div>',
@@ -284,12 +286,12 @@ fig.add_trace(go.Candlestick(
     whiskerwidth=0.3,
 ), row=1, col=1)
 
-# Moving averages
+# Moving averages — bright on dark background
 _MA_STYLES = {
-    9:   dict(color="#E67E22", width=1.1, dash="solid"),   # amber — fast
-    20:  dict(color="#C9A84C", width=1.2, dash="solid"),   # gold
-    50:  dict(color="#1C2B4A", width=1.3, dash="solid"),   # navy
-    200: dict(color="#7B1010", width=1.1, dash="dot"),     # red
+    9:   dict(color="#F59E0B", width=1.2, dash="solid"),   # amber — fast
+    20:  dict(color="#00C8E0", width=1.3, dash="solid"),   # cyan
+    50:  dict(color="#7C3AED", width=1.4, dash="solid"),   # purple
+    200: dict(color="#FF8888", width=1.2, dash="dot"),     # soft red
 }
 for _win, _show in [(9, show_ma9), (20, show_ma20), (50, show_ma50), (200, show_ma200)]:
     if _show and len(close) > _win:
@@ -306,21 +308,21 @@ for _win, _show in [(9, show_ma9), (20, show_ma20), (50, show_ma50), (200, show_
 # Bollinger Bands — upper first, then lower with fill, then mid
 if show_bb and len(close) >= 20:
     bb_upper, bb_mid, bb_lower = _bollinger(close)
-    _BB = "rgba(139,115,85,0.80)"
+    _BB = "rgba(124,58,237,0.70)"   # purple on dark
     fig.add_trace(go.Scatter(x=xax, y=bb_upper, mode="lines",
-                             name="BB Upper", line=dict(color=_BB, width=0.8, dash="dash"),
+                             name="BB Upper", line=dict(color=_BB, width=0.9, dash="dash"),
                              showlegend=False), row=1, col=1)
     fig.add_trace(go.Scatter(x=xax, y=bb_lower, mode="lines",
-                             name="Bollinger", line=dict(color=_BB, width=0.8, dash="dash"),
-                             fill="tonexty", fillcolor="rgba(139,115,85,0.05)"), row=1, col=1)
+                             name="Bollinger", line=dict(color=_BB, width=0.9, dash="dash"),
+                             fill="tonexty", fillcolor="rgba(124,58,237,0.04)"), row=1, col=1)
     fig.add_trace(go.Scatter(x=xax, y=bb_mid, mode="lines",
                              name="BB Mid", line=dict(color=_BB, width=0.7, dash="dot"),
                              showlegend=False), row=1, col=1)
 
 # ─── Row 2 — Volume ────────────────────────────────────────────────────────────
 _vol_colors = [
-    f"rgba(27,94,32,0.55)"  if float(c) >= float(o) else
-    f"rgba(123,16,16,0.55)"
+    "rgba(0,213,102,0.45)"  if float(c) >= float(o) else
+    "rgba(255,68,68,0.45)"
     for c, o in zip(close, open_)
 ]
 fig.add_trace(go.Bar(
@@ -341,10 +343,10 @@ if show_rsi:
         line=dict(color=_GOLD, width=1.5),
         showlegend=True,
     ), row=_next_row, col=1)
-    fig.add_hline(y=70, line_dash="dot", line_color=_BEAR, line_width=1.0,
-                  opacity=0.55, row=_next_row, col=1)
-    fig.add_hline(y=30, line_dash="dot", line_color=_BULL, line_width=1.0,
-                  opacity=0.55, row=_next_row, col=1)
+    fig.add_hline(y=70, line_dash="dot", line_color="#FF4444", line_width=1.0,
+                  opacity=0.6, row=_next_row, col=1)
+    fig.add_hline(y=30, line_dash="dot", line_color="#00D566", line_width=1.0,
+                  opacity=0.6, row=_next_row, col=1)
     fig.update_yaxes(range=[0, 100], tickvals=[30, 50, 70], row=_next_row, col=1)
     _next_row += 1
 
@@ -352,12 +354,12 @@ if show_rsi:
 if show_macd and len(close) >= 26:
     ml, sl, hist = _macd_calc(close)
     _hist_c = [
-        "rgba(27,94,32,0.7)"  if float(h) >= 0 else
-        "rgba(123,16,16,0.7)"
+        "rgba(0,213,102,0.65)"  if float(h) >= 0 else
+        "rgba(255,68,68,0.65)"
         for h in hist
     ]
     fig.add_trace(go.Scatter(x=xax, y=ml, mode="lines", name="MACD",
-                             line=dict(color=_NAVY, width=1.3)), row=_next_row, col=1)
+                             line=dict(color="#00C8E0", width=1.3)), row=_next_row, col=1)
     fig.add_trace(go.Scatter(x=xax, y=sl, mode="lines", name="Signal",
                              line=dict(color=_GOLD, width=1.3)), row=_next_row, col=1)
     fig.add_trace(go.Bar(x=xax, y=hist, name="Histogram",
@@ -370,13 +372,13 @@ fig.add_annotation(
     text=f" ${last_price:,.2f} ",
     showarrow=False,
     xanchor="left",
-    font=dict(color="#FAF7F0", size=10.5, family="Georgia, serif"),
+    font=dict(color="#0B0D12", size=10.5, family="Inter, sans-serif"),
     bgcolor=chg_color,
     borderpad=3,
     bordercolor=chg_color,
 )
 
-# ── Layout polish ──────────────────────────────────────────────────────────────
+# ── Layout polish — full dark theme ───────────────────────────────────────────
 _has_legend = (
     show_ma9 or show_ma20 or show_ma50 or show_ma200
     or show_bb or show_rsi or show_macd
@@ -385,29 +387,41 @@ _chart_h = 480 + extra_rows * 115
 
 fig.update_layout(
     height=_chart_h,
-    paper_bgcolor=_BG,
-    plot_bgcolor=_BG,
-    font=dict(family="Georgia, serif", size=11, color=_NAVY),
-    margin=dict(l=0, r=68, t=8, b=0),   # r=68 to leave room for the price label
+    paper_bgcolor="#0B0D12",        # page background
+    plot_bgcolor=_BG,               # chart area (#0F1118)
+    font=dict(family="Inter, sans-serif", size=11, color="#E8EEFF"),
+    margin=dict(l=8, r=72, t=8, b=8),   # r=72 to leave room for price label
     xaxis_rangeslider_visible=False,
     hovermode="x unified",
     showlegend=_has_legend,
+    hoverlabel=dict(
+        bgcolor="#1A1E2C",
+        bordercolor="rgba(255,255,255,0.08)",
+        font=dict(family="Inter, sans-serif", size=12, color="#E8EEFF"),
+        namelength=-1,
+    ),
     legend=dict(
         orientation="h",
         yanchor="bottom", y=1.01,
         xanchor="left", x=0,
-        font=dict(size=10),
-        bgcolor="rgba(255,255,255,0.88)",
-        borderwidth=0,
+        font=dict(size=10, color="#8892AA", family="Inter, sans-serif"),
+        bgcolor="rgba(18,21,30,0.90)",
+        bordercolor="rgba(255,255,255,0.08)",
+        borderwidth=1,
     ),
 )
 
-# Shared axis style for every subplot row
+# Shared axis style — readable labels on dark background
 _ax_style = dict(
-    showgrid=True, gridcolor=_GRID, gridwidth=0.5,
-    zeroline=False, showline=False,
-    ticks="outside", tickcolor=_GRID,
-    tickfont=dict(size=10),
+    showgrid=True,
+    gridcolor=_GRID,                        # rgba(255,255,255,0.05)
+    gridwidth=1,
+    zeroline=False,
+    showline=True,
+    linecolor="rgba(255,255,255,0.08)",
+    ticks="outside",
+    tickcolor="rgba(255,255,255,0.15)",
+    tickfont=dict(size=10, color="#8892AA", family="Inter, sans-serif"),
 )
 for _r in range(1, total_rows + 1):
     fig.update_xaxes(**_ax_style, row=_r, col=1, nticks=8)
@@ -420,8 +434,11 @@ if show_rsi:
 if show_macd:
     _ylabels[2 + int(show_rsi) + 1] = "MACD"
 for _r, _lbl in _ylabels.items():
-    fig.update_yaxes(title_text=_lbl, title_font=dict(size=8.5, color=_TAN),
-                     title_standoff=3, row=_r, col=1)
+    fig.update_yaxes(
+        title_text=_lbl,
+        title_font=dict(size=9, color="#6B7FBF", family="Inter, sans-serif"),
+        title_standoff=3, row=_r, col=1,
+    )
 
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
 
@@ -452,16 +469,18 @@ _stats = [
 _s_cols = st.columns(len(_stats))
 for _col, (label, val) in zip(_s_cols, _stats):
     _col.markdown(
-        f'<div style="text-align:center;padding:6px 0 2px;">'
-        f'<div style="font-size:0.66rem;color:{_TAN};letter-spacing:0.08em;'
-        f'text-transform:uppercase;margin-bottom:2px;">{label}</div>'
-        f'<div style="font-size:0.9rem;font-weight:600;color:{_NAVY};">{val}</div>'
+        f'<div style="text-align:center;padding:8px 0 4px;font-family:Inter,sans-serif;">'
+        f'<div style="font-size:0.62rem;color:#6B7FBF;letter-spacing:0.10em;'
+        f'text-transform:uppercase;margin-bottom:3px;font-weight:700;">{label}</div>'
+        f'<div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;">{val}</div>'
         f'</div>',
         unsafe_allow_html=True,
     )
 
 st.markdown(
-    '<div class="disclaimer">Price data via Yahoo Finance. '
-    'For signal analysis, earnings, and insider data, use <b>Ticker Deep Dive</b>.</div>',
+    '<div style="font-size:0.68rem;color:#6B7FBF;padding:6px 0;font-family:Inter,sans-serif;">'
+    'Price data via Yahoo Finance. Accepts any global symbol: US stocks, ETFs, indices (^GSPC, ^FTSE), '
+    'crypto (BTC-USD), FX (EURUSD=X), international equities (MC.PA, 9984.T). '
+    'For macro signal analysis, use <b style="color:#8892AA">Ticker Deep Dive</b>.</div>',
     unsafe_allow_html=True,
 )

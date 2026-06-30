@@ -16,8 +16,8 @@ BG_SIDEBAR      = "#0D0F1A"   # sidebar
 # Typography
 TEXT_PRIMARY   = "#E8EEFF"   # cool near-white
 TEXT_SECONDARY = "#8892AA"   # muted blue-gray
-TEXT_MUTED     = "#434E6A"   # very muted
-TEXT_CAPTION   = "#2E3650"   # barely visible label
+TEXT_MUTED     = "#8892AA"   # muted but readable on dark bg (was #8892AA — too dark)
+TEXT_CAPTION   = "#6B7FBF"   # subtle caption
 
 # Brand accents
 GREEN       = "#00D566"   # primary green (Robinhood-style)
@@ -73,11 +73,23 @@ def style_chart(fig, height: int = 350, title: str = "") -> object:
         fig = style_chart(fig, height=400, title="Signal vs. Price")
         st.plotly_chart(fig, use_container_width=True)
     """
+    _axis = dict(
+        showgrid=True,
+        gridcolor=GRID_COLOR,
+        gridwidth=1,
+        # Tick labels — readable on dark plot background (#0F1118)
+        tickfont=dict(color=TEXT_SECONDARY, size=10, family="Inter, sans-serif"),
+        title_font=dict(color=TEXT_MUTED, size=11, family="Inter, sans-serif"),
+        linecolor="rgba(255,255,255,0.08)",
+        zeroline=False,
+        # Axis line itself
+        showline=True,
+    )
     fig.update_layout(
         height=height,
         title=dict(
             text=title,
-            font=dict(family="Inter, -apple-system, sans-serif", size=13, color=TEXT_SECONDARY),
+            font=dict(family="Inter, -apple-system, sans-serif", size=13, color=TEXT_PRIMARY),
             x=0,
             xanchor="left",
         ) if title else None,
@@ -89,34 +101,23 @@ def style_chart(fig, height: int = 350, title: str = "") -> object:
             bgcolor=BG_CARD_RAISED,
             bordercolor=BORDER_LIGHT,
             font=dict(family="Inter, sans-serif", size=12, color=TEXT_PRIMARY),
+            namelength=-1,
         ),
         legend=dict(
-            bgcolor="rgba(18,21,30,0.85)",
-            bordercolor=BORDER_LIGHT,
+            bgcolor="rgba(18,21,30,0.90)",
+            bordercolor="rgba(255,255,255,0.08)",
             borderwidth=1,
             font=dict(size=11, color=TEXT_SECONDARY, family="Inter, sans-serif"),
         ),
-        margin=dict(l=0, r=0, t=32 if title else 12, b=0),
+        margin=dict(l=8, r=8, t=36 if title else 16, b=8),
         xaxis=dict(
-            showgrid=True,
-            gridcolor=GRID_COLOR,
-            gridwidth=1,
-            tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
-            linecolor=DIVIDER,
-            zeroline=False,
+            **_axis,
             showspikes=True,
-            spikecolor=BORDER_LIGHT,
+            spikecolor="rgba(255,255,255,0.15)",
             spikethickness=1,
             spikedash="dot",
         ),
-        yaxis=dict(
-            showgrid=True,
-            gridcolor=GRID_COLOR,
-            gridwidth=1,
-            tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
-            linecolor=DIVIDER,
-            zeroline=False,
-        ),
+        yaxis=_axis,
     )
     return fig
 
@@ -127,6 +128,7 @@ def style_chart_secondary(fig, height: int = 380,
                            y1_color: str = GREEN,
                            y2_color: str = PURPLE) -> object:
     """Style a dual-axis chart (make_subplots secondary_y=True)."""
+    _tick = dict(color=TEXT_SECONDARY, size=10, family="Inter, sans-serif")
     fig.update_layout(
         height=height,
         paper_bgcolor=BG_PAGE,
@@ -137,31 +139,39 @@ def style_chart_secondary(fig, height: int = 380,
             bgcolor=BG_CARD_RAISED,
             bordercolor=BORDER_LIGHT,
             font=dict(family="Inter, sans-serif", size=12, color=TEXT_PRIMARY),
+            namelength=-1,
         ),
         legend=dict(
-            bgcolor="rgba(18,21,30,0.85)",
-            bordercolor=BORDER_LIGHT,
+            bgcolor="rgba(18,21,30,0.90)",
+            bordercolor="rgba(255,255,255,0.08)",
             borderwidth=1,
             font=dict(size=11, color=TEXT_SECONDARY, family="Inter, sans-serif"),
         ),
-        margin=dict(l=0, r=0, t=20, b=0),
+        margin=dict(l=8, r=8, t=20, b=8),
         xaxis=dict(
             showgrid=True,
             gridcolor=GRID_COLOR,
-            tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
+            tickfont=_tick,
+            title_font=dict(color=TEXT_MUTED, size=11, family="Inter, sans-serif"),
+            linecolor="rgba(255,255,255,0.08)",
+            showline=True,
         ),
     )
     fig.update_yaxes(
         title_text=y1_title, secondary_y=False,
         gridcolor=GRID_COLOR,
-        tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
+        tickfont=_tick,
         title_font=dict(color=y1_color, family="Inter, sans-serif", size=11),
+        linecolor="rgba(255,255,255,0.08)",
+        showline=True,
     )
     fig.update_yaxes(
         title_text=y2_title, secondary_y=True,
         gridcolor="rgba(0,0,0,0)",
-        tickfont=dict(color=TEXT_MUTED, size=10, family="Inter, sans-serif"),
+        tickfont=_tick,
         title_font=dict(color=y2_color, family="Inter, sans-serif", size=11),
+        linecolor="rgba(255,255,255,0.08)",
+        showline=True,
     )
     return fig
 
@@ -184,7 +194,7 @@ def signal_card_html(
         "bullish":           ("#00D566", "BULLISH",  "▲", "rgba(0,213,102,0.07)",  "rgba(0,213,102,0.25)"),
         "bearish":           ("#FF4444", "BEARISH",  "▼", "rgba(255,68,68,0.07)",  "rgba(255,68,68,0.25)"),
         "neutral":           ("#6B7FBF", "NEUTRAL",  "●", "rgba(107,127,191,0.05)", "rgba(107,127,191,0.20)"),
-        "insufficient_data": ("#434E6A", "NO DATA",  "○", "rgba(18,21,30,0.4)",    "rgba(255,255,255,0.08)"),
+        "insufficient_data": ("#8892AA", "NO DATA",  "○", "rgba(18,21,30,0.4)",    "rgba(255,255,255,0.08)"),
     }
     color, label, arrow, bg_tint, border_color = STATUS_MAP.get(
         status, STATUS_MAP["neutral"]
@@ -211,7 +221,7 @@ def signal_card_html(
 ">
     <div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:{color};border-radius:12px 0 0 12px;"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <div style="font-size:0.60rem;color:#434E6A;letter-spacing:0.10em;text-transform:uppercase;font-weight:700;">
+        <div style="font-size:0.60rem;color:#8892AA;letter-spacing:0.10em;text-transform:uppercase;font-weight:700;">
             {icon} {cat_name} &nbsp;·&nbsp; PCS {pcs}/10
         </div>
         <div style="
@@ -228,16 +238,16 @@ def signal_card_html(
             <div style="font-size:2.2rem;font-weight:800;color:{color};letter-spacing:-1.5px;line-height:1.0;">
                 {score:.0f}
             </div>
-            <div style="font-size:0.60rem;color:#434E6A;margin-top:1px;">/100</div>
+            <div style="font-size:0.60rem;color:#8892AA;margin-top:1px;">/100</div>
         </div>
         <div style="flex:1;padding-bottom:6px;">
             <div style="height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;margin-bottom:8px;">
                 <div style="height:100%;width:{bar_pct}%;background:{color};border-radius:2px;transition:width 0.5s ease;"></div>
             </div>
             <div style="font-size:0.72rem;color:#8892AA;line-height:1.7;">
-                <div><span style="color:#434E6A;">Dev</span> &nbsp;<b style="color:#B8C0D4;">{dev:+.1f}%</b> vs 52w avg</div>
-                <div><span style="color:#434E6A;">Trend</span> &nbsp;<b style="color:{trend_color};">{trend_arrow} {trend:+.1f}%</b></div>
-                <div><span style="color:#434E6A;">Lead</span> &nbsp;<b style="color:#B8C0D4;">~{lag_weeks}w</b></div>
+                <div><span style="color:#8892AA;">Dev</span> &nbsp;<b style="color:#B8C0D4;">{dev:+.1f}%</b> vs 52w avg</div>
+                <div><span style="color:#8892AA;">Trend</span> &nbsp;<b style="color:{trend_color};">{trend_arrow} {trend:+.1f}%</b></div>
+                <div><span style="color:#8892AA;">Lead</span> &nbsp;<b style="color:#B8C0D4;">~{lag_weeks}w</b></div>
             </div>
         </div>
     </div>
