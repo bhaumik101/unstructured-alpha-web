@@ -28,6 +28,9 @@ from utils.header import render_header, render_page_header, render_sidebar_base
 from utils.theme import source_badge
 
 st.set_page_config(page_title="Factor Exposure — UA", layout="wide")
+
+from utils.billing import require_pro
+require_pro("Factor Exposure")
 render_header("Factor Exposure Dashboard")
 render_sidebar_base()
 render_page_header(

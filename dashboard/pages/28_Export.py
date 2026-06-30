@@ -16,6 +16,9 @@ from utils.signals_cache import get_all_signal_scores
 from utils.theme import inject_skeleton_css, skeleton_cards
 
 st.set_page_config(page_title="Export Report — UA", layout="wide")
+
+from utils.billing import require_pro
+require_pro("Export Report")
 render_header("Report Export")
 render_sidebar_base()
 render_page_header(

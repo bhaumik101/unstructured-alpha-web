@@ -23,6 +23,9 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+from utils.billing import require_pro
+require_pro("Signal Backtester")
+
 from utils.header import render_header, render_sidebar_base, render_page_header
 
 render_header()

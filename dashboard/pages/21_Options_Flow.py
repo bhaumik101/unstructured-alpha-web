@@ -17,6 +17,10 @@ import streamlit as st
 from utils.header import render_header, render_sidebar_base, render_page_header
 
 st.set_page_config(page_title="Options Flow — UA", layout="wide")
+
+from utils.billing import require_pro
+require_pro("Options Flow")
+
 render_header("Unusual Options Activity")
 render_sidebar_base()
 

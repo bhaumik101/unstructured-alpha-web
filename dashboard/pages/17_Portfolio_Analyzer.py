@@ -29,6 +29,9 @@ from utils.config import TICKERS, SIGNALS
 from utils.db import init_db
 
 st.set_page_config(page_title="Portfolio Analyzer — UA", layout="wide")
+
+from utils.billing import require_pro
+require_pro("Portfolio Analyzer")
 render_header("Portfolio Analyzer")
 render_sidebar_base()
 
