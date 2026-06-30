@@ -118,6 +118,14 @@ users = Table(
     # must explicitly opt in via the Watchlist page settings section. The
     # cron/send_digest.py script queries this column to decide who to email.
     Column("digest_opted_in", Boolean, nullable=False, server_default="false"),
+    # Stripe subscription columns (added 2026-06-30). subscription_tier is
+    # "free" | "pro" — checked on every gated page via billing.get_user_tier().
+    # stripe_customer_id and stripe_subscription_id are stored after a
+    # successful Checkout Session so the Customer Portal and re-verification
+    # can reference them without an extra Stripe API lookup.
+    Column("subscription_tier", String(16), nullable=False, server_default="'free'"),
+    Column("stripe_customer_id", String(64)),
+    Column("stripe_subscription_id", String(64)),
 )
 
 watchlist = Table(
@@ -331,12 +339,16 @@ def _migrate_users_table() -> None:
         for col in new_cols:
             if col.name in ("email_verified", "digest_opted_in"):
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} {bool_type} DEFAULT {false_literal}"))
+            elif col.name == "subscription_tier":
+                # VARCHAR with default 'free' — existing users are all free tier.
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(16) DEFAULT 'free'"))
             else:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} TEXT"))
         if any(c.name == "email_verified" for c in new_cols):
             # Grandfather in every account that existed before this column did.
             conn.execute(update(users).values(email_verified=True))
         # digest_opted_in: new accounts default False, no backfill needed.
+        # subscription_tier: existing accounts default 'free' — already handled by column DEFAULT above.
 
 
 def init_db() -> None:
