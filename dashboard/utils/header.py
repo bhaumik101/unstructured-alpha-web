@@ -112,7 +112,7 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
     background-clip: text;
 }
 .ua-tagline {
-    font-size: 0.73rem; color: #434E6A; font-family: 'Inter', sans-serif;
+    font-size: 0.73rem; color: #8892AA; font-family: 'Inter', sans-serif;
     margin-top: 2px; letter-spacing: 0.01em;
 }
 .ua-header-right {
@@ -176,7 +176,7 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
 
 /* ── Section header ──────────────────────────────────────────────────────── */
 .section-header {
-    font-size: 0.63rem; font-weight: 700; color: #434E6A;
+    font-size: 0.63rem; font-weight: 700; color: #8892AA;
     font-family: 'Inter', sans-serif; letter-spacing: 0.13em;
     text-transform: uppercase;
     border-bottom: 1px solid rgba(255,255,255,0.05);
@@ -207,7 +207,7 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
     box-shadow: 0 0 16px rgba(0,213,102,0.07);
     transform: translateY(-1px);
 }
-.stat-box .stat-label  { font-size: 0.60rem; text-transform: uppercase; letter-spacing: 0.11em; color: #434E6A; margin-bottom: 6px; font-weight: 700; }
+.stat-box .stat-label  { font-size: 0.60rem; text-transform: uppercase; letter-spacing: 0.11em; color: #8892AA; margin-bottom: 6px; font-weight: 700; }
 .stat-box .stat-value  { font-size: 1.4rem; font-weight: 700; color: #E8EEFF; letter-spacing: -0.5px; }
 .stat-box .stat-change { font-size: 0.76rem; margin-top: 3px; font-weight: 500; }
 .stat-box .stat-change.pos  { color: #00D566; }
@@ -218,7 +218,7 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
 .disclaimer {
     background: rgba(18,21,30,0.6); border: 1px solid rgba(255,255,255,0.05);
     border-radius: 8px; padding: 10px 14px; font-size: 0.72rem;
-    color: #434E6A; margin-top: 16px; font-family: 'Inter', sans-serif;
+    color: #8892AA; margin-top: 16px; font-family: 'Inter', sans-serif;
 }
 .info-box {
     background: rgba(0,213,102,0.05); border: 1px solid rgba(0,213,102,0.15);
@@ -240,7 +240,7 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
 
 .ua-data-table { width: 100%; border-collapse: collapse; font-family: 'Inter', sans-serif; font-size: 0.81rem; }
 .ua-data-table th {
-    background: rgba(18,21,30,0.95); color: #434E6A;
+    background: rgba(18,21,30,0.95); color: #8892AA;
     padding: 9px 12px; text-align: left; font-weight: 700;
     font-size: 0.60rem; letter-spacing: 0.10em; text-transform: uppercase;
     border-bottom: 1px solid rgba(255,255,255,0.06);
@@ -253,7 +253,7 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
 
 /* ── Streamlit native overrides ──────────────────────────────────────────── */
 /* Metrics */
-.stMetric label { color: #434E6A !important; font-size: 0.70rem !important; letter-spacing: 0.06em !important; font-family: 'Inter', sans-serif !important; text-transform: uppercase !important; font-weight: 600 !important; }
+.stMetric label { color: #8892AA !important; font-size: 0.70rem !important; letter-spacing: 0.06em !important; font-family: 'Inter', sans-serif !important; text-transform: uppercase !important; font-weight: 600 !important; }
 .stMetric [data-testid="stMetricValue"] { color: #E8EEFF !important; font-family: 'Inter', sans-serif !important; font-size: 1.65rem !important; font-weight: 700 !important; letter-spacing: -0.5px !important; }
 .stMetric [data-testid="stMetricDelta"] { font-size: 0.78rem !important; font-weight: 500 !important; }
 
@@ -263,7 +263,7 @@ div[data-testid="stExpander"] { background: rgba(18,21,30,0.6) !important; borde
 
 /* Tabs */
 .stTabs [data-baseweb="tab-list"]  { border-bottom: 1px solid rgba(255,255,255,0.06) !important; gap: 0 !important; background: transparent !important; }
-.stTabs [data-baseweb="tab"]       { font-family: 'Inter', sans-serif !important; font-size: 0.83rem !important; font-weight: 500 !important; padding: 8px 18px !important; color: #434E6A !important; background: transparent !important; border: none !important; }
+.stTabs [data-baseweb="tab"]       { font-family: 'Inter', sans-serif !important; font-size: 0.83rem !important; font-weight: 500 !important; padding: 8px 18px !important; color: #8892AA !important; background: transparent !important; border: none !important; }
 .stTabs [aria-selected="true"]     { color: #E8EEFF !important; border-bottom: 2px solid #00D566 !important; font-weight: 600 !important; }
 .stTabs [data-baseweb="tab-highlight"] { background: #00D566 !important; height: 2px !important; }
 .stTabs [data-baseweb="tab-panel"] { padding-top: 16px !important; }
@@ -300,7 +300,7 @@ div[data-testid="stExpander"] { background: rgba(18,21,30,0.6) !important; borde
     border-color: rgba(0,213,102,0.5) !important;
     box-shadow: 0 0 0 3px rgba(0,213,102,0.08) !important; outline: none !important;
 }
-.stTextInput > div > div > input::placeholder { color: #434E6A !important; }
+.stTextInput > div > div > input::placeholder { color: #8892AA !important; }
 
 /* Selectbox */
 .stSelectbox > div > div {
@@ -353,7 +353,7 @@ p  { color: #B8C0D4 !important; font-family: 'Inter', sans-serif !important; }
 .stRadio label, .stCheckbox label { color: #B8C0D4 !important; font-family: 'Inter', sans-serif !important; }
 
 /* Caption */
-.stCaption, small { color: #434E6A !important; font-family: 'Inter', sans-serif !important; }
+.stCaption, small { color: #8892AA !important; font-family: 'Inter', sans-serif !important; }
 
 /* Dataframe */
 [data-testid="stDataFrame"] { border: 1px solid rgba(255,255,255,0.06) !important; border-radius: 10px !important; overflow: hidden !important; }
@@ -485,6 +485,9 @@ def render_header(page_subtitle: str = "") -> None:
 
     st.markdown(_CSS, unsafe_allow_html=True)
 
+    # ── Live ticker strip ──────────────────────────────────────────────────────
+    _render_live_ticker_strip()
+
     # Market open/closed status — NYSE regular hours, Mon-Fri 9:30-16:00 ET.
     # Best-effort only (no holiday calendar) — falls back to local time if
     # zoneinfo's tz database isn't available in the runtime environment.
@@ -496,9 +499,9 @@ def render_header(page_subtitle: str = "") -> None:
     _mins_et = _now_et.hour * 60 + _now_et.minute
     _market_open = (_now_et.weekday() < 5) and (9 * 60 + 30) <= _mins_et < 16 * 60
     _status_label = "MARKET OPEN" if _market_open else "MARKET CLOSED"
-    _status_bg    = "rgba(27,94,32,0.15)" if _market_open else "rgba(123,16,16,0.12)"
-    _status_fg    = "#1B5E20" if _market_open else "#7B1010"
-    _status_dot   = "#1B5E20" if _market_open else "#7B1010"
+    _status_bg    = "rgba(0,213,102,0.10)" if _market_open else "rgba(255,68,68,0.08)"
+    _status_fg    = "#00D566" if _market_open else "#FF4444"
+    _status_dot   = "#00D566" if _market_open else "#FF4444"
     _time_str     = _now_et.strftime("%-I:%M %p ET")
     _date_str     = _now_et.strftime("%A, %B %-d, %Y")
 
@@ -550,14 +553,14 @@ def render_header(page_subtitle: str = "") -> None:
             f'border-left:3px solid {_regime_col};'
             f'border-radius:8px;padding:6px 14px;margin-bottom:12px;'
             f'display:flex;align-items:center;gap:16px;font-family:Inter,sans-serif;">'
-            f'<span style="font-size:0.60rem;color:#434E6A;text-transform:uppercase;letter-spacing:0.11em;font-weight:700;">MACRO REGIME</span>'
+            f'<span style="font-size:0.60rem;color:#8892AA;text-transform:uppercase;letter-spacing:0.11em;font-weight:700;">MACRO REGIME</span>'
             f'<span style="font-size:0.75rem;font-weight:700;color:{_regime_col};">● {_regime_lbl}</span>'
-            f'<span style="font-size:0.68rem;color:#434E6A;">'
+            f'<span style="font-size:0.68rem;color:#8892AA;">'
             f'<span style="color:#00D566;">▲ {_rb}</span>'
             f' · <span style="color:#FF4444;">▼ {_rr}</span>'
             f' · <span style="color:#6B7FBF;">→ {_rn}</span>'
             f'</span>'
-            f'<span style="font-size:0.60rem;color:#2E3650;margin-left:auto;">38 signals · 2h cache</span>'
+            f'<span style="font-size:0.60rem;color:#6B7FBF;margin-left:auto;">38 signals · 2h cache</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -598,7 +601,7 @@ def render_header(page_subtitle: str = "") -> None:
         with _bell_col:
             with st.popover(f"🔔{_badge_html if _unread else ''}", use_container_width=True):
                 st.markdown(
-                    '<div style="font-size:0.62rem;font-weight:700;color:#434E6A;letter-spacing:0.12em;'
+                    '<div style="font-size:0.62rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;'
                     'text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.06);'
                     'padding-bottom:6px;font-family:Inter,sans-serif;">System Notifications</div>',
                     unsafe_allow_html=True,
@@ -629,7 +632,7 @@ def render_header(page_subtitle: str = "") -> None:
                             f'{_icon} {_n.get("title","")}</div>'
                             f'<div style="font-size:0.70rem;color:#8892AA;margin-top:3px;line-height:1.4;">'
                             f'{_n.get("body","")}</div>'
-                            f'<div style="font-size:0.60rem;color:#434E6A;margin-top:4px;">{_n_ts}</div>'
+                            f'<div style="font-size:0.60rem;color:#8892AA;margin-top:4px;">{_n_ts}</div>'
                             f'</div>',
                             unsafe_allow_html=True,
                         )
@@ -639,6 +642,120 @@ def render_header(page_subtitle: str = "") -> None:
                         st.rerun()
     except Exception:
         pass  # Never crash the header for a notification badge
+
+
+@st.cache_data(ttl=60, max_entries=1, show_spinner=False)
+def _fetch_ticker_strip():
+    """Fetch live prices for the header ticker strip. 60s TTL, one set of symbols."""
+    import yfinance as yf
+    _SYMBOLS = [
+        ("SPY",    "S&P 500"),
+        ("QQQ",    "Nasdaq"),
+        ("BTC-USD","Bitcoin"),
+        ("GC=F",   "Gold"),
+        ("CL=F",   "WTI Oil"),
+        ("^VIX",   "VIX"),
+    ]
+    results = []
+    try:
+        tickers = yf.Tickers(" ".join(s for s, _ in _SYMBOLS))
+        for sym, label in _SYMBOLS:
+            try:
+                info = tickers.tickers[sym].fast_info
+                price = getattr(info, "last_price", None)
+                prev  = getattr(info, "previous_close", None)
+                if price and prev and prev > 0:
+                    chg_pct = (price - prev) / prev * 100
+                    results.append((sym, label, price, chg_pct))
+            except Exception:
+                pass
+    except Exception:
+        pass
+    return results
+
+
+def _render_live_ticker_strip() -> None:
+    """
+    Render a horizontal live price ticker strip above the UA masthead.
+    Bloomberg/CNBC-style: symbol · price · ▲/▼ ±x.xx%, green=up red=down.
+    Updates every 60 seconds via TTL cache.
+    """
+    items = _fetch_ticker_strip()
+    if not items:
+        return
+
+    chips = []
+    for sym, label, price, chg in items:
+        arrow = "▲" if chg >= 0 else "▼"
+        color = "#00D566" if chg >= 0 else "#FF4444"
+        # Format price (crypto needs more decimals)
+        p_fmt = f"${price:,.0f}" if price >= 100 else f"${price:,.2f}"
+        chips.append(
+            f'<span style="display:inline-flex;align-items:center;gap:6px;'
+            f'padding:0 14px;border-right:1px solid rgba(255,255,255,0.06);">'
+            f'<span style="color:#8892AA;font-weight:600;font-size:0.68rem;">{sym}</span>'
+            f'<span style="color:#E8EEFF;font-weight:700;font-size:0.70rem;">{p_fmt}</span>'
+            f'<span style="color:{color};font-size:0.68rem;font-weight:600;">{arrow} {abs(chg):.2f}%</span>'
+            f'</span>'
+        )
+
+    inner = "".join(chips)
+    # Duplicate for seamless marquee loop
+    ticker_html = f"""
+<div style="background:rgba(12,14,20,0.95);border-bottom:1px solid rgba(255,255,255,0.05);
+             overflow:hidden;white-space:nowrap;padding:5px 0;margin-bottom:0;
+             font-family:Inter,sans-serif;">
+  <div style="display:inline-flex;animation:tickerScroll 28s linear infinite;">
+    {inner}{inner}
+  </div>
+</div>
+<style>
+@keyframes tickerScroll {{
+  0%   {{ transform: translateX(0); }}
+  100% {{ transform: translateX(-50%); }}
+}}
+</style>
+"""
+    st.markdown(ticker_html, unsafe_allow_html=True)
+
+
+def render_page_header(title: str, subtitle: str = "",
+                       icon: str = "", live_stat: str = "") -> None:
+    """
+    Bold gradient page title with subtitle and optional live right-side stat.
+    Call after render_header() at the top of each page.
+
+    Args:
+        title:     Page title — displayed with bold gradient text.
+        subtitle:  One-line description of what the page does.
+        icon:      Optional emoji/icon prefix for the title (e.g. "📊").
+        live_stat: Optional right-aligned stat string (e.g. "38 signals active").
+    """
+    icon_html = f'<span style="margin-right:8px;">{icon}</span>' if icon else ""
+    stat_html = (
+        f'<div style="text-align:right;font-size:0.72rem;color:#6B7FBF;font-weight:600;'
+        f'letter-spacing:0.06em;">{live_stat}</div>'
+    ) if live_stat else ""
+    sub_html = (
+        f'<div style="font-size:0.85rem;color:#8892AA;margin-top:3px;line-height:1.4;'
+        f'font-weight:400;">{subtitle}</div>'
+    ) if subtitle else ""
+
+    st.markdown(f"""
+<div style="display:flex;align-items:flex-start;justify-content:space-between;
+            margin:10px 0 18px;padding-bottom:14px;
+            border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div>
+        <div style="font-size:1.85rem;font-weight:800;letter-spacing:-0.6px;line-height:1.15;
+                    font-family:Inter,sans-serif;">
+            {icon_html}<span style="background:linear-gradient(135deg,#E8EEFF 0%,#B8C0D4 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">{title}</span>
+        </div>
+        {sub_html}
+    </div>
+    {stat_html}
+</div>
+""", unsafe_allow_html=True)
 
 
 def render_sidebar_base() -> None:
@@ -657,8 +774,8 @@ def render_sidebar_base() -> None:
         user = st.session_state.get("user")
         if user:
             st.markdown(
-                f'<div style="font-size:0.78rem;color:#C9A84C;margin-bottom:4px;">'
-                f'Logged in as<br><b style="color:#F0EBE1;">{user["email"]}</b></div>',
+                f'<div style="font-size:0.78rem;color:#8892AA;margin-bottom:4px;">'
+                f'Logged in as<br><b style="color:#E8EEFF;">{user["email"]}</b></div>',
                 unsafe_allow_html=True,
             )
             if st.button("Log Out", key="sidebar_logout", use_container_width=True):

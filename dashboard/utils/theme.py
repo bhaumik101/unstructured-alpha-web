@@ -3,6 +3,7 @@ utils/theme.py — Unstructured Alpha Modern Dark Design System
 All chart styling flows through style_chart() for consistency.
 Robinhood-inspired: dark backgrounds, green/purple gradient accents, glassmorphism cards.
 """
+import math as _math
 
 # ── Palette ───────────────────────────────────────────────────────────────────
 
@@ -208,7 +209,7 @@ def signal_card_html(
 
     return f"""
 <div style="
-    background:{bg_tint};
+    background: {bg_tint};
     border:1px solid {border_color};
     border-radius:12px;
     padding:14px 16px;
@@ -253,3 +254,134 @@ def signal_card_html(
     </div>
 </div>
 """
+
+
+# ── SVG Radial Gauge ─────────────────────────────────────────────────────────
+
+def confluence_gauge_svg(score: float, case: str = "") -> str:
+    """
+    Animated semicircular SVG gauge for Confluence Score (0–100).
+    Zones: red 0-35 / gray 35-65 / green 65-100.
+    Returns HTML string for st.markdown(..., unsafe_allow_html=True).
+    """
+    CX, CY, R_OUT, R_IN = 100, 80, 62, 45
+
+    score = max(0.0, min(100.0, float(score)))
+    sc = ("#00D566" if (score >= 65 or case == "BULL")
+          else "#FF4444" if (score <= 35 or case == "BEAR")
+          else "#6B7FBF")
+    cs = case or ("BULL" if score >= 65 else ("BEAR" if score <= 35 else "NEUTRAL"))
+
+    def _pt(a_deg, r):
+        rad = _math.radians(a_deg)
+        return CX + r * _math.cos(rad), CY - r * _math.sin(rad)
+
+    def _arc(a1, a2, ro, ri, col, op=1.0):
+        x1o, y1o = _pt(a1, ro); x2o, y2o = _pt(a2, ro)
+        x1i, y1i = _pt(a1, ri); x2i, y2i = _pt(a2, ri)
+        lg = 1 if abs(a1 - a2) > 180 else 0
+        d = (f"M{x1o:.2f},{y1o:.2f} A{ro},{ro} 0 {lg},0 {x2o:.2f},{y2o:.2f} "
+             f"L{x2i:.2f},{y2i:.2f} A{ri},{ri} 0 {lg},1 {x1i:.2f},{y1i:.2f}Z")
+        return f'<path d="{d}" fill="{col}" opacity="{op}"/>'
+
+    needle_ang = 180.0 - score * 1.8
+
+    # Background zone rings
+    bg = (_arc(180, 117, R_OUT, R_IN, "#FF4444", 0.22)
+        + _arc(117, 63,  R_OUT, R_IN, "#8892AA", 0.14)
+        + _arc(63,  0,   R_OUT, R_IN, "#00D566", 0.22))
+
+    # Active fill up to needle
+    fill = _arc(180, needle_ang, R_OUT, R_IN, sc, 0.88) if score > 0.5 else ""
+
+    # Zone separator ticks
+    def _tick(a):
+        x1, y1 = _pt(a, R_IN - 1); x2, y2 = _pt(a, R_OUT + 1)
+        return (f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
+                f'stroke="#0B0D12" stroke-width="2.5"/>')
+    ticks = _tick(117) + _tick(63)
+
+    # Animated needle: sweeps from left (score=0) to final position
+    nx1, ny1 = _pt(needle_ang, R_IN + 2)
+    nx2, ny2 = _pt(needle_ang, R_OUT - 1)
+    rotation_start = score * 1.8
+    needle = (
+        f'<line x1="{nx1:.1f}" y1="{ny1:.1f}" x2="{nx2:.1f}" y2="{ny2:.1f}" '
+        f'stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round">'
+        f'<animateTransform attributeName="transform" type="rotate" '
+        f'from="{rotation_start:.1f},{CX},{CY}" to="0,{CX},{CY}" '
+        f'dur="1.0s" fill="freeze" calcMode="spline" '
+        f'keyTimes="0;1" keySplines="0.25,0.46,0.45,0.94"/>'
+        f'</line>'
+    )
+
+    # Center cap
+    cap = (f'<circle cx="{CX}" cy="{CY}" r="6" fill="#0B0D12"/>'
+           f'<circle cx="{CX}" cy="{CY}" r="3.5" fill="#E8EEFF"/>')
+
+    # Score text inside the arc
+    score_txt = (f'<text x="{CX}" y="{CY + 20}" text-anchor="middle" '
+                 f'font-family="Inter,sans-serif" font-size="28" font-weight="900" '
+                 f'fill="{sc}">{score:.0f}</text>')
+    case_lbl  = (f'<text x="{CX}" y="{CY + 33}" text-anchor="middle" '
+                 f'font-family="Inter,sans-serif" font-size="8" font-weight="700" '
+                 f'letter-spacing="2" fill="{sc}">{cs}</text>')
+
+    # Axis labels
+    def _lbl(a, text):
+        lx, ly = _pt(a, R_OUT + 10)
+        return (f'<text x="{lx:.0f}" y="{ly + 4:.0f}" text-anchor="middle" '
+                f'font-family="Inter,sans-serif" font-size="8" fill="#6B7FBF">{text}</text>')
+    labels = _lbl(180, "0") + _lbl(90, "50") + _lbl(0, "100")
+
+    header = (f'<text x="{CX}" y="10" text-anchor="middle" '
+              f'font-family="Inter,sans-serif" font-size="7" font-weight="700" '
+              f'letter-spacing="2.5" fill="#6B7FBF">CONFLUENCE</text>')
+
+    return (
+        '<div style="display:flex;justify-content:center;align-items:center;'
+        'padding:4px 0;animation:fadeIn 0.5s ease-out;">'
+        '<svg width="196" height="120" viewBox="0 0 196 120" '
+        'xmlns="http://www.w3.org/2000/svg">'
+        f'{bg}{fill}{ticks}{needle}{cap}{header}{score_txt}{case_lbl}{labels}'
+        '</svg></div>\n'
+        '<style>@keyframes fadeIn{from{opacity:0;transform:scale(0.95)}'
+        'to{opacity:1;transform:scale(1)}}</style>'
+    )
+
+
+# ── Gradient Area Chart Helper ────────────────────────────────────────────────
+
+def style_area_chart(fig, line_color: str = GREEN, fill_opacity: float = 0.12,
+                     height: int = 350, title: str = "") -> object:
+    """
+    Apply dark theme to a Plotly figure AND add semi-transparent gradient area
+    fill under the first trace. Call after building your go.Scatter traces.
+
+    The fill uses tozeroy with a matching rgba color so the area recedes from
+    the line — giving a Robinhood / Bloomberg Terminal look.
+
+    Usage:
+        fig = go.Figure([go.Scatter(x=dates, y=values, name="Price",
+                                    line=dict(color="#00D566", width=2))])
+        fig = style_area_chart(fig, line_color="#00D566")
+        st.plotly_chart(fig, use_container_width=True)
+    """
+    import re
+    # Parse hex color to rgba fill
+    hex_c = line_color.lstrip("#")
+    if len(hex_c) == 6:
+        r_, g_, b_ = int(hex_c[0:2], 16), int(hex_c[2:4], 16), int(hex_c[4:6], 16)
+        fill_color = f"rgba({r_},{g_},{b_},{fill_opacity})"
+    else:
+        fill_color = f"rgba(0,213,102,{fill_opacity})"
+
+    # Inject fill on the first trace
+    if fig.data:
+        fig.data[0].update(
+            fill="tozeroy",
+            fillcolor=fill_color,
+            line=dict(color=line_color, width=2),
+        )
+
+    return style_chart(fig, height=height, title=title)

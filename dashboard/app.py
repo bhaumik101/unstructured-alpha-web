@@ -77,8 +77,10 @@ pg = st.navigation(
             st.Page("pages/4_Power_Supercycle.py",    title="Power Supercycle"),
         ],
         "Market": [
-            st.Page("pages/5_Market_Overview.py",   title="Market Overview"),
-            st.Page("pages/6_Stock_Screener.py",    title="Stock Screener"),
+            st.Page("pages/5_Market_Overview.py",    title="Market Overview"),
+            st.Page("pages/6_Stock_Screener.py",     title="Stock Screener"),
+            st.Page("pages/25_Market_Heatmap.py",    title="Market Heatmap"),
+            st.Page("pages/26_Macro_Calendar.py",    title="Macro Calendar"),
         ],
         "Info": [
             st.Page("pages/11_Model_Validation.py", title="Model Validation"),

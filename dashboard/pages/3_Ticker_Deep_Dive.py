@@ -54,6 +54,7 @@ from utils.analysis import (
 )
 from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
 from utils.header import render_header, render_sidebar_base, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
+from utils.theme import confluence_gauge_svg, style_area_chart
 from utils.audit_ui import render_evidence_expander
 from utils.lead_time_research import (
     build_insider_intensity_series, build_short_interest_change_series,
@@ -70,7 +71,7 @@ render_sidebar_base()
 # Note: signal/price date ranges (START/END/PRICE_START) now live inside
 # utils/ticker_score.compute_full_ticker_score() -- that's the single place
 # both this page and the alert engine fetch from, so they can't drift apart.
-STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355", "no_data": "#9E9E8E"}
+STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF", "no_data": "#8892AA"}
 STATUS_EMOJI = {"bullish": "▲", "bearish": "▼", "neutral": "●", "no_data": "○"}
 
 # ── Header ────────────────────────────────────────────────────────────────────
@@ -282,31 +283,22 @@ if section == "Overview":
     conviction = confluence["conviction"]
     case       = confluence["case"]
 
-    score_color = "#1B5E20" if case == "BULL" else ("#7B1010" if case == "BEAR" else "#8B7355")
+    score_color = "#00D566" if case == "BULL" else ("#FF4444" if case == "BEAR" else "#6B7FBF")
 
     c_gauge, c_case, c_counts = st.columns([1, 2, 2])
 
     with c_gauge:
-        st.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:8px;padding:20px;text-align:center;
-                    border:2px solid {score_color};font-family:Georgia,serif;">
-            <div style="font-size:0.72rem;color:#9E9E8E;letter-spacing:0.08em;">CONFLUENCE SCORE</div>
-            <div style="font-size:3.5rem;font-weight:800;color:{score_color};line-height:1.1;">
-                {score_val:.0f}
-            </div>
-            <div style="font-size:0.72rem;color:#9E9E8E;">out of 100</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(confluence_gauge_svg(score_val, case), unsafe_allow_html=True)
 
     with c_case:
         st.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:8px;padding:20px;border-left:4px solid {score_color};
-                    border-top:1px solid #D4C9B0;border-right:1px solid #D4C9B0;border-bottom:1px solid #D4C9B0;
-                    font-family:Georgia,serif;">
-            <div style="font-size:0.72rem;color:#9E9E8E;letter-spacing:0.08em;">SIGNAL CASE</div>
+        <div style="background:rgba(18,21,30,0.85);border-radius:8px;padding:20px;border-left:4px solid {score_color};
+                    border-top:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
+                    font-family:Inter,sans-serif;">
+            <div style="font-size:0.72rem;color:#8892AA;letter-spacing:0.08em;">SIGNAL CASE</div>
             <div style="font-size:2.2rem;font-weight:800;color:{score_color};">{case}</div>
-            <div style="font-size:0.95rem;color:#1A1612;">Conviction: <b>{conviction}</b></div>
-            <div style="font-size:0.80rem;color:#6B6560;margin-top:6px;">
+            <div style="font-size:0.95rem;color:#B8C0D4;">Conviction: <b style="color:{score_color};">{conviction}</b></div>
+            <div style="font-size:0.80rem;color:#8892AA;margin-top:6px;">
                 Based on {len(relevant_sig_ids)} independent signals + price momentum{" + federal contract award velocity" if _has_contract_signal else ""}{" + insider buy/sell activity" if _has_insider_signal else ""}{" + short interest trend" if _has_short_interest_signal else ""}{" + 13F institutional positioning" if _has_13f_signal else ""}
             </div>
         </div>
@@ -314,21 +306,21 @@ if section == "Overview":
 
     with c_counts:
         st.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:8px;padding:20px;
-                    border:1px solid #D4C9B0;font-family:Georgia,serif;">
-            <div style="font-size:0.72rem;color:#9E9E8E;letter-spacing:0.08em;margin-bottom:10px;">SIGNAL BREAKDOWN</div>
+        <div style="background:rgba(18,21,30,0.85);border-radius:8px;padding:20px;
+                    border:1px solid rgba(255,255,255,0.08);font-family:Inter,sans-serif;">
+            <div style="font-size:0.72rem;color:#8892AA;letter-spacing:0.08em;margin-bottom:10px;">SIGNAL BREAKDOWN</div>
             <div style="display:flex;gap:16px;align-items:center;">
                 <div style="text-align:center;">
-                    <div style="font-size:2rem;font-weight:700;color:#1B5E20;">{confluence['bull_count']}</div>
-                    <div style="font-size:0.75rem;color:#6B6560;">▲ Bullish</div>
+                    <div style="font-size:2rem;font-weight:700;color:#00D566;">{confluence['bull_count']}</div>
+                    <div style="font-size:0.75rem;color:#8892AA;">▲ Bullish</div>
                 </div>
                 <div style="text-align:center;">
-                    <div style="font-size:2rem;font-weight:700;color:#7B1010;">{confluence['bear_count']}</div>
-                    <div style="font-size:0.75rem;color:#6B6560;">▼ Bearish</div>
+                    <div style="font-size:2rem;font-weight:700;color:#FF4444;">{confluence['bear_count']}</div>
+                    <div style="font-size:0.75rem;color:#8892AA;">▼ Bearish</div>
                 </div>
                 <div style="text-align:center;">
-                    <div style="font-size:2rem;font-weight:700;color:#8B7355;">{confluence['neutral_count']}</div>
-                    <div style="font-size:0.75rem;color:#6B6560;">● Neutral</div>
+                    <div style="font-size:2rem;font-weight:700;color:#6B7FBF;">{confluence['neutral_count']}</div>
+                    <div style="font-size:0.75rem;color:#8892AA;">● Neutral</div>
                 </div>
             </div>
         </div>
@@ -417,7 +409,7 @@ if section == "Overview":
             "rgba(123,16,16,0.20)" if case == "BEAR" else
             "rgba(139,115,85,0.15)"
         )
-        _line_color = "#1B5E20" if case == "BULL" else ("#7B1010" if case == "BEAR" else "#8B7355")
+        _line_color = "#00D566" if case == "BULL" else ("#FF4444" if case == "BEAR" else "#6B7FBF")
 
         _fig_radar = go.Figure()
 
@@ -426,7 +418,7 @@ if section == "Overview":
             r=[50] * (len(_radar_axes) + 1),
             theta=_ra_closed,
             mode="lines",
-            line=dict(color="#D4C9B0", width=1, dash="dot"),
+            line=dict(color="rgba(255,255,255,0.08)", width=1, dash="dot"),
             showlegend=False, hoverinfo="skip",
         ))
 
@@ -446,43 +438,43 @@ if section == "Overview":
                 radialaxis=dict(
                     visible=True, range=[0, 100],
                     tickvals=[25, 50, 75],
-                    tickfont=dict(size=9, color="#8B7355", family="Georgia, serif"),
-                    gridcolor="#E8E0CE", linecolor="#D4C9B0",
+                    tickfont=dict(size=9, color="#6B7FBF", family="Inter, sans-serif"),
+                    gridcolor="rgba(255,255,255,0.05)", linecolor="rgba(255,255,255,0.08)",
                 ),
                 angularaxis=dict(
-                    tickfont=dict(size=10, color="#1C2B4A", family="Georgia, serif"),
-                    linecolor="#D4C9B0", gridcolor="#E8E0CE",
+                    tickfont=dict(size=10, color="#7C3AED", family="Inter, sans-serif"),
+                    linecolor="rgba(255,255,255,0.08)", gridcolor="rgba(255,255,255,0.05)",
                 ),
-                bgcolor="#FAF7F0",
+                bgcolor="#0F1118",
             ),
             height=300, margin=dict(l=30, r=30, t=20, b=20),
-            paper_bgcolor="#FAF7F0", showlegend=False,
+            paper_bgcolor="#0B0D12", showlegend=False,
         )
 
         _radar_col_l, _radar_col_r = st.columns([1, 1])
         with _radar_col_l:
             st.markdown(
-                f'<div style="font-family:Georgia,serif;padding:10px 0;">'
+                f'<div style="font-family:Inter,sans-serif;padding:10px 0;">'
                 f'<div style="font-size:0.70rem;text-transform:uppercase;letter-spacing:0.08em;'
-                f'color:#8B7355;margin-bottom:8px;">SIGNAL SHAPE — {ticker_input}</div>'
-                f'<div style="font-size:0.80rem;color:#6B6560;line-height:1.7;">',
+                f'color:#6B7FBF;margin-bottom:8px;">SIGNAL SHAPE — {ticker_input}</div>'
+                f'<div style="font-size:0.80rem;color:#8892AA;line-height:1.7;">',
                 unsafe_allow_html=True,
             )
             for _i, (_aname, _aval, _has) in enumerate(zip(_radar_axes, _radar_vals, _radar_has_data)):
-                _acolor = "#1B5E20" if _aval >= 60 else ("#7B1010" if _aval <= 40 else "#8B7355")
+                _acolor = "#00D566" if _aval >= 60 else ("#FF4444" if _aval <= 40 else "#6B7FBF")
                 _asym   = "▲" if _aval >= 60 else ("▼" if _aval <= 40 else "●")
                 _adisp  = _aname.replace("\n", " ")
                 _no_data_note = "" if _has else " <span style='color:#9E9E9E;font-size:0.70rem;'>no data yet</span>"
                 st.markdown(
                     f'<div style="display:flex;justify-content:space-between;padding:3px 0;'
-                    f'border-bottom:1px solid #F0EBE1;font-family:Georgia,serif;">'
-                    f'<span style="color:#1A1612;">{_adisp}{_no_data_note}</span>'
+                    f'border-bottom:1px solid rgba(18,21,30,0.85);font-family:Inter,sans-serif;">'
+                    f'<span style="color:#E8EEFF;">{_adisp}{_no_data_note}</span>'
                     f'<span style="color:{_acolor};font-weight:700;">{_asym} {_aval:.0f}</span>'
                     f'</div>',
                     unsafe_allow_html=True,
                 )
             st.markdown(
-                '<div style="font-size:0.68rem;color:#9E9E8E;margin-top:8px;">'
+                '<div style="font-size:0.68rem;color:#8892AA;margin-top:8px;">'
                 'Dashed ring = 50 (neutral). Score > 60 = bullish, < 40 = bearish.</div>'
                 '</div>',
                 unsafe_allow_html=True,
@@ -560,13 +552,13 @@ if section == "Overview":
                 f"currently {_tone} — conviction is **{_conv}**."
             )
 
-            _expl_color = "#1B5E20" if case == "BULL" else ("#7B1010" if case == "BEAR" else "#8B7355")
+            _expl_color = "#00D566" if case == "BULL" else ("#FF4444" if case == "BEAR" else "#6B7FBF")
             st.markdown(
-                f'<div style="background:#FAFAFA;border-left:4px solid {_expl_color};'
+                f'<div style="background:#12151E;border-left:4px solid {_expl_color};'
                 f'border:1px solid #E0E0E0;border-radius:6px;padding:14px 18px;'
-                f'margin:12px 0;font-family:Georgia,serif;">'
+                f'margin:12px 0;font-family:Inter,sans-serif;">'
                 f'<div style="font-size:0.70rem;text-transform:uppercase;letter-spacing:0.08em;'
-                f'color:#8B7355;margin-bottom:6px;">WHY THIS SCORE</div>'
+                f'color:#6B7FBF;margin-bottom:6px;">WHY THIS SCORE</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -582,16 +574,16 @@ if section == "Overview":
         _hist_scores = [row["score"] for row in _score_hist]
         _fig_hist = go.Figure(go.Scatter(
             x=_hist_dates, y=_hist_scores, mode="lines+markers",
-            line=dict(color="#1C2B4A", width=2.5),
-            marker=dict(size=6, color="#B8860B"),
+            line=dict(color="#7C3AED", width=2.5),
+            marker=dict(size=6, color="#F59E0B"),
             hovertemplate="%{x}: score=%{y:.1f}<extra></extra>",
         ))
-        _fig_hist.add_hline(y=65, line_dash="dot", line_color="#1B5E20", opacity=0.4)
-        _fig_hist.add_hline(y=35, line_dash="dot", line_color="#7B1010", opacity=0.4)
+        _fig_hist.add_hline(y=65, line_dash="dot", line_color="#00D566", opacity=0.4)
+        _fig_hist.add_hline(y=35, line_dash="dot", line_color="#FF4444", opacity=0.4)
         _fig_hist.update_layout(
-            height=200, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-            xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560")),
-            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+            height=200, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+            xaxis=dict(showgrid=False, tickfont=dict(color="#8892AA")),
+            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"),
                        title="Confluence Score", range=[0, 100]),
             margin=dict(l=0, r=0, t=10, b=0),
         )
@@ -611,12 +603,12 @@ if section == "Overview":
     _sector_pct = compute_sector_percentile(ticker_input, score_val)
     if _sector_pct.get("error") is None:
         _pct = _sector_pct["percentile"]
-        _pct_color = "#1B5E20" if _pct >= 65 else ("#7B1010" if _pct <= 35 else "#8B7355")
+        _pct_color = "#00D566" if _pct >= 65 else ("#FF4444" if _pct <= 35 else "#6B7FBF")
         st.markdown(
-            f'<div style="padding:10px 16px;border-left:4px solid {_pct_color};background:#FAF7F0;margin:8px 0;">'
+            f'<div style="padding:10px 16px;border-left:4px solid {_pct_color};background:#0B0D12;margin:8px 0;">'
             f'<span style="font-weight:700;color:{_pct_color};">{ticker_input} sits at the '
             f'{_pct:.0f}th percentile among {_sector_pct["n_peers"]} sector peers</span> '
-            f'<span style="color:#6B6560;">(score {score_val:.0f} vs. sector peer average '
+            f'<span style="color:#8892AA;">(score {score_val:.0f} vs. sector peer average '
             f'{_sector_pct["sector_avg"]:.0f})</span></div>',
             unsafe_allow_html=True,
         )
@@ -678,8 +670,8 @@ if section == "Overview":
             # AND the more professional-looking choice.
             fig_price = go.Figure(go.Scatter(
                 x=price_view.index, y=price_view.values,
-                mode="lines", line=dict(color="#B8860B", width=2.5, shape="spline", smoothing=0.3),
-                fill="tozeroy", fillcolor="rgba(184,134,11,0.08)",
+                mode="lines", line=dict(color="#00C8E0", width=2.5, shape="spline", smoothing=0.3),
+                fill="tozeroy", fillcolor="rgba(0,200,224,0.08)",
                 name=ticker_input,
             ))
 
@@ -693,14 +685,14 @@ if section == "Overview":
                 ma50_view = ma50[ma50.index >= price_view.index[0]]
                 fig_price.add_trace(go.Scatter(
                     x=ma50_view.index, y=ma50_view.values, name="50-day MA",
-                    mode="lines", line=dict(color="#1C2B4A", width=1.5, shape="spline", smoothing=0.3),
+                    mode="lines", line=dict(color="#7C3AED", width=1.5, shape="spline", smoothing=0.3),
                 ))
             if len(price_series) >= 200 and price_period in ("1Y", "2Y", "YTD", "ALL"):
                 ma200 = price_series.rolling(200).mean()
                 ma200_view = ma200[ma200.index >= price_view.index[0]]
                 fig_price.add_trace(go.Scatter(
                     x=ma200_view.index, y=ma200_view.values, name="200-day MA",
-                    mode="lines", line=dict(color="#7B1010", width=1.5, shape="spline", smoothing=0.3),
+                    mode="lines", line=dict(color="#FF4444", width=1.5, shape="spline", smoothing=0.3),
                 ))
 
             # ── Earnings date markers ──────────────────────────────────────
@@ -733,13 +725,13 @@ if section == "Overview":
                         _ec = "#B8860B"        # upcoming — gold
                         _ann = "Earnings ★"
                     elif _e["surprise_pct"] is None:
-                        _ec = "#8B7355"        # reported, no surprise data — tan
+                        _ec = "#6B7FBF"        # reported, no surprise data — tan
                         _ann = "E"
                     elif _e["surprise_pct"] >= 0:
-                        _ec = "#1B5E20"        # beat — green
+                        _ec = "#00D566"        # beat — green
                         _ann = f"E +{_e['surprise_pct']:.0f}%"
                     else:
-                        _ec = "#7B1010"        # miss — red
+                        _ec = "#FF4444"        # miss — red
                         _ann = f"E {_e['surprise_pct']:.0f}%"
 
                     fig_price.add_vline(
@@ -757,14 +749,51 @@ if section == "Overview":
                 pass  # Never let an earnings fetch failure break the price chart
 
             fig_price.update_layout(
-                height=360, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-                font=dict(size=13, color="#1A1612"),
-                xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=11), rangeslider_visible=False),
-                yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=11), title="Price (USD)"),
-                legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.9)"),
-                margin=dict(l=0, r=0, t=10, b=0),
+                height=380, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                font=dict(size=13, color="#E8EEFF"),
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor="rgba(255,255,255,0.05)",
+                    tickfont=dict(color="#8892AA", size=11),
+                    rangeslider=dict(visible=False),
+                    rangeselector=dict(
+                        buttons=[
+                            dict(count=1, label="1M", step="month", stepmode="backward"),
+                            dict(count=3, label="3M", step="month", stepmode="backward"),
+                            dict(count=6, label="6M", step="month", stepmode="backward"),
+                            dict(count=1, label="1Y", step="year",  stepmode="backward"),
+                            dict(count=2, label="2Y", step="year",  stepmode="backward"),
+                            dict(step="all", label="All"),
+                        ],
+                        bgcolor="#12151E",
+                        activecolor="#7C3AED",
+                        font=dict(color="#E8EEFF", size=10),
+                        bordercolor="rgba(255,255,255,0.10)",
+                        borderwidth=1,
+                        x=0, y=1.04,
+                    ),
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor="rgba(255,255,255,0.05)",
+                    tickfont=dict(color="#8892AA", size=11),
+                    title=dict(text="Price (USD)", font=dict(color="#8892AA", size=11)),
+                    autorange=True,
+                    fixedrange=False,
+                    tickprefix="$",
+                ),
+                legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(18,21,30,0.85)",
+                            bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
+                margin=dict(l=0, r=0, t=40, b=0),
+                dragmode="zoom",
             )
-            st.plotly_chart(fig_price, use_container_width=True)
+            st.plotly_chart(fig_price, use_container_width=True, config={
+                "displayModeBar": True,
+                "displaylogo": False,
+                "scrollZoom": True,
+                "doubleClick": "reset",
+                "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+            })
 
             # Price stats
             if len(price_series) > 50:
@@ -798,23 +827,23 @@ if section == "Overview":
                         _post_c  = q.get("post_change_pct")
 
                         if _mst == "PRE" and _pre_p is not None:
-                            _pre_color = "#1B5E20" if (_pre_c or 0) >= 0 else "#7B1010"
+                            _pre_color = "#00D566" if (_pre_c or 0) >= 0 else "#FF4444"
                             _pre_sym   = "▲" if (_pre_c or 0) >= 0 else "▼"
                             st.markdown(
-                                f'<div style="background:#EEF3FA;border-radius:4px;padding:4px 10px;'
-                                f'font-family:Georgia,serif;font-size:0.78rem;margin-top:2px;">'
-                                f'<span style="color:#8B7355;font-weight:600;">PRE-MARKET</span> &nbsp;'
+                                f'<div style="background:rgba(0,200,224,0.08);border-radius:4px;padding:4px 10px;'
+                                f'font-family:Inter,sans-serif;font-size:0.78rem;margin-top:2px;">'
+                                f'<span style="color:#6B7FBF;font-weight:600;">PRE-MARKET</span> &nbsp;'
                                 f'<span style="color:{_pre_color};font-weight:700;">'
                                 f'${_pre_p:.2f} &nbsp;{_pre_sym} {abs(_pre_c):.2f}%</span></div>',
                                 unsafe_allow_html=True,
                             )
                         elif _mst == "POST" and _post_p is not None:
-                            _post_color = "#1B5E20" if (_post_c or 0) >= 0 else "#7B1010"
+                            _post_color = "#00D566" if (_post_c or 0) >= 0 else "#FF4444"
                             _post_sym   = "▲" if (_post_c or 0) >= 0 else "▼"
                             st.markdown(
-                                f'<div style="background:#FBF8F0;border-radius:4px;padding:4px 10px;'
-                                f'font-family:Georgia,serif;font-size:0.78rem;margin-top:2px;">'
-                                f'<span style="color:#8B7355;font-weight:600;">AFTER-HOURS</span> &nbsp;'
+                                f'<div style="background:rgba(245,158,11,0.08);border-radius:4px;padding:4px 10px;'
+                                f'font-family:Inter,sans-serif;font-size:0.78rem;margin-top:2px;">'
+                                f'<span style="color:#6B7FBF;font-weight:600;">AFTER-HOURS</span> &nbsp;'
                                 f'<span style="color:{_post_color};font-weight:700;">'
                                 f'${_post_p:.2f} &nbsp;{_post_sym} {abs(_post_c):.2f}%</span></div>',
                                 unsafe_allow_html=True,
@@ -830,6 +859,148 @@ if section == "Overview":
                 p2.metric("52-Week High",  f"${high_52w:.2f}", delta=f"{pct_from_high:+.1f}%")
                 p3.metric("52-Week Low",   f"${low_52w:.2f}",  delta=f"{pct_from_low:+.1f}%")
                 p4.metric("YTD Return",    f"{ret_ytd:+.1f}%")
+
+        # ── Financial Fundamentals Panel ──────────────────────────────────────────
+        @st.cache_data(ttl=3600, max_entries=30, show_spinner=False)
+        def _fetch_fundamentals(sym: str) -> dict:
+            try:
+                info = yf.Ticker(sym).info
+                def _fmt_large(v):
+                    if v is None: return "—"
+                    v = float(v)
+                    if v >= 1e12: return f"${v/1e12:.2f}T"
+                    if v >= 1e9:  return f"${v/1e9:.2f}B"
+                    if v >= 1e6:  return f"${v/1e6:.2f}M"
+                    return f"${v:,.0f}"
+                def _fmt_pct(v):
+                    return f"{float(v)*100:.2f}%" if v is not None else "—"
+                def _fmt_x(v, decimals=2):
+                    return f"{float(v):.{decimals}f}x" if v is not None else "—"
+                def _fmt_num(v, decimals=2):
+                    return f"{float(v):.{decimals}f}" if v is not None else "—"
+                return {
+                    "longName":          info.get("longName") or sym,
+                    "sector":            info.get("sector", "—"),
+                    "industry":          info.get("industry", "—"),
+                    "marketCap":         _fmt_large(info.get("marketCap")),
+                    "enterpriseValue":   _fmt_large(info.get("enterpriseValue")),
+                    "trailingPE":        _fmt_num(info.get("trailingPE")),
+                    "forwardPE":         _fmt_num(info.get("forwardPE")),
+                    "pegRatio":          _fmt_num(info.get("pegRatio")),
+                    "priceToBook":       _fmt_x(info.get("priceToBook")),
+                    "evToEbitda":        _fmt_x(info.get("enterpriseToEbitda")),
+                    "evToRevenue":       _fmt_x(info.get("enterpriseToRevenue")),
+                    "totalRevenue":      _fmt_large(info.get("totalRevenue")),
+                    "grossMargins":      _fmt_pct(info.get("grossMargins")),
+                    "operatingMargins":  _fmt_pct(info.get("operatingMargins")),
+                    "profitMargins":     _fmt_pct(info.get("profitMargins")),
+                    "revenueGrowth":     _fmt_pct(info.get("revenueGrowth")),
+                    "earningsGrowth":    _fmt_pct(info.get("earningsGrowth")),
+                    "returnOnEquity":    _fmt_pct(info.get("returnOnEquity")),
+                    "returnOnAssets":    _fmt_pct(info.get("returnOnAssets")),
+                    "debtToEquity":      _fmt_num(info.get("debtToEquity")),
+                    "currentRatio":      _fmt_num(info.get("currentRatio")),
+                    "freeCashflow":      _fmt_large(info.get("freeCashflow")),
+                    "dividendYield":     _fmt_pct(info.get("dividendYield")),
+                    "payoutRatio":       _fmt_pct(info.get("payoutRatio")),
+                    "beta":              _fmt_num(info.get("beta")),
+                    "sharesShort":       _fmt_large(info.get("sharesShort")),
+                    "shortRatio":        _fmt_num(info.get("shortRatio")),
+                    "shortPercentOfFloat": _fmt_pct(info.get("shortPercentOfFloat")),
+                    "institutionsPct":   _fmt_pct(info.get("heldPercentInstitutions")),
+                    "insidersPct":       _fmt_pct(info.get("heldPercentInsiders")),
+                    "employees":         f"{info.get('fullTimeEmployees', 0):,}" if info.get("fullTimeEmployees") else "—",
+                    "country":           info.get("country", "—"),
+                    "website":           info.get("website", ""),
+                    "description":       info.get("longBusinessSummary", ""),
+                }
+            except Exception:
+                return {}
+
+        with st.expander("📊 Company Fundamentals & Financials", expanded=False):
+            with st.spinner("Loading fundamentals…"):
+                fund = _fetch_fundamentals(ticker_input)
+
+            if not fund:
+                st.warning("Could not load fundamentals for this ticker.")
+            else:
+                # Company header
+                st.markdown(
+                    f'<div style="font-family:Inter,sans-serif;margin-bottom:12px;">'
+                    f'<span style="font-size:1.05rem;font-weight:700;color:#E8EEFF;">{fund["longName"]}</span>&nbsp;&nbsp;'
+                    f'<span style="font-size:0.78rem;color:#8892AA;">{fund["sector"]} · {fund["industry"]}</span>'
+                    f'{"&nbsp;&nbsp;<a href=" + repr(fund["website"]) + " target=_blank style=color:#7C3AED;font-size:0.78rem;>Website ↗</a>" if fund["website"] else ""}'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                if fund["description"]:
+                    st.markdown(
+                        f'<div style="font-family:Inter,sans-serif;font-size:0.82rem;color:#8892AA;'
+                        f'line-height:1.65;margin-bottom:14px;border-left:2px solid rgba(124,58,237,0.3);'
+                        f'padding-left:10px;">{fund["description"][:420]}{"…" if len(fund["description"]) > 420 else ""}</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                def _fund_table(rows):
+                    """Render a 2-column label/value table."""
+                    cells = "".join(
+                        f'<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">'
+                        f'<td style="padding:5px 10px;color:#8892AA;font-size:0.78rem;">{label}</td>'
+                        f'<td style="padding:5px 10px;color:#E8EEFF;font-weight:600;font-size:0.82rem;text-align:right;">{val}</td>'
+                        f'</tr>'
+                        for label, val in rows
+                    )
+                    return (
+                        f'<table style="width:100%;border-collapse:collapse;font-family:Inter,sans-serif;">'
+                        f'<tbody>{cells}</tbody></table>'
+                    )
+
+                fc1, fc2, fc3, fc4 = st.columns(4)
+                with fc1:
+                    st.markdown("**Valuation**")
+                    st.markdown(_fund_table([
+                        ("Market Cap",    fund["marketCap"]),
+                        ("EV",            fund["enterpriseValue"]),
+                        ("Trailing P/E",  fund["trailingPE"]),
+                        ("Forward P/E",   fund["forwardPE"]),
+                        ("PEG Ratio",     fund["pegRatio"]),
+                        ("Price / Book",  fund["priceToBook"]),
+                        ("EV / EBITDA",   fund["evToEbitda"]),
+                        ("EV / Revenue",  fund["evToRevenue"]),
+                    ]), unsafe_allow_html=True)
+                with fc2:
+                    st.markdown("**Profitability**")
+                    st.markdown(_fund_table([
+                        ("Revenue (TTM)",     fund["totalRevenue"]),
+                        ("Gross Margin",      fund["grossMargins"]),
+                        ("Operating Margin",  fund["operatingMargins"]),
+                        ("Net Margin",        fund["profitMargins"]),
+                        ("Revenue Growth",    fund["revenueGrowth"]),
+                        ("Earnings Growth",   fund["earningsGrowth"]),
+                        ("Return on Equity",  fund["returnOnEquity"]),
+                        ("Return on Assets",  fund["returnOnAssets"]),
+                    ]), unsafe_allow_html=True)
+                with fc3:
+                    st.markdown("**Balance Sheet & Cash**")
+                    st.markdown(_fund_table([
+                        ("Free Cash Flow",  fund["freeCashflow"]),
+                        ("Debt / Equity",   fund["debtToEquity"]),
+                        ("Current Ratio",   fund["currentRatio"]),
+                        ("Dividend Yield",  fund["dividendYield"]),
+                        ("Payout Ratio",    fund["payoutRatio"]),
+                        ("Beta",            fund["beta"]),
+                        ("Employees",       fund["employees"]),
+                        ("Country",         fund["country"]),
+                    ]), unsafe_allow_html=True)
+                with fc4:
+                    st.markdown("**Ownership & Short Interest**")
+                    st.markdown(_fund_table([
+                        ("Institutions %",    fund["institutionsPct"]),
+                        ("Insiders %",        fund["insidersPct"]),
+                        ("Short Shares",      fund["sharesShort"]),
+                        ("Short Ratio",       fund["shortRatio"]),
+                        ("Short % Float",     fund["shortPercentOfFloat"]),
+                    ]), unsafe_allow_html=True)
 
         # ── Volume + RSI ─────────────────────────────────────────────────────────
         # Same `price_period` selector and `price_view` window as the price
@@ -852,20 +1023,25 @@ if section == "Overview":
                 if vol_view.empty:
                     vol_view = volume_series
                 _vol_avg = volume_series.tail(50).mean() if len(volume_series) >= 50 else volume_series.mean()
-                _vol_colors = ["#1B5E20" if v >= _vol_avg else "#8B7355" for v in vol_view.values]
+                _vol_colors = ["#00D566" if v >= _vol_avg else "#6B7FBF" for v in vol_view.values]
                 fig_vol = go.Figure(go.Bar(
                     x=vol_view.index, y=vol_view.values, marker_color=_vol_colors,
                     hovertemplate="%{x|%Y-%m-%d}: %{y:,.0f}<extra></extra>",
                 ))
-                fig_vol.add_hline(y=_vol_avg, line_dash="dot", line_color="#1C2B4A", opacity=0.5,
+                fig_vol.add_hline(y=_vol_avg, line_dash="dot", line_color="#7C3AED", opacity=0.5,
                                    annotation_text="50-day avg", annotation_font_size=10)
                 fig_vol.update_layout(
-                    height=220, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-                    xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560", size=10)),
-                    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=10)),
+                    height=220, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                    xaxis=dict(showgrid=False, tickfont=dict(color="#8892AA", size=10), fixedrange=False),
+                    yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA", size=10),
+                               autorange=True, fixedrange=False, tickformat=".2s"),
                     margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
                 )
-                st.plotly_chart(fig_vol, use_container_width=True)
+                st.plotly_chart(fig_vol, use_container_width=True, config={
+                    "displayModeBar": True, "displaylogo": False,
+                    "scrollZoom": True, "doubleClick": "reset",
+                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                })
                 st.caption(
                     f"Bars colored green when above the trailing 50-day average volume "
                     f"({_vol_avg:,.0f}), tan when below — a rough proxy for unusually active days."
@@ -882,21 +1058,25 @@ if section == "Overview":
                     rsi_view = rsi_full
                 fig_rsi = go.Figure(go.Scatter(
                     x=rsi_view.index, y=rsi_view.values, mode="lines",
-                    line=dict(color="#B8860B", width=2, shape="spline", smoothing=0.3),
+                    line=dict(color="#F59E0B", width=2, shape="spline", smoothing=0.3),
                     hovertemplate="%{x|%Y-%m-%d}: RSI=%{y:.1f}<extra></extra>",
                 ))
-                fig_rsi.add_hline(y=70, line_dash="dot", line_color="#7B1010", opacity=0.6,
+                fig_rsi.add_hline(y=70, line_dash="dot", line_color="#FF4444", opacity=0.6,
                                    annotation_text="Overbought (70)", annotation_font_size=10)
-                fig_rsi.add_hline(y=30, line_dash="dot", line_color="#1B5E20", opacity=0.6,
+                fig_rsi.add_hline(y=30, line_dash="dot", line_color="#00D566", opacity=0.6,
                                    annotation_text="Oversold (30)", annotation_font_size=10)
                 fig_rsi.update_layout(
-                    height=220, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-                    xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560", size=10)),
-                    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560", size=10),
-                               range=[0, 100]),
+                    height=220, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                    xaxis=dict(showgrid=False, tickfont=dict(color="#8892AA", size=10), fixedrange=False),
+                    yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA", size=10),
+                               range=[0, 100], fixedrange=True),  # RSI is 0-100 by definition
                     margin=dict(l=0, r=0, t=10, b=0), showlegend=False,
                 )
-                st.plotly_chart(fig_rsi, use_container_width=True)
+                st.plotly_chart(fig_rsi, use_container_width=True, config={
+                    "displayModeBar": True, "displaylogo": False,
+                    "scrollZoom": True, "doubleClick": "reset",
+                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                })
                 _latest_rsi = rsi_full.dropna()
                 if not _latest_rsi.empty:
                     _rsi_val = _latest_rsi.iloc[-1]
@@ -934,36 +1114,36 @@ if section == "Overview":
                         _bg = "#FFF8E1"
                         _border = "#B8860B"
                         _badge = f'<span style="background:#B8860B;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">UPCOMING</span>'
-                        _body = f'<div style="font-size:0.78rem;color:#6B6560;margin-top:4px;">{_when}</div>'
+                        _body = f'<div style="font-size:0.78rem;color:#8892AA;margin-top:4px;">{_when}</div>'
                         if _e["eps_estimate"] is not None:
-                            _body += f'<div style="font-size:0.78rem;color:#6B6560;">Est. EPS: <b>{_e["eps_estimate"]:+.2f}</b></div>'
+                            _body += f'<div style="font-size:0.78rem;color:#8892AA;">Est. EPS: <b>{_e["eps_estimate"]:+.2f}</b></div>'
                     else:
                         # Reported
                         _sp = _e["surprise_pct"]
                         if _sp is None:
-                            _border = "#8B7355"; _bg = "#F5F0E8"
-                            _badge = '<span style="font-size:0.68rem;color:#8B7355;font-weight:600;">REPORTED</span>'
+                            _border = "#6B7FBF"; _bg = "#F5F0E8"
+                            _badge = '<span style="font-size:0.68rem;color:#6B7FBF;font-weight:600;">REPORTED</span>'
                             _beat_txt = ""
                         elif _sp >= 0:
-                            _border = "#1B5E20"; _bg = "#F0F8F0"
-                            _badge = f'<span style="background:#1B5E20;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">BEAT +{_sp:.1f}%</span>'
+                            _border = "#00D566"; _bg = "#F0F8F0"
+                            _badge = f'<span style="background:#00D566;color:#0B0D12;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">BEAT +{_sp:.1f}%</span>'
                             _beat_txt = ""
                         else:
-                            _border = "#7B1010"; _bg = "#FDF0F0"
-                            _badge = f'<span style="background:#7B1010;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">MISS {_sp:.1f}%</span>'
+                            _border = "#FF4444"; _bg = "#FDF0F0"
+                            _badge = f'<span style="background:#FF4444;color:#0B0D12;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">MISS {_sp:.1f}%</span>'
                             _beat_txt = ""
                         _when = f"{abs(_days_delta)}d ago" if abs(_days_delta) < 365 else _e["date"].strftime("%b %d, %Y")
                         _act_str = f'<b>{_e["eps_actual"]:+.2f}</b>' if _e["eps_actual"] is not None else "—"
                         _est_str = f'{_e["eps_estimate"]:+.2f}' if _e["eps_estimate"] is not None else "—"
                         _body = (
-                            f'<div style="font-size:0.78rem;color:#6B6560;margin-top:4px;">{_when}</div>'
-                            f'<div style="font-size:0.78rem;color:#6B6560;">EPS: {_act_str} <span style="color:#9E9E8E;">(est {_est_str})</span></div>'
+                            f'<div style="font-size:0.78rem;color:#8892AA;margin-top:4px;">{_when}</div>'
+                            f'<div style="font-size:0.78rem;color:#8892AA;">EPS: {_act_str} <span style="color:#8892AA;">(est {_est_str})</span></div>'
                         )
 
                     st.markdown(f"""
                     <div style="background:{_bg};border-left:3px solid {_border};border-radius:4px;
-                                padding:8px 12px;margin-bottom:8px;font-family:Georgia,serif;">
-                        <div style="font-size:0.80rem;font-weight:700;color:#1A1612;">
+                                padding:8px 12px;margin-bottom:8px;font-family:Inter,sans-serif;">
+                        <div style="font-size:0.80rem;font-weight:700;color:#E8EEFF;">
                             {_e["date"].strftime("%b %d, %Y")} &nbsp; {_badge}
                         </div>
                         {_body}
@@ -1002,14 +1182,14 @@ if section == "Overview":
                     _meta = " · ".join(filter(None, [_pub, _time_str]))
 
                     if _url:
-                        _title_html = f'<a href="{_url}" target="_blank" style="color:#1C2B4A;text-decoration:none;font-weight:600;">{_title}</a>'
+                        _title_html = f'<a href="{_url}" target="_blank" style="color:#00C8E0;text-decoration:none;font-weight:600;">{_title}</a>'
                     else:
-                        _title_html = f'<span style="color:#1C2B4A;font-weight:600;">{_title}</span>'
+                        _title_html = f'<span style="color:#E8EEFF;font-weight:600;">{_title}</span>'
 
                     st.markdown(f"""
-                    <div style="padding:8px 0 8px 0;border-bottom:1px solid #E8E0CE;font-family:Georgia,serif;">
+                    <div style="padding:8px 0 8px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-family:Inter,sans-serif;">
                         <div style="font-size:0.85rem;line-height:1.4;">{_title_html}</div>
-                        <div style="font-size:0.72rem;color:#9E9E8E;margin-top:3px;">{_meta}</div>
+                        <div style="font-size:0.72rem;color:#8892AA;margin-top:3px;">{_meta}</div>
                     </div>
                     """, unsafe_allow_html=True)
             else:
@@ -1038,7 +1218,7 @@ if section == "Overview":
 
     regime      = pred["regime"]
     strength    = pred["regime_strength"]
-    reg_color   = "#1B5E20" if regime == "BULL" else ("#7B1010" if regime == "BEAR" else "#8B7355")
+    reg_color   = "#00D566" if regime == "BULL" else ("#FF4444" if regime == "BEAR" else "#6B7FBF")
     h30         = pred["horizons"][0]   # 30-day horizon
 
     # ── Probability bar ───────────────────────────────────────────────────────────
@@ -1048,19 +1228,19 @@ if section == "Overview":
 
     st.markdown(f"""
     <div style="margin-bottom:8px;">
-        <div style="font-size:0.72rem;color:#9E9E8E;letter-spacing:0.06em;margin-bottom:4px;">
+        <div style="font-size:0.72rem;color:#8892AA;letter-spacing:0.06em;margin-bottom:4px;">
             DIRECTIONAL PROBABILITY (30-DAY HORIZON)
         </div>
         <div style="display:flex;border-radius:6px;overflow:hidden;height:32px;">
-            <div style="width:{bull_w:.0f}%;background:#1B5E20;display:flex;align-items:center;
+            <div style="width:{bull_w:.0f}%;background:#00D566;display:flex;align-items:center;
                         justify-content:center;color:white;font-size:0.80rem;font-weight:700;">
                 ▲ {bull_w:.0f}%
             </div>
-            <div style="width:{neut_w:.0f}%;background:#8B7355;display:flex;align-items:center;
+            <div style="width:{neut_w:.0f}%;background:#6B7FBF;display:flex;align-items:center;
                         justify-content:center;color:white;font-size:0.80rem;font-weight:700;">
                 ● {neut_w:.0f}%
             </div>
-            <div style="width:{bear_w:.0f}%;background:#7B1010;display:flex;align-items:center;
+            <div style="width:{bear_w:.0f}%;background:#FF4444;display:flex;align-items:center;
                         justify-content:center;color:white;font-size:0.80rem;font-weight:700;">
                 ▼ {bear_w:.0f}%
             </div>
@@ -1071,17 +1251,17 @@ if section == "Overview":
     # ── Horizon cards ─────────────────────────────────────────────────────────────
     hor_cols = st.columns(3)
     for hcol, h in zip(hor_cols, pred["horizons"]):
-        h_color = "#1B5E20" if h["bull_pct"] > 60 else ("#7B1010" if h["bear_pct"] > 60 else "#8B7355")
+        h_color = "#00D566" if h["bull_pct"] > 60 else ("#FF4444" if h["bear_pct"] > 60 else "#6B7FBF")
         with hcol:
             st.markdown(f"""
-            <div style="background:#F0EBE1;border-radius:8px;padding:14px 16px;text-align:center;
-                        border-top:3px solid {h_color};border:1px solid #D4C9B0;font-family:Georgia,serif;">
-                <div style="font-size:0.68rem;color:#9E9E8E;letter-spacing:0.06em;">{h['label']} FORECAST</div>
+            <div style="background:rgba(18,21,30,0.85);border-radius:8px;padding:14px 16px;text-align:center;
+                        border-top:3px solid {h_color};border:1px solid rgba(255,255,255,0.08);font-family:Inter,sans-serif;">
+                <div style="font-size:0.68rem;color:#8892AA;letter-spacing:0.06em;">{h['label']} FORECAST</div>
                 <div style="font-size:1.8rem;font-weight:800;color:{h_color};margin:4px 0;">
                     {h['bull_pct']:.0f}%
                 </div>
-                <div style="font-size:0.72rem;color:#6B6560;font-weight:600;">Bull Probability</div>
-                <div style="font-size:0.72rem;color:#8B7355;margin-top:6px;">
+                <div style="font-size:0.72rem;color:#8892AA;font-weight:600;">Bull Probability</div>
+                <div style="font-size:0.72rem;color:#6B7FBF;margin-top:6px;">
                     Price range<br>
                     <b>${h['price_low']:.2f} — ${h['price_high']:.2f}</b>
                 </div>
@@ -1096,9 +1276,9 @@ if section == "Overview":
     with pred_c1:
         _plain = pred['plain_english'].replace("\\$", "$")
         st.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:6px;padding:14px 16px;border:1px solid #D4C9B0;
-                    font-family:Georgia,serif;font-size:0.83rem;color:#2A2520;line-height:1.6;">
-            <div style="font-size:0.72rem;color:#9E9E8E;letter-spacing:0.06em;margin-bottom:6px;">
+        <div style="background:rgba(18,21,30,0.85);border-radius:6px;padding:14px 16px;border:1px solid rgba(255,255,255,0.08);
+                    font-family:Inter,sans-serif;font-size:0.83rem;color:#B8C0D4;line-height:1.6;">
+            <div style="font-size:0.72rem;color:#8892AA;letter-spacing:0.06em;margin-bottom:6px;">
                 PLAIN-ENGLISH SUMMARY
             </div>
             {_plain}
@@ -1107,26 +1287,26 @@ if section == "Overview":
 
     with pred_c2:
         st.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:6px;padding:14px 16px;border:1px solid #D4C9B0;
-                    font-family:Georgia,serif;">
-            <div style="font-size:0.72rem;color:#9E9E8E;letter-spacing:0.06em;margin-bottom:8px;">
+        <div style="background:rgba(18,21,30,0.85);border-radius:6px;padding:14px 16px;border:1px solid rgba(255,255,255,0.08);
+                    font-family:Inter,sans-serif;">
+            <div style="font-size:0.72rem;color:#8892AA;letter-spacing:0.06em;margin-bottom:8px;">
                 MOMENTUM SNAPSHOT
             </div>
-            <table style="width:100%;font-size:0.80rem;color:#1A1612;">
-                <tr><td style="color:#8B7355;">1-Month</td>
-                    <td style="text-align:right;font-weight:700;color:{'#1B5E20' if pred['momentum_1m']>0 else '#7B1010'};">
+            <table style="width:100%;font-size:0.80rem;color:#E8EEFF;">
+                <tr><td style="color:#6B7FBF;">1-Month</td>
+                    <td style="text-align:right;font-weight:700;color:{'#00D566' if pred['momentum_1m']>0 else '#FF4444'};">
                         {pred['momentum_1m']:+.1f}%</td></tr>
-                <tr><td style="color:#8B7355;">3-Month</td>
-                    <td style="text-align:right;font-weight:700;color:{'#1B5E20' if pred['momentum_3m']>0 else '#7B1010'};">
+                <tr><td style="color:#6B7FBF;">3-Month</td>
+                    <td style="text-align:right;font-weight:700;color:{'#00D566' if pred['momentum_3m']>0 else '#FF4444'};">
                         {pred['momentum_3m']:+.1f}%</td></tr>
-                <tr><td style="color:#8B7355;">6-Month</td>
-                    <td style="text-align:right;font-weight:700;color:{'#1B5E20' if pred['momentum_6m']>0 else '#7B1010'};">
+                <tr><td style="color:#6B7FBF;">6-Month</td>
+                    <td style="text-align:right;font-weight:700;color:{'#00D566' if pred['momentum_6m']>0 else '#FF4444'};">
                         {pred['momentum_6m']:+.1f}%</td></tr>
-                <tr><td style="color:#8B7355;">1-Year</td>
-                    <td style="text-align:right;font-weight:700;color:{'#1B5E20' if pred['momentum_1y']>0 else '#7B1010'};">
+                <tr><td style="color:#6B7FBF;">1-Year</td>
+                    <td style="text-align:right;font-weight:700;color:{'#00D566' if pred['momentum_1y']>0 else '#FF4444'};">
                         {pred['momentum_1y']:+.1f}%</td></tr>
-                <tr><td style="color:#8B7355;padding-top:6px;">Ann. Volatility</td>
-                    <td style="text-align:right;font-weight:700;color:#8B7355;padding-top:6px;">
+                <tr><td style="color:#6B7FBF;padding-top:6px;">Ann. Volatility</td>
+                    <td style="text-align:right;font-weight:700;color:#6B7FBF;padding-top:6px;">
                         {pred['annual_vol_pct']:.1f}%</td></tr>
             </table>
         </div>
@@ -1166,11 +1346,11 @@ if section == "Overview":
 
     with bull_col:
         st.markdown(f"""
-        <div style="background:#EBF5EC;border-radius:6px;padding:16px;
-                    border-left:4px solid #1B5E20;border-top:1px solid #A8C09A;
+        <div style="background:rgba(0,213,102,0.05);border-radius:6px;padding:16px;
+                    border-left:4px solid #00D566;border-top:1px solid #A8C09A;
                     border-right:1px solid #A8C09A;border-bottom:1px solid #A8C09A;
-                    min-height:200px;font-family:Georgia,serif;">
-            <div style="color:#1B5E20;font-size:0.95rem;font-weight:700;margin-bottom:12px;letter-spacing:0.02em;">
+                    min-height:200px;font-family:Inter,sans-serif;">
+            <div style="color:#00D566;font-size:0.95rem;font-weight:700;margin-bottom:12px;letter-spacing:0.02em;">
                 BULL CASE — {confluence['bull_count']} signals
             </div>
         """, unsafe_allow_html=True)
@@ -1183,11 +1363,11 @@ if section == "Overview":
 
     with bear_col:
         st.markdown(f"""
-        <div style="background:#FAF0F0;border-radius:6px;padding:16px;
-                    border-left:4px solid #7B1010;border-top:1px solid #E8A8A8;
+        <div style="background:rgba(255,68,68,0.05);border-radius:6px;padding:16px;
+                    border-left:4px solid #FF4444;border-top:1px solid #E8A8A8;
                     border-right:1px solid #E8A8A8;border-bottom:1px solid #E8A8A8;
-                    min-height:200px;font-family:Georgia,serif;">
-            <div style="color:#7B1010;font-size:0.95rem;font-weight:700;margin-bottom:12px;letter-spacing:0.02em;">
+                    min-height:200px;font-family:Inter,sans-serif;">
+            <div style="color:#FF4444;font-size:0.95rem;font-weight:700;margin-bottom:12px;letter-spacing:0.02em;">
                 BEAR CASE — {confluence['bear_count']} signals
             </div>
         """, unsafe_allow_html=True)
@@ -1271,18 +1451,18 @@ if section == "Overview":
             _items_html = "".join(
                 f'<div style="display:flex;gap:10px;margin-bottom:8px;">'
                 f'<span style="color:#B8860B;font-size:1.0rem;flex-shrink:0;">◈</span>'
-                f'<div style="font-size:0.80rem;color:#4A4440;line-height:1.6;">{line}</div>'
+                f'<div style="font-size:0.80rem;color:#B8C0D4;line-height:1.6;">{line}</div>'
                 f'</div>'
                 for line in _tripwire_lines
             )
             st.markdown(
-                f'<div style="background:#FFF8E7;border-radius:8px;padding:16px 18px;'
-                f'margin:14px 0;border-left:4px solid #B8860B;font-family:Georgia,serif;">'
+                f'<div style="background:rgba(245,158,11,0.07);border-radius:8px;padding:16px 18px;'
+                f'margin:14px 0;border-left:4px solid #F59E0B;font-family:Inter,sans-serif;">'
                 f'<div style="font-size:0.72rem;font-weight:700;color:#B8860B;'
                 f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">'
                 f'{_header}</div>'
                 f'{_items_html}'
-                f'<div style="font-size:0.65rem;color:#9E9E8E;margin-top:8px;">'
+                f'<div style="font-size:0.65rem;color:#8892AA;margin-top:8px;">'
                 f'Conditions based on current signal readings · thresholds are directional, not precise price targets</div>'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -1304,7 +1484,7 @@ if section == "Overview":
                 import pandas as pd
                 _crossing_threshold = 70 if confluence["case"] == "BULL" else 35
                 _direction          = "above" if confluence["case"] == "BULL" else "below"
-                _color              = "#1B5E20" if confluence["case"] == "BULL" else "#7B1010"
+                _color              = "#00D566" if confluence["case"] == "BULL" else "#FF4444"
 
                 # Find dates where score crossed the threshold
                 _crossings = []
@@ -1349,7 +1529,7 @@ if section == "Overview":
 
                         if _playbook_rows:
                             st.markdown(
-                                f'<div style="font-size:0.78rem;color:#4A4440;margin-bottom:10px;">'
+                                f'<div style="font-size:0.78rem;color:#B8C0D4;margin-bottom:10px;">'
                                 f'The last <b>{len(_playbook_rows)}</b> time(s) '
                                 f'<b style="color:{_color}">{ticker_input}</b> scored '
                                 f'{_crossing_threshold}+ {_direction}, forward returns were:</div>',
@@ -1383,11 +1563,11 @@ if section == "Overview":
                 else:
                     _px_c = _px_data["Close"].squeeze()
                     _BUCKETS = [
-                        (50, 60,  "50–60 (Neutral-leaning bull)",   "#8B7355"),
+                        (50, 60,  "50–60 (Neutral-leaning bull)",   "#6B7FBF"),
                         (60, 70,  "60–70 (Moderate bull)",          "#2E7D32"),
-                        (70, 80,  "70–80 (Strong bull)",            "#1B5E20"),
+                        (70, 80,  "70–80 (Strong bull)",            "#00D566"),
                         (80, 100, "80–100 (High-conviction bull)",  "#003300"),
-                        (20, 35,  "20–35 (Bear signal)",            "#7B1010"),
+                        (20, 35,  "20–35 (Bear signal)",            "#FF4444"),
                         (35, 50,  "35–50 (Neutral-leaning bear)",   "#B71C1C"),
                     ]
                     _bucket_results = {}
@@ -1435,7 +1615,7 @@ if section == "Overview":
                         if _curr_bucket_label:
                             st.markdown(
                                 f'<div style="background:#1C2B4A;border-radius:6px;padding:8px 14px;'
-                                f'margin-bottom:12px;font-family:Georgia,serif;">'
+                                f'margin-bottom:12px;font-family:Inter,sans-serif;">'
                                 f'<span style="color:#C9A84C;font-size:0.70rem;text-transform:uppercase;'
                                 f'letter-spacing:0.08em;">CURRENT SCORE BUCKET</span> '
                                 f'<span style="color:#EEF3FA;font-weight:700;">{_curr_bucket_label}</span>'
@@ -1468,17 +1648,17 @@ if section == "Overview":
                                 _shown += 1
 
                         if _shown > 0:
-                            fig_dist.add_hline(y=0, line_dash="dot", line_color="#8B7355", opacity=0.5)
+                            fig_dist.add_hline(y=0, line_dash="dot", line_color="#6B7FBF", opacity=0.5)
                             fig_dist.update_layout(
                                 title=dict(
                                     text=f"{ticker_input} — Forward return distributions by score bucket",
-                                    font=dict(size=14, color="#1C2B4A"), x=0.5,
+                                    font=dict(size=14, color="#7C3AED"), x=0.5,
                                 ),
                                 yaxis_title="Forward Return (%)",
                                 height=380,
-                                paper_bgcolor="#FAF7F0", plot_bgcolor="#FAF7F0",
+                                paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
                                 margin=dict(l=50, r=20, t=50, b=60),
-                                font=dict(family="Georgia, serif", color="#4A4440"),
+                                font=dict(family="Inter, sans-serif", color="#4A4440"),
                                 showlegend=True,
                                 legend=dict(font=dict(size=9)),
                             )
@@ -1638,20 +1818,20 @@ if section == "Overview":
         driver_html = ""
         for _, dr in top3.iterrows():
             r_fmt = f"{dr['Corr (r)']:+.2f}"
-            r_color = "#1B5E20" if dr['Corr (r)'] > 0 else "#7B1010"
+            r_color = "#00D566" if dr['Corr (r)'] > 0 else "#FF4444"
             driver_html += f"""
-            <div style="flex:1;background:#F0EBE1;border-radius:6px;padding:12px;
-                        border:1px solid #D4C9B0;border-top:3px solid {r_color};font-family:Georgia,serif;">
-                <div style="font-size:0.70rem;color:#8B7355;text-transform:uppercase;letter-spacing:0.05em;
+            <div style="flex:1;background:rgba(18,21,30,0.85);border-radius:6px;padding:12px;
+                        border:1px solid rgba(255,255,255,0.08);border-top:3px solid {r_color};font-family:Inter,sans-serif;">
+                <div style="font-size:0.70rem;color:#6B7FBF;text-transform:uppercase;letter-spacing:0.05em;
                             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{dr['Signal'][:30]}</div>
                 <div style="font-size:1.4rem;font-weight:700;color:{r_color};margin:4px 0;">{r_fmt}</div>
-                <div style="font-size:0.75rem;color:#6B6560;">r with {ticker_input} price</div>
-                <div style="font-size:0.75rem;color:#1A1612;margin-top:4px;">Score: <b>{dr['Score']:.0f}</b> &nbsp; {dr['Status']}</div>
+                <div style="font-size:0.75rem;color:#8892AA;">r with {ticker_input} price</div>
+                <div style="font-size:0.75rem;color:#E8EEFF;margin-top:4px;">Score: <b>{dr['Score']:.0f}</b> &nbsp; {dr['Status']}</div>
             </div>"""
 
         st.markdown(f"""
         <div style="margin-bottom:12px;">
-            <div style="font-size:0.72rem;color:#8B7355;text-transform:uppercase;
+            <div style="font-size:0.72rem;color:#6B7FBF;text-transform:uppercase;
                         letter-spacing:0.07em;margin-bottom:8px;">
                 TOP SIGNAL DRIVERS FOR {ticker_input} — by historical price correlation
             </div>
@@ -1715,7 +1895,7 @@ if section == "Overview":
             impact_val = row.Impact
 
             s_key = sig_status.split(" ")[-1].lower() if " " in sig_status else sig_status.lower()
-            card_color = "#1B5E20" if "bullish" in s_key else ("#7B1010" if "bearish" in s_key else "#8B7355")
+            card_color = "#00D566" if "bullish" in s_key else ("#FF4444" if "bearish" in s_key else "#6B7FBF")
             bg_color   = "#F0F7F0" if "bullish" in s_key else ("#FDF0F0" if "bearish" in s_key else "#F7F5F0")
             sym        = "▲" if "bullish" in s_key else ("▼" if "bearish" in s_key else "●")
 
@@ -1727,13 +1907,13 @@ if section == "Overview":
             st.markdown(f"""
             <div style="background:{bg_color};border-radius:6px;padding:12px 16px;margin-bottom:4px;
                         border-left:4px solid {card_color};border:1px solid rgba(0,0,0,0.08);
-                        font-family:Georgia,serif;">
+                        font-family:Inter,sans-serif;">
                 <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:4px;">
                     <span style="color:{card_color};font-weight:700;font-size:0.88rem;">{sym} {sig_name}</span>
                     <span style="font-size:0.75rem;color:{card_color};font-weight:600;">{sig_status}</span>
-                    <span style="font-size:0.75rem;color:#8B7355;">Score: {sig_score:.0f}/100{corr_note}</span>
+                    <span style="font-size:0.75rem;color:#6B7FBF;">Score: {sig_score:.0f}/100{corr_note}</span>
                 </div>
-                <div style="font-size:0.82rem;color:#2A2520;line-height:1.55;">{reason_txt}</div>
+                <div style="font-size:0.82rem;color:#B8C0D4;line-height:1.55;">{reason_txt}</div>
             </div>
             """, unsafe_allow_html=True)
 
@@ -1830,7 +2010,7 @@ elif section == "Insider & Short Interest":
     # fetch already done above for the Confluence Score blend, no extra cost.
     st.markdown("**Open-Market Buy/Sell Activity (last 180 days)**")
     if _has_insider_signal:
-        ins_color = "#1B5E20" if _insider_score["status"] == "bullish" else ("#7B1010" if _insider_score["status"] == "bearish" else "#8B7355")
+        ins_color = "#00D566" if _insider_score["status"] == "bullish" else ("#FF4444" if _insider_score["status"] == "bearish" else "#6B7FBF")
         i1, i2, i3, i4 = st.columns(4)
         i1.metric("Insider Score", f"{_insider_score['score']:.0f}/100")
         i2.metric("Distinct Buyers", _insider_score["distinct_buyers"])
@@ -1851,11 +2031,11 @@ elif section == "Insider & Short Interest":
                     else len(_recent_buys)
                 if _n_cluster >= 2:
                     st.markdown(
-                        f'<div style="background:#EDF7ED;border-radius:7px;padding:10px 14px;'
-                        f'margin-bottom:10px;border-left:4px solid #1B5E20;font-family:Georgia,serif;">'
+                        f'<div style="background:rgba(0,213,102,0.08);border-radius:7px;padding:10px 14px;'
+                        f'margin-bottom:10px;border-left:4px solid #00D566;font-family:Inter,sans-serif;">'
                         f'<span style="font-size:1.1rem;">🔥</span> '
-                        f'<b style="color:#1B5E20;font-size:0.88rem;">INSIDER CLUSTER BUY</b> — '
-                        f'<span style="font-size:0.82rem;color:#4A4440;">'
+                        f'<b style="color:#00D566;font-size:0.88rem;">INSIDER CLUSTER BUY</b> — '
+                        f'<span style="font-size:0.82rem;color:#B8C0D4;">'
                         f'{_n_cluster} distinct insiders made open-market purchases in the last 21 days. '
                         f'Cluster buying (multiple independent insiders, no offsetting sales) is '
                         f'among the strongest signals in academic insider-trading research.</span>'
@@ -1918,7 +2098,7 @@ elif section == "Insider & Short Interest":
         """)
 
     if _has_short_interest_signal:
-        si_color = "#1B5E20" if _short_interest_score["status"] == "bullish" else ("#7B1010" if _short_interest_score["status"] == "bearish" else "#8B7355")
+        si_color = "#00D566" if _short_interest_score["status"] == "bullish" else ("#FF4444" if _short_interest_score["status"] == "bearish" else "#6B7FBF")
         s1, s2, s3, s4 = st.columns(4)
         s1.metric("Short Interest Score", f"{_short_interest_score['score']:.0f}/100")
         s2.metric("Current Short Shares", f"{_short_interest_score['short_shares']:,}")
@@ -2009,15 +2189,15 @@ elif section == "13F & Federal Contracts":
                 fig_c.add_trace(go.Scatter(
                     x=monthly_awards["date"], y=ma6,
                     name="3-month avg", mode="lines",
-                    line=dict(color="#1C2B4A", width=2.5),
+                    line=dict(color="#7C3AED", width=2.5),
                 ))
                 fig_c.update_layout(
                     title="Monthly Federal Contract Awards",
-                    height=250, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-                    xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-                    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+                    height=250, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                    xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA")),
+                    yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"),
                                title="Award Amount (USD)"),
-                    legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.9)"),
+                    legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(250,247,240,0.9)"),
                     margin=dict(l=0, r=0, t=30, b=0),
                 )
                 st.plotly_chart(fig_c, use_container_width=True)
@@ -2304,20 +2484,20 @@ elif section == "Deep Correlation Scan":
             lag_scan = deep_corr.get("lag_scan", {})
             if lag_scan:
                 lags, corrs = list(lag_scan.keys()), list(lag_scan.values())
-                bar_colors = ["#1B5E20" if c > 0 else "#7B1010" for c in corrs]
+                bar_colors = ["#00D566" if c > 0 else "#FF4444" for c in corrs]
                 if deep_lag < len(bar_colors):
                     bar_colors[deep_lag] = "#B8860B"
                 fig_lag = go.Figure(go.Bar(
                     x=[f"{l}w" for l in lags], y=corrs, marker_color=bar_colors,
                     text=[f"{c:+.3f}" for c in corrs], textposition="outside",
-                    textfont=dict(size=9, color="#1A1612"),
+                    textfont=dict(size=9, color="#E8EEFF"),
                     hovertemplate="Lag %{x}: r = %{y:.4f}<extra></extra>",
                 ))
-                fig_lag.add_hline(y=0, line_color="#9E9E8E")
+                fig_lag.add_hline(y=0, line_color="#8892AA")
                 fig_lag.update_layout(
-                    height=260, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-                    xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560"), title="Lag (weeks)"),
-                    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"), title="Pearson r"),
+                    height=260, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                    xaxis=dict(showgrid=False, tickfont=dict(color="#8892AA"), title="Lag (weeks)"),
+                    yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"), title="Pearson r"),
                     margin=dict(l=0, r=0, t=10, b=0),
                 )
                 st.plotly_chart(fig_lag, use_container_width=True)
@@ -2327,16 +2507,16 @@ elif section == "Deep Correlation Scan":
             if not rolling.empty and rolling.dropna().shape[0] > 5:
                 fig_roll = go.Figure(go.Scatter(
                     x=rolling.dropna().index, y=rolling.dropna().values, mode="lines",
-                    fill="tozeroy", line=dict(color="#1C2B4A", width=2),
+                    fill="tozeroy", line=dict(color="#7C3AED", width=2),
                     fillcolor="rgba(28,43,74,0.12)",
                     hovertemplate="%{x}: r=%{y:.3f}<extra></extra>",
                 ))
-                fig_roll.add_hline(y=0, line_color="#9E9E8E")
+                fig_roll.add_hline(y=0, line_color="#8892AA")
                 fig_roll.update_layout(
-                    title=dict(text="Rolling 26-Week Correlation — is the relationship stable?", font=dict(size=12, color="#1C2B4A")),
-                    height=220, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-                    xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-                    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+                    title=dict(text="Rolling 26-Week Correlation — is the relationship stable?", font=dict(size=12, color="#7C3AED")),
+                    height=220, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                    xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA")),
+                    yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"),
                                title="26w rolling r", range=[-1, 1]),
                     margin=dict(l=0, r=0, t=30, b=0),
                 )
@@ -2351,23 +2531,23 @@ elif section == "Deep Correlation Scan":
                 fig_ov.add_trace(go.Scatter(
                     x=sig_norm.index, y=sig_norm.values,
                     name=f"{deep_cfg.get('name','')[:28]} (lag={deep_lag}w)",
-                    line=dict(color="#1C2B4A", width=2),
+                    line=dict(color="#7C3AED", width=2),
                 ), secondary_y=False)
                 fig_ov.add_trace(go.Scatter(
                     x=prc_norm.index, y=prc_norm.values, name=f"{ticker_input} Price",
-                    line=dict(color="#B8860B", width=2),
+                    line=dict(color="#F59E0B", width=2),
                 ), secondary_y=True)
                 fig_ov.update_layout(
-                    height=320, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-                    legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.9)"),
+                    height=320, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                    legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(250,247,240,0.9)"),
                     hovermode="x unified",
-                    xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
+                    xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA")),
                     margin=dict(l=0, r=0, t=20, b=0),
                 )
                 fig_ov.update_yaxes(title_text="Signal (normalized to 100)", secondary_y=False,
-                                     gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"), title_font=dict(color="#1C2B4A"))
+                                     gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"), title_font=dict(color="#7C3AED"))
                 fig_ov.update_yaxes(title_text=f"{ticker_input} Price (normalized to 100)", secondary_y=True,
-                                     gridcolor="rgba(0,0,0,0)", tickfont=dict(color="#6B6560"), title_font=dict(color="#B8860B"))
+                                     gridcolor="rgba(0,0,0,0)", tickfont=dict(color="#8892AA"), title_font=dict(color="#F59E0B"))
                 st.plotly_chart(fig_ov, use_container_width=True)
 
         st.divider()
@@ -2504,7 +2684,7 @@ elif section == "Earnings Track Record":
             _accuracy = (_n_correct / _n_directional * 100) if _n_directional > 0 else None
 
             # Summary banner
-            _acc_color = "#1B5E20" if (_accuracy or 0) >= 60 else ("#7B1010" if (_accuracy or 0) < 45 else "#8B7355")
+            _acc_color = "#00D566" if (_accuracy or 0) >= 60 else ("#FF4444" if (_accuracy or 0) < 45 else "#6B7FBF")
             _m1, _m2, _m3 = st.columns(3)
             _m1.metric("Earnings Events Checked", len(_rows_with_data))
             _m2.metric("Directional Calls Made", _n_directional)
@@ -2535,15 +2715,15 @@ elif section == "Earnings Track Record":
                 if _score >= 60:
                     _pred_dir = "bullish"
                     _pred_label = f"▲ Bullish ({_score:.0f})"
-                    _pred_color = "#1B5E20"
+                    _pred_color = "#00D566"
                 elif _score <= 40:
                     _pred_dir = "bearish"
                     _pred_label = f"▼ Bearish ({_score:.0f})"
-                    _pred_color = "#7B1010"
+                    _pred_color = "#FF4444"
                 else:
                     _pred_dir = "neutral"
                     _pred_label = f"● Neutral ({_score:.0f})"
-                    _pred_color = "#8B7355"
+                    _pred_color = "#6B7FBF"
 
                 if _surp is not None:
                     _actual_dir = "bullish" if _surp > 0 else ("bearish" if _surp < 0 else "neutral")
@@ -2552,19 +2732,19 @@ elif section == "Earnings Track Record":
                         f"❌ Miss ({_surp:.1f}%)" if _surp < 0 else
                         "● Met estimate"
                     )
-                    _outcome_color = "#1B5E20" if _surp > 0 else ("#7B1010" if _surp < 0 else "#8B7355")
+                    _outcome_color = "#00D566" if _surp > 0 else ("#FF4444" if _surp < 0 else "#6B7FBF")
                     if _pred_dir != "neutral":
                         _matched = _pred_dir == _actual_dir
                         _match_label = "✅ Correct" if _matched else "❌ Wrong"
-                        _match_color = "#1B5E20" if _matched else "#7B1010"
+                        _match_color = "#00D566" if _matched else "#FF4444"
                     else:
                         _match_label = "— No call"
-                        _match_color = "#8B7355"
+                        _match_color = "#6B7FBF"
                 else:
                     _outcome_label = "No surprise data"
-                    _outcome_color = "#9E9E8E"
+                    _outcome_color = "#8892AA"
                     _match_label = "—"
-                    _match_color = "#9E9E8E"
+                    _match_color = "#8892AA"
 
                 _eps_line = ""
                 if _actual is not None and _est is not None:
@@ -2573,26 +2753,26 @@ elif section == "Earnings Track Record":
                     _eps_line = f"EPS: **{_actual:+.2f}** (no estimate available)"
 
                 st.markdown(f"""
-<div style="background:#FAF7F0;border:1px solid #D4C9B0;border-left:4px solid {_pred_color};
-            border-radius:6px;padding:12px 16px;margin-bottom:8px;font-family:Georgia,serif;">
+<div style="background:#0B0D12;border:1px solid rgba(255,255,255,0.08);border-left:4px solid {_pred_color};
+            border-radius:6px;padding:12px 16px;margin-bottom:8px;font-family:Inter,sans-serif;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
         <div>
-            <div style="font-size:0.70rem;color:#8B7355;letter-spacing:0.06em;">
+            <div style="font-size:0.70rem;color:#6B7FBF;letter-spacing:0.06em;">
                 EARNINGS · {_earn_d}
             </div>
-            <div style="font-size:0.85rem;color:#1A1612;margin-top:2px;">{_eps_line}</div>
+            <div style="font-size:0.85rem;color:#E8EEFF;margin-top:2px;">{_eps_line}</div>
         </div>
         <div style="display:flex;gap:20px;flex-wrap:wrap;">
             <div style="text-align:center;">
-                <div style="font-size:0.65rem;color:#9E9E8E;letter-spacing:0.06em;">SCORE {_delta}d BEFORE</div>
+                <div style="font-size:0.65rem;color:#8892AA;letter-spacing:0.06em;">SCORE {_delta}d BEFORE</div>
                 <div style="font-weight:700;color:{_pred_color};font-size:0.88rem;">{_pred_label}</div>
             </div>
             <div style="text-align:center;">
-                <div style="font-size:0.65rem;color:#9E9E8E;letter-spacing:0.06em;">ACTUAL RESULT</div>
+                <div style="font-size:0.65rem;color:#8892AA;letter-spacing:0.06em;">ACTUAL RESULT</div>
                 <div style="font-weight:700;color:{_outcome_color};font-size:0.88rem;">{_outcome_label}</div>
             </div>
             <div style="text-align:center;">
-                <div style="font-size:0.65rem;color:#9E9E8E;letter-spacing:0.06em;">CALL</div>
+                <div style="font-size:0.65rem;color:#8892AA;letter-spacing:0.06em;">CALL</div>
                 <div style="font-weight:700;color:{_match_color};font-size:0.88rem;">{_match_label}</div>
             </div>
         </div>
