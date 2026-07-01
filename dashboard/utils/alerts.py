@@ -20,6 +20,7 @@
 # but the scheduler itself is explicitly out of scope for this pass (see
 # pages/alerts page docstring for the current state of that gap).
 
+import threading
 from datetime import datetime
 
 from utils import alerts_db
@@ -131,6 +132,20 @@ def evaluate_ticker(user_id: int, ticker: str, thresholds: dict) -> list[dict]:
         last_short_interest_status=short_interest_status,
         last_13f_status=thirteenf_status,
     )
+
+    # Fire webhook asynchronously so a slow or unreachable endpoint doesn't
+    # block the page load that triggered this evaluation. daemon=True means
+    # the thread won't prevent the Streamlit worker from shutting down.
+    if new_alerts:
+        try:
+            from utils import webhook as _wh
+            threading.Thread(
+                target=_wh.fire_alerts_for_user,
+                args=(user_id, list(new_alerts)),
+                daemon=True,
+            ).start()
+        except Exception:
+            pass  # webhook delivery is best-effort; cron will retry
 
     return new_alerts
 

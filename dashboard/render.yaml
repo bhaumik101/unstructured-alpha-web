@@ -85,3 +85,25 @@ services:
         sync: false
       - key: RESEND_FROM_EMAIL
         sync: false
+
+  # Webhook alert cron — runs every hour.
+  # For every user with a Discord/Slack/generic webhook URL configured,
+  # evaluates their watchlist and fires any threshold crossings to their
+  # webhook. Duplicate-safe: the alert state table prevents re-firing the
+  # same crossing more than once. Only needs DATABASE_URL + the signal data
+  # APIs (FRED/EIA) — no email sending.
+  - type: cron
+    name: unstructured-alpha-webhooks
+    runtime: python
+    plan: free
+    rootDir: dashboard
+    schedule: "0 * * * *"   # every hour on the hour
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.fire_webhooks
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false

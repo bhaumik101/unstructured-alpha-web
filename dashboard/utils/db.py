@@ -130,6 +130,11 @@ users = Table(
     # checkout success). Used by cron/send_trial_reminder.py to fire the
     # day-6 "trial ends tomorrow" email.
     Column("trial_end_at", String(64)),
+    # Discord / Slack / generic webhook URL for push alert delivery (added
+    # 2026-07-01). Pro-gated — only shown in the Watchlist settings UI when
+    # the user's subscription_tier == "pro". NULL means no webhook configured.
+    # Migrated automatically by _migrate_users_table() via the generic TEXT path.
+    Column("webhook_url", String(512)),
 )
 
 watchlist = Table(

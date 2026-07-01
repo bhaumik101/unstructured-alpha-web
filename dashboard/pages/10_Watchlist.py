@@ -31,6 +31,8 @@ from utils.auth_ui import require_login
 from utils.quotes import get_batch_quotes, mini_sparkline
 from utils.auth import set_digest_optin, get_digest_optin
 from utils.score_history import get_score_history
+from utils.billing import get_user_tier
+from utils import webhook as _webhook
 
 # ── Pre/post market batch fetch ────────────────────────────────────────────────
 # Separate from get_batch_quotes (which uses yf.download for speed) because
@@ -308,6 +310,73 @@ except Exception as _digest_err:
 
 st.divider()
 
+# ── Webhook Settings (Pro) ────────────────────────────────────────────────────
+st.markdown('<div class="section-header">WEBHOOK SETTINGS</div>', unsafe_allow_html=True)
+
+_user_tier = get_user_tier(user_id)
+if _user_tier != "pro":
+    st.markdown(
+        '<div style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.22);'
+        'border-radius:10px;padding:14px 18px;font-family:Inter,sans-serif;">'
+        '<span style="font-size:0.88rem;font-weight:700;color:#7C3AED;">⚡ Pro feature</span>'
+        '<div style="font-size:0.82rem;color:#8892AA;margin-top:4px;">'
+        'Get push alerts to Discord, Slack, or any webhook endpoint the moment a watched ticker '
+        'crosses a threshold — no need to have the site open.'
+        '</div></div>',
+        unsafe_allow_html=True,
+    )
+    if st.button("Upgrade to Pro →", key="wl_webhook_upgrade"):
+        st.switch_page("pages/29_Upgrade.py")
+else:
+    try:
+        _current_url = _webhook.get_webhook_url(user_id) or ""
+        _platform = _webhook.detect_platform(_current_url) if _current_url else None
+        _platform_labels = {"discord": "Discord ✓", "slack": "Slack ✓", "generic": "Custom webhook ✓"}
+
+        if _current_url:
+            _badge = _platform_labels.get(_platform, "")
+            st.markdown(
+                f'<div style="font-size:0.80rem;color:#00D566;font-family:Inter,sans-serif;margin-bottom:6px;">'
+                f'● Webhook active — {_badge}</div>',
+                unsafe_allow_html=True,
+            )
+
+        _new_url = st.text_input(
+            "Webhook URL (Discord, Slack, or any HTTP endpoint):",
+            value=_current_url,
+            placeholder="https://discord.com/api/webhooks/...",
+            key="webhook_url_input",
+            help="Discord: Server Settings → Integrations → Webhooks. "
+                 "Slack: api.slack.com/apps → Incoming Webhooks. "
+                 "Generic: any POST endpoint that accepts JSON.",
+        )
+        _wh_col1, _wh_col2 = st.columns([1, 1])
+        with _wh_col1:
+            if st.button("Save Webhook URL", key="save_webhook", type="primary"):
+                _webhook.set_webhook_url(user_id, _new_url.strip() or None)
+                if _new_url.strip():
+                    st.success("Webhook URL saved.")
+                else:
+                    st.info("Webhook cleared.")
+                st.rerun()
+        with _wh_col2:
+            if _current_url and st.button("Send Test Alert", key="test_webhook"):
+                with st.spinner("Sending test alert…"):
+                    _ok = _webhook.fire_test_alert(_current_url)
+                if _ok:
+                    st.success("✅ Test alert delivered! Check your Discord/Slack channel.")
+                else:
+                    st.error("❌ Delivery failed. Double-check the URL and that the webhook is still active.")
+
+        st.caption(
+            "Alerts fire immediately when a threshold crossing is detected on page load, "
+            "and also hourly via a background job — so you'll get notified even when you're offline."
+        )
+    except Exception as _wh_err:
+        st.caption(f"Could not load webhook settings: {_wh_err}")
+
+st.divider()
+
 # ── Alerts (integrated into this page, not a separate page) ─────────────────
 st.markdown('<div class="section-header">ALERTS FOR YOUR WATCHLIST</div>', unsafe_allow_html=True)
 
@@ -365,7 +434,7 @@ else:
         company = TICKERS.get(a["ticker"], {}).get("name", "")
         ticker_disp = f"{a['ticker']} ({company})" if company else a["ticker"]
         st.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:6px;padding:10px 16px;margin-bottom:8px;
+        <div style="background:rgba(18,21,30,0.7);border-radius:6px;padding:10px 16px;margin-bottom:8px;
                     border-left:4px solid {color};font-family:Inter,sans-serif;">
             <span style="color:{color};font-weight:700;">{unread_marker} {ticker_disp}</span>
             <span style="color:#6B7FBF;font-size:0.78rem;letter-spacing:0.04em;"> · {type_label} · {a['created_at'][:16].replace('T', ' ')} UTC</span>
