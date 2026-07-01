@@ -932,6 +932,266 @@ if section == "Overview":
                 p3.metric("52-Week Low",   f"${low_52w:.2f}",  delta=f"{pct_from_low:+.1f}%")
                 p4.metric("YTD Return",    f"{ret_ytd:+.1f}%")
 
+    # ── Signal → Price Overlay ─────────────────────────────────────────────────
+    # Lets users pick any signal and overlay its historical series directly on
+    # top of the price chart — dual-axis: price (left, USD) and signal z-score
+    # (right, ±3σ). Shows the lag relationship visually so users can judge
+    # whether "bullish credit spreads → price up 8 weeks later" looks real or
+    # spurious in this specific ticker's history.
+    #
+    # Design choices:
+    #   - Signal on right Y as z-score (not raw value) so any unit (basis points,
+    #     barrels, index level) plots on the same −3 to +3 scale alongside price.
+    #   - Correlation + p-value from corr_info (already computed above) displayed
+    #     as a compact badge row — no re-fetching.
+    #   - Default signal = highest |r| from relevant_sig_ids so the first thing
+    #     users see is the most meaningful relationship, not an arbitrary one.
+    #   - Wrapped in st.expander so it doesn't add visual weight unless the user
+    #     wants it.
+    with st.expander("📈 Signal → Price Overlay", expanded=False):
+        try:
+            # Sort relevant signals by |correlation| descending so the first
+            # option in the selectbox is the most meaningful one by default.
+            _sig_corr_order = sorted(
+                relevant_sig_ids,
+                key=lambda sid: -abs(corr_info.get(sid, {}).get("r", 0.0)),
+            )
+            _sig_labels = {
+                sid: f"{SIGNALS.get(sid, {}).get('name', sid)}"
+                     f"  (r={corr_info.get(sid, {}).get('r', 0.0):+.2f}"
+                     + (", sig" if corr_info.get(sid, {}).get("significant") else "")
+                     + ")"
+                for sid in _sig_corr_order
+            }
+
+            _ov_col1, _ov_col2 = st.columns([3, 1])
+            with _ov_col1:
+                _sel_sig_id = st.selectbox(
+                    "Choose signal to overlay:",
+                    options=_sig_corr_order,
+                    format_func=lambda x: _sig_labels[x],
+                    key="sig_overlay_sel",
+                )
+            with _ov_col2:
+                _ov_lag = st.number_input(
+                    "Lead weeks (shift signal forward):",
+                    min_value=0, max_value=52, value=0,
+                    key="sig_overlay_lag",
+                    help="Shift the signal series N weeks forward to test if it leads price action.",
+                )
+
+            # Fetch and process signal series
+            _ov_cfg = SIGNALS.get(_sel_sig_id, {})
+
+            @st.cache_data(ttl=3600, max_entries=20, show_spinner=False)
+            def _fetch_sig_for_overlay(sig_id: str, start: str, end: str):
+                """Cached signal fetch for the overlay chart."""
+                cfg = SIGNALS.get(sig_id, {})
+                if not cfg:
+                    return None
+                try:
+                    return fetch_signal_series(cfg, start, end)
+                except Exception:
+                    return None
+
+            _ov_end   = datetime.now().strftime("%Y-%m-%d")
+            _ov_start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+
+            with st.spinner("Loading signal data…"):
+                _ov_raw = _fetch_sig_for_overlay(_sel_sig_id, _ov_start, _ov_end)
+
+            if _ov_raw is not None and not _ov_raw.empty and not price_series.empty:
+                # Normalize signal to z-score, clamped to ±3σ for readability
+                _ov_mean = _ov_raw.mean()
+                _ov_std  = _ov_raw.std()
+                if _ov_std > 0:
+                    _ov_z = ((_ov_raw - _ov_mean) / _ov_std).clip(-3, 3)
+                else:
+                    _ov_z = _ov_raw * 0.0  # flat if no variance
+
+                # Align to a common daily index (signal is often weekly)
+                _ov_price_clean = price_series.copy()
+                if _ov_price_clean.index.tz is not None:
+                    _ov_price_clean.index = _ov_price_clean.index.tz_localize(None)
+
+                _ov_z_reindexed = _ov_z.reindex(_ov_price_clean.index, method="ffill")
+
+                # Apply user-specified forward shift (lead time)
+                if _ov_lag > 0:
+                    _ov_z_shifted = _ov_z_reindexed.shift(periods=_ov_lag * 7)
+                else:
+                    _ov_z_shifted = _ov_z_reindexed
+
+                # Restrict to view window (use the price_view period selected above)
+                _ov_price_view = _ov_price_clean.iloc[-min(370, len(_ov_price_clean)):]
+                _ov_z_view     = _ov_z_shifted.reindex(_ov_price_view.index)
+
+                # Build dual-axis overlay chart
+                _ov_is_inverse = _ov_cfg.get("inverse", False)
+                _sig_name      = _ov_cfg.get("name", _sel_sig_id)
+                _ov_r    = corr_info.get(_sel_sig_id, {}).get("r", None)
+                _ov_sig  = corr_info.get(_sel_sig_id, {}).get("significant", False)
+
+                # Signal color: green if bullish correlation direction, red if inverse/bearish
+                _ov_sig_color = "#F59E0B"  # amber default (no clear direction)
+                if _ov_r is not None:
+                    if (_ov_r > 0 and not _ov_is_inverse) or (_ov_r < 0 and _ov_is_inverse):
+                        _ov_sig_color = "#00D566"  # aligned bullish
+                    else:
+                        _ov_sig_color = "#FF6B6B"  # misaligned / bearish direction
+
+                _fig_ov = make_subplots(specs=[[{"secondary_y": True}]])
+
+                # Price line (primary, left Y)
+                _fig_ov.add_trace(go.Scatter(
+                    x=_ov_price_view.index,
+                    y=_ov_price_view.values,
+                    name=f"{ticker_input} Price",
+                    mode="lines",
+                    line=dict(color="#00C8E0", width=2.5),
+                    fill="tozeroy",
+                    fillcolor="rgba(0,200,224,0.06)",
+                    hovertemplate="$%{y:.2f}<extra>" + ticker_input + "</extra>",
+                ), secondary_y=False)
+
+                # Signal z-score line (secondary, right Y)
+                _lag_note = f" (shifted +{_ov_lag}w)" if _ov_lag > 0 else ""
+                _inv_note = " [inverse]" if _ov_is_inverse else ""
+                _fig_ov.add_trace(go.Scatter(
+                    x=_ov_z_view.index,
+                    y=_ov_z_view.values,
+                    name=f"{_sig_name}{_lag_note}{_inv_note}",
+                    mode="lines",
+                    line=dict(color=_ov_sig_color, width=2, dash="solid"),
+                    opacity=0.85,
+                    hovertemplate="%{y:+.2f}σ<extra>" + _sig_name + "</extra>",
+                ), secondary_y=True)
+
+                # Zero-line reference on signal axis
+                _fig_ov.add_hline(
+                    y=0, line_dash="dot",
+                    line_color="rgba(255,255,255,0.15)",
+                    line_width=1, yref="y2",
+                )
+
+                _fig_ov.update_layout(
+                    height=350,
+                    paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+                    font=dict(size=12, color="#E8EEFF"),
+                    xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)",
+                               tickfont=dict(color="#8892AA")),
+                    legend=dict(font=dict(color="#E8EEFF", size=11),
+                                bgcolor="rgba(18,21,30,0.85)",
+                                bordercolor="rgba(255,255,255,0.07)", borderwidth=1),
+                    margin=dict(l=0, r=0, t=24, b=0),
+                )
+                _fig_ov.update_yaxes(
+                    title_text="Price (USD)",
+                    secondary_y=False,
+                    showgrid=True, gridcolor="rgba(255,255,255,0.04)",
+                    tickfont=dict(color="#8892AA", size=10),
+                    title_font=dict(color="#8892AA", size=10),
+                    tickprefix="$", autorange=True,
+                )
+                _fig_ov.update_yaxes(
+                    title_text="Signal (z-score)",
+                    secondary_y=True,
+                    range=[-3.5, 3.5],
+                    showgrid=False,
+                    tickfont=dict(color=_ov_sig_color, size=10),
+                    title_font=dict(color=_ov_sig_color, size=10),
+                    zeroline=False,
+                    tickvals=[-3, -2, -1, 0, 1, 2, 3],
+                    ticktext=["-3σ", "-2σ", "-1σ", "0", "+1σ", "+2σ", "+3σ"],
+                )
+
+                st.plotly_chart(_fig_ov, use_container_width=True, config={
+                    "displayModeBar": True, "displaylogo": False, "scrollZoom": True,
+                    "modeBarButtonsToRemove": ["lasso2d", "select2d"],
+                })
+
+                # ── Correlation stats row ────────────────────────────────────────
+                _stat_col1, _stat_col2, _stat_col3, _stat_col4 = st.columns(4)
+                _ov_ci = corr_info.get(_sel_sig_id, {})
+                _r_val = _ov_ci.get("r", None)
+                _p_val = _ov_ci.get("p", None)
+                _lag_w = _ov_cfg.get("lag_weeks", 0)
+                _pcs   = _ov_cfg.get("pcs", "—")
+
+                with _stat_col1:
+                    _r_disp = f"{_r_val:+.3f}" if _r_val is not None else "—"
+                    _r_color = "#00D566" if (_r_val or 0) > 0.2 else ("#FF4444" if (_r_val or 0) < -0.2 else "#8892AA")
+                    st.markdown(
+                        f'<div style="background:#0F1118;border-radius:6px;padding:10px 14px;'
+                        f'font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.06);">'
+                        f'<div style="font-size:0.65rem;color:#6B7FBF;text-transform:uppercase;'
+                        f'letter-spacing:0.08em;">Correlation (r)</div>'
+                        f'<div style="font-size:1.4rem;font-weight:700;color:{_r_color};">{_r_disp}</div>'
+                        f'<div style="font-size:0.68rem;color:#8892AA;">with {ticker_input} price</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with _stat_col2:
+                    _p_disp  = f"{_p_val:.3f}" if _p_val is not None else "—"
+                    _sig_label = "Significant (p<0.05)" if _ov_sig else "Not significant"
+                    _sig_color = "#00D566" if _ov_sig else "#8892AA"
+                    st.markdown(
+                        f'<div style="background:#0F1118;border-radius:6px;padding:10px 14px;'
+                        f'font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.06);">'
+                        f'<div style="font-size:0.65rem;color:#6B7FBF;text-transform:uppercase;'
+                        f'letter-spacing:0.08em;">P-value</div>'
+                        f'<div style="font-size:1.4rem;font-weight:700;color:{_sig_color};">{_p_disp}</div>'
+                        f'<div style="font-size:0.68rem;color:{_sig_color};">{_sig_label}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with _stat_col3:
+                    _lag_disp = f"{_lag_w}w" if _lag_w else "same-period"
+                    _inv_disp = " (inverse)" if _ov_is_inverse else ""
+                    st.markdown(
+                        f'<div style="background:#0F1118;border-radius:6px;padding:10px 14px;'
+                        f'font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.06);">'
+                        f'<div style="font-size:0.65rem;color:#6B7FBF;text-transform:uppercase;'
+                        f'letter-spacing:0.08em;">Configured Lag</div>'
+                        f'<div style="font-size:1.4rem;font-weight:700;color:#E8EEFF;">{_lag_disp}</div>'
+                        f'<div style="font-size:0.68rem;color:#8892AA;">signal leads price{_inv_disp}</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with _stat_col4:
+                    st.markdown(
+                        f'<div style="background:#0F1118;border-radius:6px;padding:10px 14px;'
+                        f'font-family:Inter,sans-serif;border:1px solid rgba(255,255,255,0.06);">'
+                        f'<div style="font-size:0.65rem;color:#6B7FBF;text-transform:uppercase;'
+                        f'letter-spacing:0.08em;">Predictive Score</div>'
+                        f'<div style="font-size:1.4rem;font-weight:700;color:#F59E0B;">{_pcs}/10</div>'
+                        f'<div style="font-size:0.68rem;color:#8892AA;">PCS (backtested weight)</div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                # Source badges
+                _src = _ov_cfg.get("source", "FRED")
+                st.markdown(
+                    source_badge(_src, f"{_sig_name} series") + "&nbsp;&nbsp;" +
+                    source_badge("yfinance", f"{ticker_input} daily close"),
+                    unsafe_allow_html=True,
+                )
+                st.caption(
+                    "Signal plotted as z-score (right axis) — how many standard deviations from "
+                    "its 2-year mean. Use the lead weeks input above to visually test whether the "
+                    "signal leads price action. Correlation is computed over the full 2-year window."
+                )
+            else:
+                st.warning(f"Could not load signal data for **{_sig_name}**. Try a different signal.")
+
+        except Exception as _ov_err:
+            st.caption(f"Signal overlay unavailable: {_ov_err}")
+
+    # Signal overlay expander closes here — back at Overview (4-space) level.
+    # Reopen price_series guard so fundamentals/RSI/news sections retain their
+    # original control flow (only rendered when price data is available).
+    if not price_series.empty:
         # ── Financial Fundamentals Panel ──────────────────────────────────────────
         @st.cache_data(ttl=3600, max_entries=30, show_spinner=False)
         def _fetch_fundamentals(sym: str) -> dict:
