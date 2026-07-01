@@ -367,6 +367,106 @@ div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="info"]   
 div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="warning"] { background: rgba(245,158,11,0.08) !important; border: 1px solid rgba(245,158,11,0.2) !important; }
 div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="error"]   { background: rgba(255,68,68,0.08) !important; border: 1px solid rgba(255,68,68,0.2) !important; }
 
+/* ── Page-entry animation ────────────────────────────────────────────────── */
+@keyframes ua_page_in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.block-container > div:first-child {
+    animation: ua_page_in 0.35s cubic-bezier(0.4,0,0.2,1) both;
+}
+
+/* ── Selectbox / dropdown dark overlay ──────────────────────────────────── */
+[data-baseweb="popover"] [data-baseweb="menu"],
+[data-baseweb="select"] [data-baseweb="popover"],
+ul[data-baseweb="menu"] {
+    background: #12151E !important;
+    border: 1px solid rgba(255,255,255,0.09) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.6) !important;
+}
+[data-baseweb="menu"] li,
+[data-baseweb="option"] {
+    background: transparent !important;
+    color: #B8C0D4 !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.83rem !important;
+}
+[data-baseweb="option"]:hover,
+[data-baseweb="option"][aria-selected="true"] {
+    background: rgba(0,213,102,0.09) !important;
+    color: #E8EEFF !important;
+}
+
+/* ── Focus-visible keyboard ring ────────────────────────────────────────── */
+*:focus-visible {
+    outline: 2px solid rgba(0,213,102,0.55) !important;
+    outline-offset: 2px !important;
+    border-radius: 6px;
+}
+.stButton > button:focus-visible {
+    box-shadow: 0 0 0 3px rgba(0,213,102,0.25) !important;
+    outline: none !important;
+}
+
+/* ── Empty state component ──────────────────────────────────────────────── */
+.ua-empty {
+    text-align: center;
+    padding: 48px 24px;
+    background: rgba(18,21,30,0.5);
+    border: 1px dashed rgba(255,255,255,0.08);
+    border-radius: 14px;
+    font-family: 'Inter', sans-serif;
+    margin: 12px 0;
+}
+.ua-empty-icon  { font-size: 2.4rem; margin-bottom: 12px; opacity: 0.5; }
+.ua-empty-title { font-size: 0.94rem; font-weight: 600; color: #E8EEFF; margin-bottom: 6px; }
+.ua-empty-body  { font-size: 0.80rem; color: #8892AA; line-height: 1.55; max-width: 320px; margin: 0 auto; }
+
+/* ── Tooltip dark styling ────────────────────────────────────────────────── */
+[data-baseweb="tooltip"] [role="tooltip"] {
+    background: #1A1E2C !important;
+    color: #E8EEFF !important;
+    border: 1px solid rgba(255,255,255,0.1) !important;
+    border-radius: 8px !important;
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.78rem !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5) !important;
+}
+
+/* ── Code blocks ─────────────────────────────────────────────────────────── */
+code, pre {
+    background: rgba(18,21,30,0.9) !important;
+    color: #00C8E0 !important;
+    border: 1px solid rgba(255,255,255,0.07) !important;
+    border-radius: 6px !important;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace !important;
+    font-size: 0.82rem !important;
+}
+
+/* ── Smooth section dividers ─────────────────────────────────────────────── */
+.ua-divider {
+    height: 1px;
+    background: linear-gradient(90deg, rgba(0,213,102,0.18), rgba(0,200,224,0.10) 40%, rgba(124,58,237,0.10) 70%, transparent);
+    border: none;
+    margin: 18px 0;
+}
+
+/* ── Chip / tag component ────────────────────────────────────────────────── */
+.ua-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
+    padding: 3px 9px; border-radius: 20px;
+    font-family: 'Inter', sans-serif;
+    border: 1px solid currentColor;
+    transition: all 0.15s ease;
+}
+.ua-chip:hover { filter: brightness(1.15); }
+.ua-chip.bull  { color: #00D566; background: rgba(0,213,102,0.08); }
+.ua-chip.bear  { color: #FF4444; background: rgba(255,68,68,0.08); }
+.ua-chip.neut  { color: #6B7FBF; background: rgba(107,127,191,0.08); }
+.ua-chip.pro   { color: #7C3AED; background: rgba(124,58,237,0.10); }
+
 /* ── Mobile responsiveness ───────────────────────────────────────────────── */
 /* Streamlit renders columns as flex on desktop; these overrides stack them
    gracefully on narrow viewports (phones / portrait tablets). */

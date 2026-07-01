@@ -237,7 +237,7 @@ if section == "Markets":
         q = fetch_live_quote(ticker)
         if q["price"] is not None:
             delta_str = f"{q['pct_change']:+.2f}%" if q["pct_change"] is not None else ""
-            color = "#1B5E20" if (q["pct_change"] or 0) > 0 else ("#7B1010" if (q["pct_change"] or 0) < 0 else "#8B7355")
+            color = "#00D566" if (q["pct_change"] or 0) > 0 else ("#FF4444" if (q["pct_change"] or 0) < 0 else "#6B7FBF")
             st.markdown(
                 f'<div style="font-size:0.72rem;color:#9E9E8E;margin-top:2px;">'
                 f'LIVE: <span style="color:{color};font-weight:700;">{q["price"]:,.2f} {delta_str}</span>'
@@ -251,7 +251,7 @@ if section == "Markets":
         q = idx_data.get(ticker, {})
         if q:
             chg_pct = get_return(q, period_sel)
-            color = "#1B5E20" if (chg_pct or 0) > 0 else ("#7B1010" if (chg_pct or 0) < 0 else "#8B7355")
+            color = "#00D566" if (chg_pct or 0) > 0 else ("#FF4444" if (chg_pct or 0) < 0 else "#6B7FBF")
             # For 1D show absolute change; otherwise just show % change
             if period_sel == "1D":
                 chg_abs_str = f"{q['chg_1d']:+.2f}"
@@ -304,21 +304,21 @@ if section == "Markets":
         chg = get_return(q, period_sel) or 0.0
         names.append(name)
         changes.append(round(chg, 2))
-        colors.append("#1B5E20" if chg > 0 else "#7B1010")
+        colors.append("#00D566" if chg > 0 else "#FF4444")
         texts.append(f"{chg:+.2f}%")
 
     fig_sectors = go.Figure(go.Bar(
         x=changes, y=names, orientation="h",
         marker_color=colors,
         text=texts, textposition="outside",
-        textfont=dict(color="#1A1612", size=11),
+        textfont=dict(color="#E8EEFF", size=11),
         hovertemplate="%{y}: %{x:+.2f}%<extra></extra>",
     ))
     fig_sectors.update_layout(
-        height=320, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-        xaxis=dict(showgrid=True, gridcolor="#E8E0CE", zeroline=True, zerolinecolor="#1C2B4A",
-                   zerolinewidth=1.5, ticksuffix="%", tickfont=dict(color="#6B6560")),
-        yaxis=dict(tickfont=dict(color="#1A1612")),
+        height=320, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+        xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", zeroline=True, zerolinecolor="rgba(255,255,255,0.12)",
+                   zerolinewidth=1.5, ticksuffix="%", tickfont=dict(color="#8892AA")),
+        yaxis=dict(tickfont=dict(color="#E8EEFF")),
         margin=dict(l=0, r=60, t=10, b=0),
     )
     st.plotly_chart(fig_sectors, use_container_width=True)
@@ -378,15 +378,15 @@ if section == "Markets":
         irx = rate_data.get("^IRX", {})
         if tnx and irx:
             spread = tnx["last"] - irx["last"]
-            sc = "#1B5E20" if spread > 0 else "#7B1010"
+            sc = "#00D566" if spread > 0 else "#FF4444"
             sl = "Normal (positive)" if spread > 0 else "Inverted (recession signal)"
             st.markdown(f"""
             <div style="background:#F0EBE1;border-radius:6px;padding:12px 16px;
-                        border-left:4px solid {sc};border:1px solid #D4C9B0;
-                        margin-top:10px;font-family:Georgia,serif;">
-                <div style="font-size:0.72rem;color:#8B7355;letter-spacing:0.06em;">10Y–3M YIELD CURVE SPREAD</div>
+                        border-left:4px solid {sc};border:1px solid rgba(255,255,255,0.08);
+                        margin-top:10px;font-family:Inter,sans-serif;">
+                <div style="font-size:0.72rem;color:#6B7FBF;letter-spacing:0.06em;">10Y–3M YIELD CURVE SPREAD</div>
                 <div style="font-size:1.6rem;font-weight:700;color:{sc};">{spread:+.2f}%</div>
-                <div style="font-size:0.82rem;color:#6B6560;">{sl}</div>
+                <div style="font-size:0.82rem;color:#8892AA;">{sl}</div>
             </div>""", unsafe_allow_html=True)
 
     with right_col:
@@ -440,7 +440,7 @@ if section == "Markets":
     )
 
     PERF_TICKERS = {"S&P 500": "SPY", "Nasdaq 100": "QQQ", "Russell 2000": "IWM", "Gold": "GLD"}
-    PERF_COLORS  = ["#1C2B4A", "#B8860B", "#1B5E20", "#7B1010"]
+    PERF_COLORS  = ["#7C3AED", "#F59E0B", "#00D566", "#FF4444"]
 
     @st.cache_data(ttl=3600, show_spinner=False)
     def get_normalized_perf(tickers: list, _v: int = 3) -> pd.DataFrame:
@@ -496,13 +496,13 @@ if section == "Markets":
                         line=dict(color=color, width=2),
                         hovertemplate=f"{label}: %{{y:+.1f}}%<extra></extra>",
                     ))
-        fig_perf.add_hline(y=0, line=dict(color="#8B7355", width=1, dash="dot"))
+        fig_perf.add_hline(y=0, line=dict(color="#6B7FBF", width=1, dash="dot"))
         fig_perf.update_layout(
-            height=300, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-            xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+            height=300, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+            xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA")),
+            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA"),
                        ticksuffix="%", title=f"Return ({period_label(period_sel)})"),
-            legend=dict(font=dict(color="#1A1612", size=11), bgcolor="rgba(250,247,240,0.8)",
+            legend=dict(font=dict(color="#E8EEFF", size=11), bgcolor="rgba(18,21,30,0.90)",
                         orientation="h", yanchor="bottom", y=1.02),
             margin=dict(l=0, r=0, t=30, b=0),
         )
@@ -515,18 +515,18 @@ if section == "Markets":
     st.markdown('<div class="section-header">SIGNAL SNAPSHOT</div>', unsafe_allow_html=True)
     st.caption("Key market signals computed from live yfinance data. Full alternative data analysis on Signal Dashboard.")
 
-    STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355", "no_data": "#9E9E8E"}
+    STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF", "no_data": "#9E9E8E"}
     STATUS_SYM   = {"bullish": "▲", "bearish": "▼", "neutral": "●", "no_data": "—"}
 
     def signal_card(label: str, status: str, detail: str, context: str = "") -> str:
-        color = STATUS_COLOR.get(status, "#8B7355")
+        color = STATUS_COLOR.get(status, "#6B7FBF")
         sym   = STATUS_SYM.get(status, "●")
-        ctx_html = (f'<div style="font-size:0.68rem;color:#6B6560;margin-top:2px;">{context}</div>'
+        ctx_html = (f'<div style="font-size:0.68rem;color:#8892AA;margin-top:2px;">{context}</div>'
                     if context else "")
         return f"""
         <div style="background:#F0EBE1;border-radius:6px;padding:14px 10px;text-align:center;
-                    border:1px solid #D4C9B0;border-top:3px solid {color};font-family:Georgia,serif;">
-            <div style="font-size:0.68rem;color:#8B7355;text-transform:uppercase;
+                    border:1px solid rgba(255,255,255,0.08);border-top:3px solid {color};font-family:Inter,sans-serif;">
+            <div style="font-size:0.68rem;color:#6B7FBF;text-transform:uppercase;
                         letter-spacing:0.06em;line-height:1.3;">{label}</div>
             <div style="font-size:1.5rem;font-weight:700;color:{color};margin:6px 0 2px;">{sym}</div>
             <div style="font-size:0.82rem;font-weight:600;color:{color};">{status.replace("_"," ").capitalize()}</div>
@@ -608,15 +608,15 @@ if section == "Markets":
     total  = bull_n + bear_n + neut_n
     if total > 0:
         pct    = bull_n / total * 100
-        bc     = "#1B5E20" if pct >= 60 else ("#7B1010" if pct <= 30 else "#8B7355")
+        bc     = "#00D566" if pct >= 60 else ("#FF4444" if pct <= 30 else "#6B7FBF")
         blabel = "Risk-On Environment" if pct >= 60 else ("Risk-Off Environment" if pct <= 30 else "Mixed Signals")
         st.markdown(f"""
         <div style="margin-top:14px;padding:10px 16px;background:#F0EBE1;border-radius:6px;
-                    border:1px solid #D4C9B0;border-left:4px solid {bc};font-family:Georgia,serif;">
-            <span style="font-size:0.72rem;color:#8B7355;text-transform:uppercase;letter-spacing:0.06em;">
+                    border:1px solid rgba(255,255,255,0.08);border-left:4px solid {bc};font-family:Inter,sans-serif;">
+            <span style="font-size:0.72rem;color:#6B7FBF;text-transform:uppercase;letter-spacing:0.06em;">
                 MARKET BREADTH — </span>
             <span style="font-size:0.85rem;font-weight:700;color:{bc};">{blabel}</span>
-            <span style="font-size:0.80rem;color:#6B6560;margin-left:12px;">
+            <span style="font-size:0.80rem;color:#8892AA;margin-left:12px;">
                 {bull_n} Bullish · {neut_n} Neutral · {bear_n} Bearish
             </span>
         </div>""", unsafe_allow_html=True)
@@ -644,11 +644,11 @@ elif section == "Macro Indicators":
     def _light_chart(fig: go.Figure, height: int = 280, title: str = "") -> go.Figure:
         fig.update_layout(
             height=height,
-            title=dict(text=title, font=dict(color="#1C2B4A", size=13, family="Georgia"), x=0),
-            paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-            xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-            legend=dict(font=dict(color="#1A1612", size=10), bgcolor="rgba(250,247,240,0.8)"),
+            title=dict(text=title, font=dict(color="#7C3AED", size=13, family="Inter, sans-serif"), x=0),
+            paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+            xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA")),
+            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA")),
+            legend=dict(font=dict(color="#E8EEFF", size=10), bgcolor="rgba(18,21,30,0.90)"),
             margin=dict(l=0, r=0, t=36, b=0),
         )
         return fig
@@ -660,7 +660,7 @@ elif section == "Macro Indicators":
             status = "bull" if value < lo else ("bear" if value > hi else "neutral")
         else:
             status = "bull" if value > hi else ("bear" if value < lo else "neutral")
-        colors = {"bull": "#1B5E20", "bear": "#7B1010", "neutral": "#8B7355"}
+        colors = {"bull": "#00D566", "bear": "#FF4444", "neutral": "#6B7FBF"}
         syms   = {"bull": "▲", "bear": "▼", "neutral": "●"}
         label  = labels[0] if status == "bull" else (labels[1] if status == "bear" else labels[2])
         c, s = colors[status], syms[status]
@@ -713,7 +713,7 @@ elif section == "Macro Indicators":
             chg    = (last_v - prev_v) / abs(prev_v) * 100 if prev_v else 0
             chip   = _status_chip(chg, (-2, 2), ("Expanding", "Contracting", "Flat"))
             fig = go.Figure(go.Scatter(
-                x=ata.index, y=ata.values, mode="lines", line=dict(color="#1C2B4A", width=1.8),
+                x=ata.index, y=ata.values, mode="lines", line=dict(color="#7C3AED", width=1.8),
                 fill="tozeroy", fillcolor="rgba(28,43,74,0.09)",
             ))
             st.plotly_chart(_light_chart(fig, 200, "ATA Trucking Index"), use_container_width=True)
@@ -726,8 +726,8 @@ elif section == "Macro Indicators":
         if not ism.empty:
             last_v = float(ism.iloc[-1])
             chip   = _status_chip(last_v, (47, 53), ("Expanding (>50)", "Contracting (<50)", "Near 50"))
-            fig = go.Figure(go.Scatter(x=ism.index, y=ism.values, mode="lines", line=dict(color="#B8860B", width=1.8)))
-            fig.add_hline(y=50, line=dict(color="#8B7355", dash="dot", width=1.5))
+            fig = go.Figure(go.Scatter(x=ism.index, y=ism.values, mode="lines", line=dict(color="#F59E0B", width=1.8)))
+            fig.add_hline(y=50, line=dict(color="#6B7FBF", dash="dot", width=1.5))
             st.plotly_chart(_light_chart(fig, 200, "ISM Manufacturing PMI"), use_container_width=True)
             st.markdown(f"Latest: **{last_v:.1f}** &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -741,7 +741,7 @@ elif section == "Macro Indicators":
             mom    = (last_v - prev_v) / abs(prev_v) * 100 if prev_v else 0
             chip   = _status_chip(mom, (-1, 1), ("Growing", "Declining", "Flat"))
             fig = go.Figure(go.Bar(x=dgo.index, y=dgo.values,
-                                    marker_color=["#1B5E20" if v > 0 else "#7B1010" for v in dgo.values]))
+                                    marker_color=["#00D566" if v > 0 else "#FF4444" for v in dgo.values]))
             st.plotly_chart(_light_chart(fig, 200, "Durable Goods Orders (MoM %)"), use_container_width=True)
             st.markdown(f"Latest: **{last_v:+.2f}%** &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -756,7 +756,7 @@ elif section == "Macro Indicators":
         if not ic.empty:
             last_v = float(ic.iloc[-1])
             chip   = _status_chip(last_v, (220000, 280000), ("Healthy (<220K)", "Elevated (>280K)", "Normal"), inverse=True)
-            fig = go.Figure(go.Scatter(x=ic.index, y=ic.values, mode="lines", line=dict(color="#7B1010", width=1.8)))
+            fig = go.Figure(go.Scatter(x=ic.index, y=ic.values, mode="lines", line=dict(color="#FF4444", width=1.8)))
             st.plotly_chart(_light_chart(fig, 200, "Initial Jobless Claims (4-Week Avg)"), use_container_width=True)
             st.markdown(f"Latest: **{last_v:,.0f}** claims &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -767,7 +767,7 @@ elif section == "Macro Indicators":
         if not jolts_ld.empty:
             last_v = float(jolts_ld.iloc[-1])
             chip   = _status_chip(last_v, (1.0, 2.5), ("High demand (>2.5)", "Low demand (<1.0)", "Normal"))
-            fig = go.Figure(go.Scatter(x=jolts_ld.index, y=jolts_ld.values, mode="lines", line=dict(color="#1B5E20", width=1.8)))
+            fig = go.Figure(go.Scatter(x=jolts_ld.index, y=jolts_ld.values, mode="lines", line=dict(color="#00D566", width=1.8)))
             st.plotly_chart(_light_chart(fig, 200, "JOLTS — Layoffs & Discharges Rate"), use_container_width=True)
             st.markdown(f"Latest: **{last_v:.2f}%** &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -779,8 +779,8 @@ elif section == "Macro Indicators":
             last_v = float(rail.iloc[-1])
             mean_v = float(rail.mean())
             chip   = _status_chip(last_v - mean_v, (-5000, 5000), ("Above avg", "Below avg", "Near avg"))
-            fig = go.Figure(go.Scatter(x=rail.index, y=rail.values, mode="lines", line=dict(color="#1C2B4A", width=1.8)))
-            fig.add_hline(y=mean_v, line=dict(color="#B8860B", dash="dot", width=1))
+            fig = go.Figure(go.Scatter(x=rail.index, y=rail.values, mode="lines", line=dict(color="#7C3AED", width=1.8)))
+            fig.add_hline(y=mean_v, line=dict(color="#F59E0B", dash="dot", width=1))
             st.plotly_chart(_light_chart(fig, 200, "Rail Intermodal Traffic"), use_container_width=True)
             st.markdown(f"Latest: **{last_v:,.0f}** units &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -796,8 +796,8 @@ elif section == "Macro Indicators":
             last_v = float(umcs.iloc[-1])
             mean_v = float(umcs.mean())
             chip   = _status_chip(last_v - mean_v, (-5, 5), ("Above avg", "Below avg", "Near avg"))
-            fig = go.Figure(go.Scatter(x=umcs.index, y=umcs.values, mode="lines", line=dict(color="#B8860B", width=1.8)))
-            fig.add_hline(y=mean_v, line=dict(color="#1C2B4A", dash="dot", width=1))
+            fig = go.Figure(go.Scatter(x=umcs.index, y=umcs.values, mode="lines", line=dict(color="#F59E0B", width=1.8)))
+            fig.add_hline(y=mean_v, line=dict(color="#7C3AED", dash="dot", width=1))
             st.plotly_chart(_light_chart(fig, 200, "U. Michigan Consumer Sentiment"), use_container_width=True)
             st.markdown(f"Latest: **{last_v:.1f}** &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -811,7 +811,7 @@ elif section == "Macro Indicators":
             mom    = (last_v - prev_v) / abs(prev_v) * 100 if prev_v else 0
             chip   = _status_chip(mom, (-0.5, 0.5), ("Growing", "Declining", "Flat"))
             fig = go.Figure(go.Bar(x=rsxfs.index, y=rsxfs.values,
-                                    marker_color=["#1B5E20" if v > 0 else "#7B1010" for v in rsxfs.values]))
+                                    marker_color=["#00D566" if v > 0 else "#FF4444" for v in rsxfs.values]))
             st.plotly_chart(_light_chart(fig, 200, "Retail Sales ex-Autos (MoM %)"), use_container_width=True)
             st.markdown(f"Latest: **{last_v:+.2f}%** &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -823,7 +823,7 @@ elif section == "Macro Indicators":
             last_v = float(cpi_food.iloc[-1])
             yoy = ((last_v / float(cpi_food.iloc[-13])) - 1) * 100 if len(cpi_food) > 13 else float("nan")
             chip = _status_chip(yoy if not pd.isna(yoy) else 0, (2, 5), ("Stable (<2%)", "High (>5%)", "Moderate"), inverse=True)
-            fig = go.Figure(go.Scatter(x=cpi_food.index, y=cpi_food.values, mode="lines", line=dict(color="#7B1010", width=1.8)))
+            fig = go.Figure(go.Scatter(x=cpi_food.index, y=cpi_food.values, mode="lines", line=dict(color="#FF4444", width=1.8)))
             st.plotly_chart(_light_chart(fig, 200, "CPI — Food at Home (Index Level)"), use_container_width=True)
             st.markdown(f"Index: **{last_v:.1f}** &nbsp; YoY: **{yoy:+.1f}%** &nbsp; {chip}", unsafe_allow_html=True)
         else:
@@ -836,12 +836,12 @@ elif section == "Macro Indicators":
     if not yc.empty:
         fig_yc = go.Figure(go.Scatter(
             x=yc.index, y=yc.values, name="10Y–2Y Spread",
-            line=dict(color="#1C2B4A", width=2), fill="tozeroy", fillcolor="rgba(28,43,74,0.09)",
+            line=dict(color="#7C3AED", width=2), fill="tozeroy", fillcolor="rgba(28,43,74,0.09)",
         ))
         for i in range(1, len(yc)):
             if yc.iloc[i] < 0:
                 fig_yc.add_vrect(x0=yc.index[i - 1], x1=yc.index[i], fillcolor="rgba(123,16,16,0.09)", line_width=0)
-        fig_yc.add_hline(y=0, line=dict(color="#7B1010", width=1.5))
+        fig_yc.add_hline(y=0, line=dict(color="#FF4444", width=1.5))
         st.plotly_chart(_light_chart(fig_yc, 240, "10Y–2Y Treasury Yield Curve Spread"), use_container_width=True)
         last_spread = float(yc.iloc[-1])
         st.markdown(
@@ -873,13 +873,13 @@ elif section == "Macro Indicators":
 
     cal_rows = ""
     for freq, timing, release, source in CALENDAR:
-        freq_color = {"Monthly": "#1C2B4A", "Weekly": "#B8860B", "Daily": "#1B5E20"}.get(freq, "#8B7355")
+        freq_color = {"Monthly": "#7C3AED", "Weekly": "#F59E0B", "Daily": "#00D566"}.get(freq, "#6B7FBF")
         cal_rows += f"""
         <tr>
             <td><span style="color:{freq_color};font-weight:700;font-size:0.78rem;">{freq}</span></td>
-            <td style="color:#6B6560;font-size:0.82rem;">{timing}</td>
-            <td style="font-weight:600;color:#1A1612;">{release}</td>
-            <td style="color:#8B7355;font-size:0.80rem;">{source}</td>
+            <td style="color:#8892AA;font-size:0.82rem;">{timing}</td>
+            <td style="font-weight:600;color:#E8EEFF;">{release}</td>
+            <td style="color:#6B7FBF;font-size:0.80rem;">{source}</td>
         </tr>
         """
 

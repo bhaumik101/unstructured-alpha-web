@@ -52,13 +52,13 @@ st.markdown("""
 <style>
 .block-container { padding-top: 0.5rem !important; max-width: 1100px !important; }
 .section-hdr {
-    font-family: Georgia, serif; font-size: 0.70rem; font-weight: 700;
-    letter-spacing: 0.12em; color: #8B7355; text-transform: uppercase;
-    border-bottom: 1px solid #D4C9B0; padding-bottom: 4px; margin-bottom: 12px;
+    font-family: Inter, sans-serif; font-size: 0.70rem; font-weight: 700;
+    letter-spacing: 0.12em; color: #6B7FBF; text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; margin-bottom: 12px;
 }
 .score-pill {
     display: inline-block; padding: 3px 10px; border-radius: 12px;
-    font-size: 0.78rem; font-weight: 700; font-family: Georgia, serif;
+    font-size: 0.78rem; font-weight: 700; font-family: Inter, sans-serif;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -82,7 +82,7 @@ THEMES: dict[str, list[str]] = {
     "Custom":                 [],
 }
 
-STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
+STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF"}
 STATUS_ICON  = {"bullish": "▲", "bearish": "▼", "neutral": "→"}
 
 
@@ -229,7 +229,7 @@ h4.metric("Bearish Signal %", f"{basket_agg.get('bear_pct', 0)*100:.0f}%")
 
 # Score bar
 bar_w = int(basket_agg["score"])
-bar_col = "#1B5E20" if basket_agg["score"] >= 65 else ("#7B1010" if basket_agg["score"] <= 35 else "#8B7355")
+bar_col = "#00D566" if basket_agg["score"] >= 65 else ("#FF4444" if basket_agg["score"] <= 35 else "#6B7FBF")
 st.markdown(
     f"<div style='background:#E8E0D4;border-radius:4px;height:8px;margin:4px 0 16px 0;'>"
     f"<div style='width:{bar_w}%;background:{bar_col};height:8px;border-radius:4px;'></div>"
@@ -266,7 +266,7 @@ if not prices.empty:
                 name="SPY (benchmark)",
                 line=dict(color="#9E9E9E", width=1.5, dash="dot"),
             ))
-        fig.add_hline(y=100, line_color="#D4C9B0", line_width=1)
+        fig.add_hline(y=100, line_color="rgba(255,255,255,0.08)", line_width=1)
 
         # Annotate basket return
         if len(basket_line) > 1:
@@ -277,7 +277,7 @@ if not prices.empty:
                 x=basket_line.index[-1], y=basket_line.iloc[-1],
                 text=f"+{total_ret:.1f}%" if total_ret >= 0 else f"{total_ret:.1f}%",
                 showarrow=False, xanchor="left", xshift=8,
-                font=dict(size=11, color=agg_color, family="Georgia"),
+                font=dict(size=11, color=agg_color, family="Inter, sans-serif"),
             )
 
         fig.update_layout(
@@ -327,10 +327,10 @@ if ticker_rows:
 
     def _color_status(val: str) -> str:
         if val == "BULLISH":
-            return "color: #1B5E20; font-weight: 700"
+            return "color: #00D566; font-weight: 700"
         elif val == "BEARISH":
-            return "color: #7B1010; font-weight: 700"
-        return "color: #8B7355"
+            return "color: #FF4444; font-weight: 700"
+        return "color: #6B7FBF"
 
     styled = tdf.style.applymap(_color_status, subset=["Status"])
     styled = styled.background_gradient(subset=["UA Score"], cmap="RdYlGn", vmin=20, vmax=80)
@@ -367,7 +367,7 @@ if all_basket_sigs and basket_tickers:
         z=matrix,
         x=basket_tickers,
         y=sig_names,
-        colorscale=[[0.0, "#7B1010"], [0.5, "#D4C9B0"], [1.0, "#1B5E20"]],
+        colorscale=[[0.0, "#FF4444"], [0.5, "rgba(255,255,255,0.08)"], [1.0, "#00D566"]],
         zmin=-1, zmax=1,
         showscale=True,
         colorbar=dict(
@@ -382,8 +382,8 @@ if all_basket_sigs and basket_tickers:
         plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=220, r=20, t=20, b=60),
         height=max(300, 30 * len(all_basket_sigs) + 80),
-        xaxis=dict(tickfont=dict(size=10, family="Georgia")),
-        yaxis=dict(tickfont=dict(size=9, family="Georgia"), autorange="reversed"),
+        xaxis=dict(tickfont=dict(size=10, family="Inter, sans-serif")),
+        yaxis=dict(tickfont=dict(size=9, family="Inter, sans-serif"), autorange="reversed"),
     )
     st.plotly_chart(fig_heat, use_container_width=True)
 else:
@@ -408,7 +408,7 @@ neut_tickers = [t for t, v in ticker_scores.items() if v["status"] == "neutral"]
 if basket_agg["status"] == "bullish":
     verdict_color = "#0D3B0E"
     verdict_bg = "#F0FFF0"
-    verdict_border = "#1B5E20"
+    verdict_border = "#00D566"
     verdict_text = (
         f"<b>Macro signals broadly support this basket.</b> "
         f"{len(bull_tickers)} of {len(basket_tickers)} tickers have bullish UA signal alignment. "
@@ -417,8 +417,8 @@ if basket_agg["status"] == "bullish":
     )
 elif basket_agg["status"] == "bearish":
     verdict_color = "#4B0000"
-    verdict_bg = "#FFF0F0"
-    verdict_border = "#7B1010"
+    verdict_bg = "rgba(255,68,68,0.08)"
+    verdict_border = "#FF4444"
     verdict_text = (
         f"<b>Macro signals are not yet supporting this basket.</b> "
         f"{len(bear_tickers)} of {len(basket_tickers)} tickers have bearish UA signal reads. "
@@ -426,9 +426,9 @@ elif basket_agg["status"] == "bearish":
         f"is not confirming the bull case. Watch for signal improvement before adding exposure."
     )
 else:
-    verdict_color = "#2C2410"
-    verdict_bg = "#FFFDF0"
-    verdict_border = "#8B7355"
+    verdict_color = "#F59E0B"
+    verdict_bg = "rgba(245,158,11,0.08)"
+    verdict_border = "#6B7FBF"
     verdict_text = (
         f"<b>Mixed signal picture — no clear macro edge.</b> "
         f"Signals are divided: {len(bull_tickers)} bullish, {len(bear_tickers)} bearish, "
@@ -439,20 +439,20 @@ else:
 
 st.markdown(
     f"<div style='background:{verdict_bg};border-left:4px solid {verdict_border};"
-    f"padding:14px 18px;border-radius:0 6px 6px 0;font-family:Georgia,serif;"
+    f"padding:14px 18px;border-radius:0 6px 6px 0;font-family:Inter,sans-serif;"
     f"font-size:0.88rem;color:{verdict_color};'>{verdict_text}</div>",
     unsafe_allow_html=True,
 )
 
 if bull_tickers:
     st.markdown(
-        f"<div style='margin-top:10px;font-size:0.82rem;color:#1B5E20;'>"
+        f"<div style='margin-top:10px;font-size:0.82rem;color:#00D566;'>"
         f"<b>Signal-supported:</b> {', '.join(bull_tickers)}</div>",
         unsafe_allow_html=True,
     )
 if bear_tickers:
     st.markdown(
-        f"<div style='margin-top:4px;font-size:0.82rem;color:#7B1010;'>"
+        f"<div style='margin-top:4px;font-size:0.82rem;color:#FF4444;'>"
         f"<b>Signal-cautioned:</b> {', '.join(bear_tickers)}</div>",
         unsafe_allow_html=True,
     )

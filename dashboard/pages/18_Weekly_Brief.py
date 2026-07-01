@@ -59,7 +59,7 @@ st.markdown("""
 
 /* ── Masthead ── */
 .ua-masthead {
-    border-bottom: 3px double #1A1612;
+    border-bottom: 3px double #E8EEFF;
     padding-bottom: 10px;
     margin-bottom: 18px;
     display: flex;
@@ -69,14 +69,14 @@ st.markdown("""
     gap: 8px;
 }
 .ua-masthead-title {
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: Inter, -apple-system, sans-serif;
     font-size: 1.55rem;
     font-weight: 700;
-    color: #1A1612;
+    color: #E8EEFF;
     letter-spacing: 0.02em;
 }
 .ua-masthead-sub {
-    font-family: 'Georgia', serif;
+    font-family: Inter, sans-serif;
     font-size: 0.75rem;
     color: #6B5E52;
     font-style: italic;
@@ -94,7 +94,7 @@ st.markdown("""
 }
 /* ── Note metadata bar ── */
 .ua-meta-bar {
-    font-family: 'Georgia', serif;
+    font-family: Inter, sans-serif;
     font-size: 0.73rem;
     color: #6B5E52;
     margin-bottom: 14px;
@@ -102,10 +102,10 @@ st.markdown("""
 }
 /* ── Headline ── */
 .ua-headline {
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: Inter, -apple-system, sans-serif;
     font-size: 1.45rem;
     font-weight: 700;
-    color: #1A1612;
+    color: #E8EEFF;
     line-height: 1.35;
     margin-bottom: 18px;
     border-left: 4px solid #8B6914;
@@ -113,10 +113,10 @@ st.markdown("""
 }
 /* ── Body text ── */
 .ua-body {
-    font-family: 'Georgia', 'Times New Roman', serif;
+    font-family: Inter, -apple-system, sans-serif;
     font-size: 0.96rem;
     line-height: 1.82;
-    color: #2A2420;
+    color: #E8EEFF;
     max-width: 780px;
 }
 .ua-body p {
@@ -124,18 +124,18 @@ st.markdown("""
 }
 .ua-body strong, .ua-body b {
     font-weight: 700;
-    color: #1A1612;
+    color: #E8EEFF;
 }
 /* "Bottom Line:" paragraph gets a special treatment */
 .ua-bottom-line {
-    background: #FAF6F0;
+    background: #0B0D12;
     border: 1px solid #E0D5C5;
     border-radius: 6px;
     padding: 14px 18px;
-    font-family: 'Georgia', serif;
+    font-family: Inter, sans-serif;
     font-size: 0.94rem;
     line-height: 1.75;
-    color: #2A2420;
+    color: #E8EEFF;
     margin-top: 4px;
 }
 /* ── Archive table ── */
@@ -147,14 +147,14 @@ st.markdown("""
     border-bottom: 1px solid #EDE8E0;
     flex-wrap: wrap;
 }
-.ua-archive-date { font-size: 0.72rem; color: #8B7355; min-width: 80px; font-family: monospace; }
-.ua-archive-hl   { font-size: 0.83rem; color: #2A2420; font-family: 'Georgia', serif; flex: 1; line-height: 1.3; }
+.ua-archive-date { font-size: 0.72rem; color: #6B7FBF; min-width: 80px; font-family: monospace; }
+.ua-archive-hl   { font-size: 0.83rem; color: #E8EEFF; font-family: Inter, sans-serif; flex: 1; line-height: 1.3; }
 .ua-archive-regime { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; padding: 2px 6px; border-radius: 2px; }
 /* ── Empty state ── */
 .ua-empty {
     text-align: center;
     padding: 40px 20px;
-    font-family: 'Georgia', serif;
+    font-family: Inter, sans-serif;
     color: #6B5E52;
 }
 </style>
@@ -163,11 +163,11 @@ st.markdown("""
 # ── Helper: regime chip ───────────────────────────────────────────────────────
 def _regime_chip(regime: str) -> str:
     colors = {
-        "RISK-ON":            ("#E8F5E9", "#1B5E20"),
+        "RISK-ON":            ("#E8F5E9", "#00D566"),
         "CAUTIOUSLY BULLISH": ("#F1F8E9", "#33691E"),
-        "MIXED / TRANSITION": ("#FFF8E1", "#E65100"),
+        "MIXED / TRANSITION": ("rgba(245,158,11,0.12)", "#F59E0B"),
         "CAUTIOUSLY BEARISH": ("#FBE9E7", "#BF360C"),
-        "RISK-OFF":           ("#FFEBEE", "#7B1010"),
+        "RISK-OFF":           ("#FFEBEE", "#FF4444"),
     }
     bg, fg = colors.get(regime, ("#F5F5F5", "#444444"))
     return (
@@ -179,11 +179,11 @@ def _regime_chip(regime: str) -> str:
 
 def _render_archive_chip(regime: str) -> str:
     colors = {
-        "RISK-ON":            ("#E8F5E9", "#1B5E20"),
+        "RISK-ON":            ("#E8F5E9", "#00D566"),
         "CAUTIOUSLY BULLISH": ("#F1F8E9", "#33691E"),
-        "MIXED / TRANSITION": ("#FFF8E1", "#E65100"),
+        "MIXED / TRANSITION": ("rgba(245,158,11,0.12)", "#F59E0B"),
         "CAUTIOUSLY BEARISH": ("#FBE9E7", "#BF360C"),
-        "RISK-OFF":           ("#FFEBEE", "#7B1010"),
+        "RISK-OFF":           ("#FFEBEE", "#FF4444"),
     }
     bg, fg = colors.get(regime, ("#F5F5F5", "#444444"))
     return (
@@ -207,7 +207,7 @@ note = get_latest_note()
 if note is None:
     st.markdown("""
     <div class="ua-empty">
-        <p style="font-size:1.1rem;font-weight:700;color:#1A1612;">No notes generated yet.</p>
+        <p style="font-size:1.1rem;font-weight:700;color:#E8EEFF;">No notes generated yet.</p>
         <p>The first Weekly Brief will be generated automatically next Sunday,<br>
         or you can generate one now using the button below.</p>
     </div>
@@ -358,7 +358,7 @@ if len(archive) > 1:
 # ── Generate Now button ───────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown(
-    '<p style="font-size:0.75rem;color:#8B7355;font-family:\'Georgia\',serif;">'
+    '<p style="font-size:0.75rem;color:#6B7FBF;font-family:\'Georgia\',serif;">'
     'Weekly Briefs are generated automatically every Sunday using live signal data and the Anthropic API. '
     'You can generate or regenerate a note at any time using the button below.'
     '</p>',

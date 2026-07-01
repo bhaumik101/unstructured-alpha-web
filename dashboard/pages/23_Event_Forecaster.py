@@ -56,19 +56,19 @@ st.markdown("""
 <style>
 .block-container { padding-top: 0.5rem !important; max-width: 1100px !important; }
 .section-hdr {
-    font-family: Georgia, serif; font-size: 0.70rem; font-weight: 700;
-    letter-spacing: 0.12em; color: #8B7355; text-transform: uppercase;
+    font-family: Inter, sans-serif; font-size: 0.70rem; font-weight: 700;
+    letter-spacing: 0.12em; color: #6B7FBF; text-transform: uppercase;
     border-bottom: 1px solid #D4C9B0; padding-bottom: 4px; margin-bottom: 12px;
 }
 .event-card {
     border: 1px solid #D4C9B0; border-radius: 6px; padding: 12px 16px;
-    margin-bottom: 8px; font-family: Georgia, serif; background: #FDFAF5;
+    margin-bottom: 8px; font-family: Inter, sans-serif; background: #0F1118;
 }
-.event-bull  { border-left: 4px solid #1B5E20; }
-.event-bear  { border-left: 4px solid #7B1010; }
-.event-neut  { border-left: 4px solid #8B7355; }
-.event-date  { font-size: 0.72rem; color: #8B7355; font-weight: 600; letter-spacing: 0.06em; }
-.event-name  { font-size: 0.92rem; font-weight: 700; color: #1A1612; }
+.event-bull  { border-left: 4px solid #00D566; }
+.event-bear  { border-left: 4px solid #FF4444; }
+.event-neut  { border-left: 4px solid #6B7FBF; }
+.event-date  { font-size: 0.72rem; color: #6B7FBF; font-weight: 600; letter-spacing: 0.06em; }
+.event-name  { font-size: 0.92rem; font-weight: 700; color: #E8EEFF; }
 .event-sig   { font-size: 0.80rem; color: #6B5E52; margin-top: 2px; }
 </style>
 """, unsafe_allow_html=True)
@@ -126,8 +126,8 @@ _RAW_EVENTS: list[tuple] = [
 
 CATEGORY_COLOR = {
     "Fed":       "#1A3A5C",
-    "Inflation": "#7B1010",
-    "Labor":     "#1B5E20",
+    "Inflation": "#FF4444",
+    "Labor":     "#00D566",
     "PMI":       "#3D4F2E",
     "Energy":    "#5D4426",
     "Consumer":  "#4A3728",
@@ -291,7 +291,7 @@ if event_df.empty:
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown('<div class="section-hdr">Upcoming Events & Signal Read</div>', unsafe_allow_html=True)
 
-STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
+STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF"}
 STATUS_ICON  = {"bullish": "▲", "bearish": "▼", "neutral": "→"}
 CARD_CLASS   = {"bullish": "event-bull", "bearish": "event-bear", "neutral": "event-neut"}
 
@@ -312,7 +312,7 @@ for _, ev in event_df.iterrows():
         else:
             agg_status = "neutral"
 
-    cat_col = CATEGORY_COLOR.get(ev["category"], "#8B7355")
+    cat_col = CATEGORY_COLOR.get(ev["category"], "#6B7FBF")
     cat_icon = CATEGORY_ICON.get(ev["category"], "📌")
     stat_col = STATUS_COLOR[agg_status]
     stat_icon = STATUS_ICON[agg_status]
@@ -399,12 +399,12 @@ if ev_names:
             fig.add_trace(go.Bar(
                 name="Bullish Signal State",
                 x=etfs_with_data, y=bull_rets,
-                marker_color="#1B5E20", opacity=0.85,
+                marker_color="#00D566", opacity=0.85,
             ))
             fig.add_trace(go.Bar(
                 name="Bearish Signal State",
                 x=etfs_with_data, y=bear_rets,
-                marker_color="#7B1010", opacity=0.85,
+                marker_color="#FF4444", opacity=0.85,
             ))
             fig.add_hline(y=0, line_color="#9E9E9E", line_width=1)
             fig.update_layout(
@@ -466,7 +466,7 @@ if conviction_rows:
     conv_df = pd.DataFrame(conviction_rows).sort_values("Alignment %", ascending=False)
 
     def _dir_color(row: pd.Series) -> list[str]:
-        color = "#1B5E20" if row["Direction"] == "BULLISH" else "#7B1010"
+        color = "#00D566" if row["Direction"] == "BULLISH" else "#FF4444"
         return [""] * (len(row) - 3) + [f"color: {color}; font-weight: 700"] * 1 + [""] * 2
 
     st.dataframe(

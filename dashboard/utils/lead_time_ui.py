@@ -25,7 +25,7 @@ def render_validated_lag_scan(result: dict, reliability: dict, pooled: dict = No
         return
 
     rel_score = reliability["score"]
-    rel_color = "#1B5E20" if rel_score >= 70 else ("#B8860B" if rel_score >= 40 else "#7B1010")
+    rel_color = "#00D566" if rel_score >= 70 else ("#F59E0B" if rel_score >= 40 else "#FF4444")
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Best lag found (in-sample)", f"{result['best_lag']}w")
@@ -42,10 +42,12 @@ def render_validated_lag_scan(result: dict, reliability: dict, pooled: dict = No
         delta=(f"oos r={oos['r']:+.3f}" if oos else "insufficient oos data"),
     )
 
+    rel_bg = "rgba(0,213,102,0.07)" if rel_score >= 70 else ("rgba(245,158,11,0.07)" if rel_score >= 40 else "rgba(255,68,68,0.07)")
     st.markdown(
-        f'<div style="padding:12px 16px;border-left:4px solid {rel_color};background:#FAF7F0;margin:8px 0;">'
-        f'<span style="font-size:1.3rem;font-weight:700;color:{rel_color};">Signal Reliability Score: {rel_score}/100</span>'
-        f'<br><span style="color:#6B6560;">{reliability["label"]}</span></div>',
+        f'<div style="padding:12px 16px;border-left:4px solid {rel_color};background:{rel_bg};'
+        f'border-radius:0 8px 8px 0;margin:8px 0;font-family:Inter,sans-serif;">'
+        f'<span style="font-size:1.1rem;font-weight:700;color:{rel_color};">Signal Reliability Score: {rel_score}/100</span>'
+        f'<br><span style="color:#8892AA;font-size:0.83rem;">{reliability["label"]}</span></div>',
         unsafe_allow_html=True,
     )
 
@@ -66,20 +68,23 @@ def render_validated_lag_scan(result: dict, reliability: dict, pooled: dict = No
 
     lags = list(result["in_sample_scan"].keys())
     corrs = [result["in_sample_scan"][l]["r"] for l in lags]
-    bar_colors = ["#1B5E20" if c > 0 else "#7B1010" for c in corrs]
+    bar_colors = ["#00D566" if c > 0 else "#FF4444" for c in corrs]
     if result["best_lag"] in lags:
-        bar_colors[lags.index(result["best_lag"])] = "#B8860B"
+        bar_colors[lags.index(result["best_lag"])] = "#F59E0B"
     fig = go.Figure(go.Bar(
         x=[f"{l}w" for l in lags], y=corrs, marker_color=bar_colors,
         text=[f"{c:+.3f}" for c in corrs], textposition="outside",
-        textfont=dict(size=9, color="#1A1612"),
+        textfont=dict(size=9, color="#8892AA"),
         hovertemplate="Lag %{x}: in-sample r = %{y:.4f}<extra></extra>",
     ))
-    fig.add_hline(y=0, line_color="#9E9E8E")
+    fig.add_hline(y=0, line_color="rgba(255,255,255,0.15)")
     fig.update_layout(
-        height=260, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-        xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560"), title="Lag (weeks) — in-sample only"),
-        yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"), title="Pearson r"),
+        height=260, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+        xaxis=dict(showgrid=False, tickfont=dict(color="#8892AA"), title="Lag (weeks) — in-sample only",
+                   title_font=dict(color="#6B7FBF", size=11, family="Inter,sans-serif")),
+        yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA"), title="Pearson r",
+                   title_font=dict(color="#6B7FBF", size=11, family="Inter,sans-serif")),
+        font=dict(family="Inter,sans-serif"),
         margin=dict(l=0, r=0, t=10, b=0),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -107,17 +112,19 @@ def render_lag_decay_chart(decay: dict) -> None:
         return
 
     trend = decay["lag_trend"]
-    trend_color = {"shrinking": "#7B1010", "lengthening": "#1C2B4A", "stable": "#1B5E20"}[trend]
+    trend_color = {"shrinking": "#FF4444", "lengthening": "#7C3AED", "stable": "#00D566"}[trend]
     trend_word = {
         "shrinking": "shrinking — this signal's lead time looks like it's compressing over time",
         "lengthening": "lengthening — this signal's lead time looks like it's stretching out over time",
         "stable": "stable — no clear change in this signal's lead time across the available history",
     }[trend]
 
+    trend_bg = {"shrinking": "rgba(255,68,68,0.07)", "lengthening": "rgba(124,58,237,0.07)", "stable": "rgba(0,213,102,0.07)"}[trend]
     st.markdown(
-        f'<div style="padding:10px 16px;border-left:4px solid {trend_color};background:#FAF7F0;margin:8px 0;">'
+        f'<div style="padding:10px 16px;border-left:4px solid {trend_color};background:{trend_bg};'
+        f'border-radius:0 8px 8px 0;margin:8px 0;font-family:Inter,sans-serif;">'
         f'<span style="font-weight:700;color:{trend_color};">Lead time looks {trend_word}</span><br>'
-        f'<span style="color:#6B6560;font-size:0.85rem;">Earlier windows averaged '
+        f'<span style="color:#8892AA;font-size:0.83rem;">Earlier windows averaged '
         f'{decay["first_half_avg_lag"]:.1f}w · Later windows averaged {decay["second_half_avg_lag"]:.1f}w '
         f'(across {decay["n_windows"]} trailing windows)</span></div>',
         unsafe_allow_html=True,
@@ -135,14 +142,17 @@ def render_lag_decay_chart(decay: dict) -> None:
         x=[w["window_end"] for w in windows],
         y=[w["best_lag"] for w in windows],
         mode="lines+markers",
-        line=dict(color="#1C2B4A", width=2.5),
-        marker=dict(size=7, color="#B8860B"),
+        line=dict(color="#7C3AED", width=2.5),
+        marker=dict(size=7, color="#F59E0B"),
         hovertemplate="Window ending %{x|%Y-%m-%d}: best lag = %{y}w<extra></extra>",
     ))
     fig.update_layout(
-        height=240, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-        xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"), title="Trailing window ending"),
-        yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"), title="Best-fitting lag (weeks)"),
+        height=240, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+        xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA"),
+                   title="Trailing window ending", title_font=dict(color="#6B7FBF", size=11, family="Inter,sans-serif")),
+        yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA"),
+                   title="Best-fitting lag (weeks)", title_font=dict(color="#6B7FBF", size=11, family="Inter,sans-serif")),
+        font=dict(family="Inter,sans-serif"),
         margin=dict(l=0, r=0, t=10, b=0),
     )
     st.plotly_chart(fig, use_container_width=True)

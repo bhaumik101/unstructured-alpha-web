@@ -341,13 +341,13 @@ if _view_layout == "Heatmap":
                 _strength = (_hm_score - 60) / 40  # 0.0 to 1.0
                 _g = int(94 + _strength * 100)
                 _hm_bg    = f"rgb(15,{_g},20)"
-                _hm_fc    = "#FFFFFF"
+                _hm_fc    = "#0F1118"
                 _hm_bdr   = "#00D566"
             elif _hm_status == "bearish":
                 _strength = (40 - _hm_score) / 40
                 _r = int(100 + _strength * 100)
                 _hm_bg    = f"rgb({_r},10,10)"
-                _hm_fc    = "#FFFFFF"
+                _hm_fc    = "#0F1118"
                 _hm_bdr   = "#FF2222"
             else:
                 _hm_bg    = "#0B0D12"

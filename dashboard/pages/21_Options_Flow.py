@@ -97,7 +97,7 @@ def _pcr_gauge(pcr: float) -> go.Figure:
         value=pcr,
         number={"suffix": "x", "font": {"color": color, "size": 28}},
         title={"text": f"Put/Call Ratio<br><span style='font-size:12px;color:{color}'>{label}</span>",
-               "font": {"color": "#C8C0B0", "size": 14}},
+               "font": {"color": "#8892AA", "size": 14}},
         gauge={
             "axis": {"range": [0, 3], "tickcolor": "#8A9AB8", "tickfont": {"size": 10}},
             "bar":  {"color": color, "thickness": 0.25},
@@ -109,12 +109,12 @@ def _pcr_gauge(pcr: float) -> go.Figure:
                 {"range": [1.1, 1.5], "color": "rgba(255,152,0,0.15)"},
                 {"range": [1.5, 3.0], "color": "rgba(239,83,80,0.15)"},
             ],
-            "threshold": {"line": {"color": "#FFFFFF", "width": 2}, "value": 1.0},
+            "threshold": {"line": {"color": "#0F1118", "width": 2}, "value": 1.0},
         },
     ))
     fig.update_layout(
         height=220, margin=dict(l=10, r=10, t=30, b=10),
-        paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#C8C0B0"),
+        paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#8892AA"),
     )
     return fig
 
@@ -152,12 +152,12 @@ def _iv_surface(calls: pd.DataFrame, puts: pd.DataFrame, current_price: float | 
     if current_price:
         fig.add_vline(x=current_price, line_color="rgba(255,255,255,0.4)",
                       line_dash="dash", annotation_text=f"  Current ${current_price:,.2f}",
-                      annotation_font_color="#C8C0B0")
+                      annotation_font_color="#8892AA")
 
     fig.update_layout(
         height=320, margin=dict(l=0, r=0, t=20, b=40),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#C8C0B0", size=11),
+        font=dict(color="#8892AA", size=11),
         xaxis=dict(title="Strike Price", gridcolor="rgba(255,255,255,0.06)"),
         yaxis=dict(title="Implied Volatility (%)", gridcolor="rgba(255,255,255,0.06)"),
         legend=dict(font=dict(size=10), orientation="h", y=1.05),
@@ -194,7 +194,7 @@ def _volume_bars(calls: pd.DataFrame, puts: pd.DataFrame, exp: str | None) -> go
     fig.update_layout(
         barmode="group", height=280, margin=dict(l=0, r=0, t=10, b=40),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#C8C0B0", size=11),
+        font=dict(color="#8892AA", size=11),
         xaxis=dict(title="Strike", gridcolor="rgba(255,255,255,0.06)"),
         yaxis=dict(title="Volume", gridcolor="rgba(255,255,255,0.06)"),
         legend=dict(font=dict(size=10), orientation="h", y=1.05),

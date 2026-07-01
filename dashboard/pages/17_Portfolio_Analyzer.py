@@ -120,8 +120,8 @@ def _parse_portfolio_input(raw: str) -> list[dict]:
 
 st.markdown("# 📊 Portfolio Macro Analyzer")
 st.markdown(
-    '<div style="font-family:Georgia,serif;font-size:0.92rem;color:#4A4440;margin-bottom:18px;'
-    'background:#FAF7F0;border-left:4px solid #1C2B4A;padding:12px 16px;border-radius:0 8px 8px 0;">'
+    '<div style="font-family:Inter,sans-serif;font-size:0.92rem;color:#4A4440;margin-bottom:18px;'
+    'background:#0F1118;border-left:4px solid #7C3AED;padding:12px 16px;border-radius:0 8px 8px 0;">'
     'Enter your holdings and get an instant macro overlay. See which positions have the wind at '
     'their back right now, which are sailing into macro headwinds, and how your total portfolio '
     'exposure stacks up across sectors. Bloomberg PORT charges $25,000/year for this. It\'s free here.'
@@ -248,31 +248,31 @@ _agg_bias = (
     "TAILWIND" if _agg_score >= 65 else
     ("HEADWIND" if _agg_score <= 35 else "NEUTRAL")
 )
-_agg_color = "#1B5E20" if _agg_bias == "TAILWIND" else ("#7B1010" if _agg_bias == "HEADWIND" else "#8B7355")
+_agg_color = "#00D566" if _agg_bias == "TAILWIND" else ("#FF4444" if _agg_bias == "HEADWIND" else "#6B7FBF")
 
 st.divider()
 
 # ── Score Banner ──────────────────────────────────────────────────────────────
 
 st.markdown(
-    f'<div style="background:#1C2B4A;border-radius:12px;padding:20px 28px;margin-bottom:24px;">'
+    f'<div style="background:#7C3AED;border-radius:12px;padding:20px 28px;margin-bottom:24px;">'
     f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">'
     f'<div>'
     f'  <div style="font-size:0.68rem;color:#C9A84C;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">PORTFOLIO MACRO SCORE</div>'
-    f'  <div style="font-size:2.8rem;font-weight:800;color:{_agg_color};font-family:Georgia,serif;">{_agg_score}</div>'
+    f'  <div style="font-size:2.8rem;font-weight:800;color:{_agg_color};font-family:Inter,sans-serif;">{_agg_score}</div>'
     f'  <div style="font-size:0.90rem;color:{_agg_color};font-weight:700;">{_agg_bias}</div>'
     f'</div>'
     f'<div style="display:flex;gap:24px;flex-wrap:wrap;">'
     f'  <div style="text-align:center;">'
-    f'    <div style="font-size:1.6rem;font-weight:700;color:#1B5E20;">{_tailwind_pct}%</div>'
+    f'    <div style="font-size:1.6rem;font-weight:700;color:#00D566;">{_tailwind_pct}%</div>'
     f'    <div style="font-size:0.70rem;color:#A0A8B8;">Tailwind</div>'
     f'  </div>'
     f'  <div style="text-align:center;">'
-    f'    <div style="font-size:1.6rem;font-weight:700;color:#8B7355;">{_neutral_pct}%</div>'
+    f'    <div style="font-size:1.6rem;font-weight:700;color:#6B7FBF;">{_neutral_pct}%</div>'
     f'    <div style="font-size:0.70rem;color:#A0A8B8;">Neutral</div>'
     f'  </div>'
     f'  <div style="text-align:center;">'
-    f'    <div style="font-size:1.6rem;font-weight:700;color:#7B1010;">{_headwind_pct}%</div>'
+    f'    <div style="font-size:1.6rem;font-weight:700;color:#FF4444;">{_headwind_pct}%</div>'
     f'    <div style="font-size:0.70rem;color:#A0A8B8;">Headwind</div>'
     f'  </div>'
     f'  <div style="text-align:center;">'
@@ -293,17 +293,17 @@ with _ch1:
     # Macro bias donut
     _bias_counts = _df.groupby("bias")["weight"].sum().reset_index()
     _bias_counts["weight_pct"] = (_bias_counts["weight"] * 100).round(1)
-    _bias_color_map = {"Tailwind": "#1B5E20", "Neutral": "#8B7355", "Headwind": "#7B1010"}
+    _bias_color_map = {"Tailwind": "#00D566", "Neutral": "#6B7FBF", "Headwind": "#FF4444"}
     _fig_donut = go.Figure(go.Pie(
         labels=_bias_counts["bias"].tolist(),
         values=_bias_counts["weight_pct"].tolist(),
         hole=0.62,
-        marker_colors=[_bias_color_map.get(b, "#8B7355") for b in _bias_counts["bias"]],
+        marker_colors=[_bias_color_map.get(b, "#6B7FBF") for b in _bias_counts["bias"]],
         textinfo="label+percent",
         hovertemplate="%{label}: %{value:.1f}%<extra></extra>",
     ))
     _fig_donut.update_layout(
-        title=dict(text="Macro Bias Mix", font=dict(size=14, color="#1C2B4A"), x=0.5),
+        title=dict(text="Macro Bias Mix", font=dict(size=14, color="#7C3AED"), x=0.5),
         margin=dict(t=40, b=10, l=10, r=10), height=220,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         showlegend=False,
@@ -319,7 +319,7 @@ with _ch2:
     _sector_g["macro_score"] = (_sector_g["macro_score"] / (_sector_g["weight_pct"] / 100)).round(1)
     _sector_g = _sector_g.sort_values("weight_pct", ascending=True)
     _bar_colors = [
-        "#1B5E20" if s >= 65 else ("#7B1010" if s <= 35 else "#8B7355")
+        "#00D566" if s >= 65 else ("#FF4444" if s <= 35 else "#6B7FBF")
         for s in _sector_g["macro_score"]
     ]
     _fig_sector = go.Figure(go.Bar(
@@ -332,11 +332,11 @@ with _ch2:
         hovertemplate="%{y}: %{x:.1f}% weight, macro %{text}/100<extra></extra>",
     ))
     _fig_sector.update_layout(
-        title=dict(text="Sector Exposure (macro score in bar)", font=dict(size=14, color="#1C2B4A"), x=0.5),
+        title=dict(text="Sector Exposure (macro score in bar)", font=dict(size=14, color="#7C3AED"), x=0.5),
         xaxis_title="Portfolio Weight %",
         margin=dict(t=40, b=30, l=10, r=10), height=220,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Georgia, serif", color="#4A4440"),
+        font=dict(family="Inter, sans-serif", color="#4A4440"),
     )
     st.plotly_chart(_fig_sector, use_container_width=True)
 
@@ -344,7 +344,7 @@ with _ch3:
     # Bubble chart: macro score vs weight, bubble size = weight
     _fig_bubble = go.Figure()
     for _, _row in _df.iterrows():
-        _c = "#1B5E20" if _row["macro_score"] >= 65 else ("#7B1010" if _row["macro_score"] <= 35 else "#8B7355")
+        _c = "#00D566" if _row["macro_score"] >= 65 else ("#FF4444" if _row["macro_score"] <= 35 else "#6B7FBF")
         _fig_bubble.add_trace(go.Scatter(
             x=[_row["macro_score"]],
             y=[_row["weight_pct"]],
@@ -355,16 +355,16 @@ with _ch3:
             textfont=dict(size=9, color="white"),
             hovertemplate=f"{_row['ticker']}: macro {_row['macro_score']:.0f}, weight {_row['weight_pct']:.1f}%<extra></extra>",
         ))
-    _fig_bubble.add_vline(x=65, line_dash="dot", line_color="#1B5E20", opacity=0.4)
-    _fig_bubble.add_vline(x=35, line_dash="dot", line_color="#7B1010", opacity=0.4)
+    _fig_bubble.add_vline(x=65, line_dash="dot", line_color="#00D566", opacity=0.4)
+    _fig_bubble.add_vline(x=35, line_dash="dot", line_color="#FF4444", opacity=0.4)
     _fig_bubble.update_layout(
-        title=dict(text="Score vs Weight (bubble = weight)", font=dict(size=14, color="#1C2B4A"), x=0.5),
+        title=dict(text="Score vs Weight (bubble = weight)", font=dict(size=14, color="#7C3AED"), x=0.5),
         xaxis=dict(title="Macro Score", range=[0, 100]),
         yaxis=dict(title="Weight %"),
         showlegend=False,
         margin=dict(t=40, b=30, l=40, r=10), height=220,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(245,241,232,0.5)",
-        font=dict(family="Georgia, serif", color="#4A4440"),
+        font=dict(family="Inter, sans-serif", color="#4A4440"),
     )
     st.plotly_chart(_fig_bubble, use_container_width=True)
 
@@ -372,7 +372,7 @@ with _ch3:
 
 st.divider()
 st.markdown(
-    '<div style="font-size:0.68rem;font-weight:700;color:#8B7355;letter-spacing:0.10em;'
+    '<div style="font-size:0.68rem;font-weight:700;color:#6B7FBF;letter-spacing:0.10em;'
     'text-transform:uppercase;margin-bottom:12px;">HOLDINGS BREAKDOWN</div>',
     unsafe_allow_html=True,
 )
@@ -380,13 +380,13 @@ st.markdown(
 # Sort by macro score (worst headwinds first for immediate attention)
 _df_display = _df.sort_values("macro_score").reset_index(drop=True)
 
-_BIAS_COLORS = {"Tailwind": "#1B5E20", "Neutral": "#8B7355", "Headwind": "#7B1010"}
-_BIAS_BG     = {"Tailwind": "#EDF7ED", "Neutral": "#FAF7F0", "Headwind": "#FDF0F0"}
+_BIAS_COLORS = {"Tailwind": "#00D566", "Neutral": "#6B7FBF", "Headwind": "#FF4444"}
+_BIAS_BG     = {"Tailwind": "rgba(0,213,102,0.08)", "Neutral": "rgba(107,127,191,0.06)", "Headwind": "rgba(255,68,68,0.08)"}
 _BIAS_ICONS  = {"Tailwind": "▲", "Neutral": "→", "Headwind": "▼"}
 
 for _, _row in _df_display.iterrows():
-    _bc = _BIAS_COLORS.get(_row["bias"], "#8B7355")
-    _bb = _BIAS_BG.get(_row["bias"], "#FAF7F0")
+    _bc = _BIAS_COLORS.get(_row["bias"], "#6B7FBF")
+    _bb = _BIAS_BG.get(_row["bias"], "rgba(107,127,191,0.06)")
     _bi = _BIAS_ICONS.get(_row["bias"], "●")
     _est_note = ' <span style="color:#9E9E8E;font-size:0.62rem;">(sector-estimated)</span>' if not _row["in_universe"] else ""
     _price_html = f'${_row["price"]:,.2f}' if _row["price"] else "N/A"
@@ -396,12 +396,12 @@ for _, _row in _df_display.iterrows():
     with _hc1:
         go_to_ticker(_row["ticker"], key=f"port_{_row['ticker']}")
         st.markdown(
-            f'<div style="font-size:0.72rem;color:#8B7355;">{_row["sector"]} · {_row["name"][:32]}{_est_note}</div>',
+            f'<div style="font-size:0.72rem;color:#6B7FBF;">{_row["sector"]} · {_row["name"][:32]}{_est_note}</div>',
             unsafe_allow_html=True,
         )
     with _hc2:
         st.markdown(
-            f'<div style="font-family:Georgia,serif;font-size:0.85rem;padding-top:4px;">'
+            f'<div style="font-family:Inter,sans-serif;font-size:0.85rem;padding-top:4px;">'
             f'Weight: <b>{_row["weight_pct"]:.1f}%</b><br>'
             f'Price: <span style="color:#4A4440;">{_price_html}</span>'
             f'</div>',
@@ -409,8 +409,8 @@ for _, _row in _df_display.iterrows():
         )
     with _hc3:
         _sig_html = (
-            f'<span style="color:#1B5E20;">▲ {_row["bull_signals"]} bull</span> · '
-            f'<span style="color:#7B1010;">▼ {_row["bear_signals"]} bear</span>'
+            f'<span style="color:#00D566;">▲ {_row["bull_signals"]} bull</span> · '
+            f'<span style="color:#FF4444;">▼ {_row["bear_signals"]} bear</span>'
             if _row["in_universe"] else
             f'<span style="color:#9E9E8E;">Universe coverage pending</span>'
         )
@@ -437,9 +437,9 @@ _worst = _df.nsmallest(3, "macro_score")
 _best  = _df.nlargest(3, "macro_score")
 
 st.markdown(
-    '<div style="background:#FAF7F0;border-radius:10px;padding:16px 20px;border:1px solid #D4C9B0;'
-    'font-family:Georgia,serif;">'
-    '<div style="font-size:0.68rem;font-weight:700;color:#8B7355;text-transform:uppercase;'
+    '<div style="background:#0F1118;border-radius:10px;padding:16px 20px;border:1px solid rgba(255,255,255,0.08);'
+    'font-family:Inter,sans-serif;">'
+    '<div style="font-size:0.68rem;font-weight:700;color:#6B7FBF;text-transform:uppercase;'
     'letter-spacing:0.10em;margin-bottom:10px;">MACHINE INTERPRETATION</div>',
     unsafe_allow_html=True,
 )

@@ -188,28 +188,28 @@ def render_convergence_events(
         return
 
     def _card(ev: dict) -> str:
-        col   = "#1B5E20" if ev["direction"] == "bullish" else "#7B1010"
-        bg    = "#EDF7ED" if ev["direction"] == "bullish" else "#FDF0F0"
+        col   = "#00D566" if ev["direction"] == "bullish" else "#FF4444"
+        bg    = "rgba(0,213,102,0.06)" if ev["direction"] == "bullish" else "rgba(255,68,68,0.06)"
         arrow = "▲" if ev["direction"] == "bullish" else "▼"
         sigs  = " · ".join(ev["signals"][:4])
         fresh_note = f" · {ev['fresh']} fresh flip{'s' if ev['fresh'] != 1 else ''}" if ev.get("fresh") else ""
         return (
-            f'<div style="background:{bg};border-radius:7px;padding:10px 14px;'
-            f'margin-bottom:8px;border-left:4px solid {col};font-family:Georgia,serif;">'
+            f'<div style="background:{bg};border-radius:8px;padding:10px 14px;'
+            f'margin-bottom:8px;border-left:4px solid {col};font-family:Inter,sans-serif;">'
             f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-            f'<span style="font-size:0.92rem;font-weight:700;color:#1A1612;">{ev["ticker"]}</span>'
+            f'<span style="font-size:0.92rem;font-weight:700;color:#E8EEFF;">{ev["ticker"]}</span>'
             f'<span style="font-size:0.72rem;font-weight:700;color:{col};">'
             f'{arrow} {ev["count"]} signals{fresh_note}</span>'
             f'</div>'
-            f'<div style="font-size:0.74rem;color:#5A5450;margin-top:3px;">{ev["name"][:35]}</div>'
-            f'<div style="font-size:0.68rem;color:#8B7355;margin-top:4px;line-height:1.4;">{sigs}</div>'
+            f'<div style="font-size:0.74rem;color:#8892AA;margin-top:3px;">{ev["name"][:35]}</div>'
+            f'<div style="font-size:0.68rem;color:#6B7FBF;margin-top:4px;line-height:1.4;">{sigs}</div>'
             f'</div>'
         )
 
     if bull_events:
         st.markdown(
-            '<div style="font-size:0.70rem;font-weight:700;color:#1B5E20;'
-            'letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">'
+            '<div style="font-size:0.70rem;font-weight:700;color:#00D566;'
+            'letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;font-family:Inter,sans-serif;">'
             '⚡ BULLISH CONVERGENCE</div>',
             unsafe_allow_html=True,
         )
@@ -217,8 +217,8 @@ def render_convergence_events(
 
     if bear_events:
         st.markdown(
-            '<div style="font-size:0.70rem;font-weight:700;color:#7B1010;'
-            'letter-spacing:0.08em;text-transform:uppercase;margin:8px 0 6px;">'
+            '<div style="font-size:0.70rem;font-weight:700;color:#FF4444;'
+            'letter-spacing:0.08em;text-transform:uppercase;margin:8px 0 6px;font-family:Inter,sans-serif;">'
             '⚡ BEARISH CONVERGENCE</div>',
             unsafe_allow_html=True,
         )

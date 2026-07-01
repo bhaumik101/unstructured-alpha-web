@@ -50,9 +50,9 @@ _SIG_META: dict[str, dict] = {
 }
 
 _REGIME_THRESHOLDS = {
-    "RISK-ON":      (0.58, "#1B5E20"),   # >58% bullish
-    "RISK-OFF":     (0.00, "#7B1010"),   # <42% bullish (handled below)
-    "TRANSITIONING": (0.00, "#8B7355"), # default
+    "RISK-ON":      (0.58, "#00D566"),   # >58% bullish
+    "RISK-OFF":     (0.00, "#FF4444"),   # <42% bullish (handled below)
+    "TRANSITIONING": (0.00, "#6B7FBF"), # default
 }
 
 _SECTOR_DESCRIPTIONS: dict[str, str] = {
@@ -106,15 +106,15 @@ def generate_narrative(signal_scores: dict) -> dict:
 
     # Regime
     if bull_pct >= 0.58:
-        regime, regime_color = "RISK-ON", "#1B5E20"
+        regime, regime_color = "RISK-ON", "#00D566"
     elif bear_pct >= 0.52:
-        regime, regime_color = "RISK-OFF", "#7B1010"
+        regime, regime_color = "RISK-OFF", "#FF4444"
     elif bull_pct >= 0.48:
-        regime, regime_color = "LEANING BULLISH", "#2E6B35"
+        regime, regime_color = "LEANING BULLISH", "#00A847"
     elif bear_pct >= 0.44:
-        regime, regime_color = "LEANING BEARISH", "#8B2020"
+        regime, regime_color = "LEANING BEARISH", "#CC3333"
     else:
-        regime, regime_color = "MIXED SIGNALS", "#8B7355"
+        regime, regime_color = "MIXED SIGNALS", "#6B7FBF"
 
     # Top signals
     top_bull = sorted(bull_sigs, key=lambda x: -x[1].get("score", 50))[:3]
@@ -255,7 +255,7 @@ def _empty_narrative() -> dict:
     return {
         "headline":     "Macro environment: Loading…",
         "regime":       "LOADING",
-        "regime_color": "#8B7355",
+        "regime_color": "#6B7FBF",
         "summary":      "Signal data is loading. Refresh in a moment.",
         "top_bull":     [],
         "top_bear":     [],

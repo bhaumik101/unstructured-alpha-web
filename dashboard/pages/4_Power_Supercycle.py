@@ -40,11 +40,11 @@ render_page_header(
 
 END   = datetime.now().strftime("%Y-%m-%d")
 START = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-COLS  = {"Nuclear Fuel Chain": "#4A1B6B", "Grid & Power Infra": "#B8860B",
-         "Copper & Materials": "#B34700",  "Gas Pipelines": "#1B5E20",
-         "AI / Hyperscalers": "#1C2B4A"}
+COLS  = {"Nuclear Fuel Chain": "#4A1B6B", "Grid & Power Infra": "#F59E0B",
+         "Copper & Materials": "#B34700",  "Gas Pipelines": "#00D566",
+         "AI / Hyperscalers": "#7C3AED"}
 
-STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
+STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF"}
 
 # ── Page header ───────────────────────────────────────────────────────────────
 st.markdown("# Power Supercycle Tracker")
@@ -151,12 +151,12 @@ sc_score  = supercycle["overall_score"]
 sc_case   = supercycle["case"]
 sc_conv   = supercycle["conviction"]
 sc_status = supercycle["thesis_status"]
-sc_color  = "#1B5E20" if sc_case == "BULL" else ("#7B1010" if sc_case == "BEAR" else "#8B7355")
+sc_color  = "#00D566" if sc_case == "BULL" else ("#FF4444" if sc_case == "BEAR" else "#6B7FBF")
 
 st.markdown(f"""
 <div style="background:linear-gradient(135deg, #F0EBE1 60%, #EAE3D5);
             border-radius:8px;padding:24px 28px;
-            border:2px solid {sc_color};margin-bottom:20px;font-family:Georgia,serif;">
+            border:2px solid {sc_color};margin-bottom:20px;font-family:Inter,sans-serif;">
     <div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
         <div style="text-align:center;">
             <div style="font-size:0.72rem;color:#9E9E8E;text-transform:uppercase;letter-spacing:0.1em;">
@@ -168,10 +168,10 @@ st.markdown(f"""
             <div style="font-size:0.72rem;color:#9E9E8E;">/ 100</div>
         </div>
         <div style="flex:1;min-width:240px;">
-            <div style="font-size:1.05rem;font-weight:700;color:#1A1612;margin-bottom:8px;">
+            <div style="font-size:1.05rem;font-weight:700;color:#E8EEFF;margin-bottom:8px;">
                 {sc_status}
             </div>
-            <div style="font-size:0.9rem;color:#6B6560;">
+            <div style="font-size:0.9rem;color:#8892AA;">
                 Signal case: <b style="color:{sc_color};">{sc_case}</b> &nbsp;|&nbsp;
                 Conviction: <b>{sc_conv}</b>
             </div>
@@ -208,15 +208,15 @@ for col, (leg_name, leg_sigs) in zip(leg_cols, leg_map.items()):
     with col:
         leg_scores = [sc_scores.get(s, {}).get("score", 50) for s in leg_sigs]
         leg_avg    = np.mean(leg_scores) if leg_scores else 50
-        leg_color  = "#1B5E20" if leg_avg >= 65 else ("#7B1010" if leg_avg <= 35 else "#8B7355")
+        leg_color  = "#00D566" if leg_avg >= 65 else ("#FF4444" if leg_avg <= 35 else "#6B7FBF")
         leg_symbol = "▲" if leg_avg >= 65 else ("▼" if leg_avg <= 35 else "●")
 
         st.markdown(f"""
         <div style="background:#F0EBE1;border-radius:6px;padding:14px;
                     border-top:3px solid {leg_color};
-                    border-left:1px solid #D4C9B0;border-right:1px solid #D4C9B0;border-bottom:1px solid #D4C9B0;
-                    text-align:center;font-family:Georgia,serif;">
-            <div style="font-size:0.82rem;font-weight:700;color:#1A1612;">{leg_name}</div>
+                    border-left:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
+                    text-align:center;font-family:Inter,sans-serif;">
+            <div style="font-size:0.82rem;font-weight:700;color:#E8EEFF;">{leg_name}</div>
             <div style="font-size:2.2rem;font-weight:800;color:{leg_color};">{leg_symbol} {leg_avg:.0f}</div>
             <div style="font-size:0.68rem;color:#9E9E8E;">
                 {', '.join(SIGNALS[s]['name'][:18]+'…' for s in leg_sigs if s in SIGNALS)}
@@ -270,10 +270,10 @@ if section == "Signal Trends":
         """)
 
     leg_colors = {
-        "uranium_proxy": "#4A1B6B", "copper": "#B34700", "natural_gas": "#B8860B",
-        "hyperscaler_capex": "#1C2B4A", "semiconductor_etf": "#0D4F5C",
-        "ata_trucking": "#1B5E20", "jobless_claims": "#7B1010",
-        "ism_pmi": "#5D4037", "crude_oil": "#8B7355",
+        "uranium_proxy": "#4A1B6B", "copper": "#B34700", "natural_gas": "#F59E0B",
+        "hyperscaler_capex": "#7C3AED", "semiconductor_etf": "#00C8E0",
+        "ata_trucking": "#00D566", "jobless_claims": "#FF4444",
+        "ism_pmi": "#5D4037", "crude_oil": "#6B7FBF",
     }
 
     def _window_and_resample(s: pd.Series, period: str) -> pd.Series:
@@ -333,15 +333,15 @@ if section == "Signal Trends":
         fig_legs.add_hline(y=100, line_dash="dot", line_color="#9E9E8E", line_width=1, row=row, col=col)
 
     fig_legs.update_layout(
-        height=260 * _n_rows, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-        font=dict(color="#1A1612"), showlegend=True,
-        legend=dict(font=dict(size=9, color="#1A1612"), bgcolor="rgba(250,247,240,0.92)",
+        height=260 * _n_rows, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+        font=dict(color="#E8EEFF"), showlegend=True,
+        legend=dict(font=dict(size=9, color="#E8EEFF"), bgcolor="rgba(18,21,30,0.90)",
                     orientation="h", y=-0.06, x=0.5, xanchor="center"),
         margin=dict(l=0, r=0, t=40, b=10),
     )
-    fig_legs.update_xaxes(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(size=9, color="#6B6560"))
-    fig_legs.update_yaxes(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(size=9, color="#6B6560"))
-    fig_legs.update_annotations(font=dict(size=11, color="#1C2B4A"))
+    fig_legs.update_xaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(size=9, color="#8892AA"))
+    fig_legs.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(size=9, color="#8892AA"))
+    fig_legs.update_annotations(font=dict(size=11, color="#7C3AED"))
     st.plotly_chart(fig_legs, use_container_width=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -377,11 +377,11 @@ elif section == "Ticker Performance":
 
     perf_fig.add_hline(y=100, line_dash="dash", line_color="#9E9E8E", annotation_text="Baseline (100)")
     perf_fig.update_layout(
-        height=360, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-        xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-        yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+        height=360, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+        xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA")),
+        yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA"),
                    title="Equal-Weight Basket (normalized to 100)"),
-        legend=dict(font=dict(size=10, color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
+        legend=dict(font=dict(size=10, color="#E8EEFF"), bgcolor="rgba(18,21,30,0.90)"),
         hovermode="x unified", margin=dict(l=0, r=0, t=10, b=0),
     )
     st.plotly_chart(perf_fig, use_container_width=True)
@@ -390,7 +390,7 @@ elif section == "Ticker Performance":
     for basket_name, basket_tickers in POWER_SUPERCYCLE_TICKERS.items():
         bc1, bc2 = st.columns([1, 5])
         bc1.markdown(
-            f'<div style="font-size:0.75rem;color:#8B7355;font-family:Georgia,serif;'
+            f'<div style="font-size:0.75rem;color:#6B7FBF;font-family:Inter,sans-serif;'
             f'padding-top:6px;font-weight:600;">{basket_name}</div>',
             unsafe_allow_html=True,
         )
@@ -440,20 +440,20 @@ elif section == "Copper COT":
         fig_cot = go.Figure()
         fig_cot.add_trace(go.Bar(
             x=cot_chart["date"], y=cot_chart["spec_net"],
-            name="Speculator Net", marker_color="#1C2B4A", opacity=0.8,
+            name="Speculator Net", marker_color="#7C3AED", opacity=0.8,
         ))
         fig_cot.add_trace(go.Bar(
             x=cot_chart["date"], y=cot_chart["comm_net"],
-            name="Commercial Net", marker_color="#B8860B", opacity=0.8,
+            name="Commercial Net", marker_color="#F59E0B", opacity=0.8,
         ))
         fig_cot.add_hline(y=0, line_color="#9E9E8E")
         fig_cot.update_layout(
             title="Copper COT — Speculator vs. Commercial Positioning (52 weeks)",
-            height=320, barmode="group", paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-            xaxis=dict(showgrid=False, tickfont=dict(color="#6B6560")),
-            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+            height=320, barmode="group", paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+            xaxis=dict(showgrid=False, tickfont=dict(color="#8892AA")),
+            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA"),
                        title="Net Contracts"),
-            legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
+            legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(18,21,30,0.90)"),
             margin=dict(l=0, r=0, t=30, b=0),
         )
         st.plotly_chart(fig_cot, use_container_width=True)
@@ -506,7 +506,7 @@ elif section == "Quantum":
         fig_arx.add_trace(go.Scatter(
             x=rolling_4w.index, y=rolling_4w.values,
             name="4-week rolling avg", mode="lines",
-            line=dict(color="#0D4F5C", width=2),
+            line=dict(color="#00C8E0", width=2),
         ))
         fig_arx.add_hline(
             y=arxiv_52w_avg, line_dash="dash", line_color="#9E9E8E",
@@ -514,11 +514,11 @@ elif section == "Quantum":
         )
         fig_arx.update_layout(
             title="Quantum Computing Papers on arXiv (quant-ph, error correction / fault tolerant)",
-            height=320, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-            xaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560")),
-            yaxis=dict(showgrid=True, gridcolor="#E8E0CE", tickfont=dict(color="#6B6560"),
+            height=320, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+            xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA")),
+            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(color="#8892AA"),
                        title="Papers per week"),
-            legend=dict(font=dict(color="#1A1612"), bgcolor="rgba(250,247,240,0.92)"),
+            legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(18,21,30,0.90)"),
             margin=dict(l=0, r=0, t=30, b=0),
         )
         st.plotly_chart(fig_arx, use_container_width=True)
@@ -566,11 +566,11 @@ elif section == "Nuclear Contracts":
         col.markdown(f"""
         <div style="background:#F0EBE1;border-radius:6px;padding:14px;
                     border-left:3px solid {vel_color};
-                    border-top:1px solid #D4C9B0;border-right:1px solid #D4C9B0;border-bottom:1px solid #D4C9B0;
-                    margin-bottom:8px;font-family:Georgia,serif;">
-            <div style="font-size:0.82rem;font-weight:700;color:#1A1612;">{display_name}</div>
+                    border-top:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
+                    margin-bottom:8px;font-family:Inter,sans-serif;">
+            <div style="font-size:0.82rem;font-weight:700;color:#E8EEFF;">{display_name}</div>
             <div style="font-size:1.4rem;font-weight:700;color:{vel_color};">{vel_pct:+.1f}%</div>
-            <div style="font-size:0.75rem;color:#6B6560;">
+            <div style="font-size:0.75rem;color:#8892AA;">
                 Recent 6m: ${vel_recent:,.0f}<br>Prior 6m: ${vel_prior:,.0f}
             </div>
         </div>

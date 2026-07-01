@@ -195,29 +195,29 @@ st.markdown("""
 <style>
 .block-container { padding-top: 0.5rem !important; }
 .bt-card {
-    background: #FAF6F0;
-    border: 1px solid #DDD5C5;
+    background: #12151E;
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 8px;
     padding: 14px 18px;
     margin-bottom: 12px;
-    font-family: Georgia, serif;
+    font-family: Inter, sans-serif;
 }
 .bt-stat {
     text-align: center;
-    background: #FAFAF7;
-    border: 1px solid #D4C9B0;
+    background: #0F1118;
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 8px;
     padding: 14px 10px;
 }
-.bt-stat-n  { font-size: 1.8rem; font-weight: 800; color: #1A1612; font-family: Georgia, serif; }
-.bt-stat-l  { font-size: 0.68rem; color: #8B7355; letter-spacing: 0.10em; font-weight: 600; margin-top: 2px; }
-.bt-win-pos { color: #1B5E20; }
-.bt-win-neg { color: #7B1010; }
+.bt-stat-n  { font-size: 1.8rem; font-weight: 800; color: #E8EEFF; font-family: Inter, sans-serif; }
+.bt-stat-l  { font-size: 0.68rem; color: #6B7FBF; letter-spacing: 0.10em; font-weight: 600; margin-top: 2px; }
+.bt-win-pos { color: #00D566; }
+.bt-win-neg { color: #FF4444; }
 .bt-section-hdr {
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.12em;
-    color: #8B7355;
+    color: #6B7FBF;
     text-transform: uppercase;
     margin-bottom: 8px;
     border-bottom: 1px solid #E0D5C5;
@@ -227,8 +227,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("""
-<div style="font-family:Georgia,serif;margin-bottom:6px;">
-    <div style="font-size:1.55rem;font-weight:800;color:#1A1612;">🔬 Custom Signal Backtester</div>
+<div style="font-family:Inter,sans-serif;margin-bottom:6px;">
+    <div style="font-size:1.55rem;font-weight:800;color:#E8EEFF;">🔬 Custom Signal Backtester</div>
     <div style="font-size:0.85rem;color:#6B5E52;line-height:1.5;margin-top:4px;max-width:760px;">
     Build a multi-signal rule and test it against every historical instance
     in our signal database. Forward returns computed via yfinance.
@@ -412,12 +412,12 @@ with _left:
     _early, _late, _n_rows = _get_data_window()
     if _early and _late:
         st.markdown(
-            f'<div class="bt-card" style="border-left:3px solid #B8860B;">'
+            f'<div class="bt-card" style="border-left:3px solid #F59E0B;">'
             f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;'
-            f'color:#B8860B;margin-bottom:4px;">SIGNAL HISTORY WINDOW</div>'
-            f'<div style="font-size:0.82rem;color:#2A2420;">'
+            f'color:#F59E0B;margin-bottom:4px;">SIGNAL HISTORY WINDOW</div>'
+            f'<div style="font-size:0.82rem;color:#E8EEFF;">'
             f'{_early} → {_late}</div>'
-            f'<div style="font-size:0.72rem;color:#8B7355;margin-top:2px;">'
+            f'<div style="font-size:0.72rem;color:#6B7FBF;margin-top:2px;">'
             f'{_n_rows:,} snapshots across all signals · grows daily</div>'
             f'</div>',
             unsafe_allow_html=True,
@@ -464,7 +464,7 @@ with _left:
     signal_rules: list[dict] = []
     if selected_labels:
         st.markdown(
-            '<div style="font-size:0.72rem;color:#8B7355;margin:6px 0 4px;">'
+            '<div style="font-size:0.72rem;color:#6B7FBF;margin:6px 0 4px;">'
             'Set threshold for each signal (score 0–100):</div>',
             unsafe_allow_html=True,
         )
@@ -506,9 +506,9 @@ with _left:
 with _right:
     if not run_pressed:
         st.markdown("""
-        <div style="text-align:center;padding:60px 20px;font-family:Georgia,serif;color:#8B7355;">
+        <div style="text-align:center;padding:60px 20px;font-family:Inter,sans-serif;color:#6B7FBF;">
             <div style="font-size:2.5rem;margin-bottom:12px;">🔬</div>
-            <div style="font-size:1.1rem;font-weight:700;color:#2A2420;margin-bottom:8px;">
+            <div style="font-size:1.1rem;font-weight:700;color:#E8EEFF;margin-bottom:8px;">
                 Configure your signal rule and click Run
             </div>
             <div style="font-size:0.85rem;line-height:1.65;max-width:480px;margin:0 auto;">
@@ -551,10 +551,10 @@ with _right:
             st.markdown(
                 f'<div class="bt-card">'
                 f'<div class="bt-section-hdr">RULE</div>'
-                f'<div style="font-size:0.82rem;color:#2A2420;line-height:1.65;">'
+                f'<div style="font-size:0.82rem;color:#E8EEFF;line-height:1.65;">'
                 + " &nbsp;AND&nbsp; ".join(rule_parts) +
                 f'</div>'
-                f'<div style="font-size:0.72rem;color:#8B7355;margin-top:6px;">'
+                f'<div style="font-size:0.72rem;color:#6B7FBF;margin-top:6px;">'
                 f'Ticker: <b>{_html_mod.escape(ticker_input)}</b> · Direction: <b>{"BULLISH" if direction_key == "bull" else "BEARISH"}</b>'
                 f' · Instances found: <b>{n_instances}</b>'
                 f'</div>'
@@ -654,11 +654,11 @@ with _right:
                         height=340,
                         margin=dict(l=0, r=0, t=28, b=0),
                         paper_bgcolor="rgba(0,0,0,0)",
-                        plot_bgcolor="#FAFAF7",
-                        font=dict(family="Georgia, serif", size=12, color="#2A2420"),
+                        plot_bgcolor="#0F1118",
+                        font=dict(family="Inter, sans-serif", size=12, color="#8892AA"),
                         title=dict(
                             text=f"{ticker_input.upper()} forward returns across {n_res} instances",
-                            font=dict(size=13, color="#1A1612"),
+                            font=dict(size=13, color="#E8EEFF"),
                             x=0,
                         ),
                         yaxis=dict(
@@ -672,7 +672,7 @@ with _right:
 
                     # ── Return distribution summary ────────────────────────────
                     def _sign_html(v: float) -> str:
-                        col = "#1B5E20" if v > 0 else ("#7B1010" if v < 0 else "#888")
+                        col = "#00D566" if v > 0 else ("#FF4444" if v < 0 else "#888")
                         sgn = "+" if v > 0 else ""
                         return f'<span style="color:{col};font-weight:700;">{sgn}{v:.1f}%</span>'
 
@@ -680,7 +680,7 @@ with _right:
                         f'<div class="bt-card">'
                         f'<div class="bt-section-hdr">RETURN DISTRIBUTION SUMMARY</div>'
                         f'<table style="width:100%;font-size:0.80rem;border-collapse:collapse;">'
-                        f'<tr style="color:#8B7355;">'
+                        f'<tr style="color:#6B7FBF;">'
                         f'<th style="text-align:left;padding:3px 0;">Horizon</th>'
                         f'<th style="text-align:center;">Median</th>'
                         f'<th style="text-align:center;">Mean</th>'
@@ -695,7 +695,7 @@ with _right:
                             f'<td style="text-align:center;">{_sign_html(bt_df[col].mean()*100)}</td>'
                             f'<td style="text-align:center;">{_sign_html(bt_df[col].max()*100)}</td>'
                             f'<td style="text-align:center;">{_sign_html(bt_df[col].min()*100)}</td>'
-                            f'<td style="text-align:center;font-weight:700;color:{"#1B5E20" if bt_df[c_col].mean()*100>=55 else "#7B1010"}">'
+                            f'<td style="text-align:center;font-weight:700;color:{"#00D566" if bt_df[c_col].mean()*100>=55 else "#FF4444"}">'
                             f'{bt_df[c_col].mean()*100:.0f}%</td>'
                             f'</tr>'
                             for hz, col, c_col in [
@@ -732,7 +732,7 @@ with _right:
 
                     # ── Honest caveats ────────────────────────────────────────
                     st.markdown(
-                        f'<div style="font-size:0.70rem;color:#8B7355;font-family:\'Georgia\',serif;'
+                        f'<div style="font-size:0.70rem;color:#6B7FBF;font-family:\'Georgia\',serif;'
                         f'margin-top:6px;line-height:1.6;">'
                         f'⚠ Past results do not guarantee future performance. '
                         f'Signal history is based on {_early or "N/A"} → {_late or "N/A"} snapshots. '

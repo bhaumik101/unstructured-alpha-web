@@ -258,9 +258,9 @@ def mini_sparkline(series: pd.Series, color: str, period: str, show_axes: bool =
         fig.update_layout(
             height=90, margin=dict(l=0, r=0, t=4, b=18),
             paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            xaxis=dict(visible=True, showgrid=False, tickfont=dict(color="#8B7355", size=8), nticks=4),
-            yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(0,0,0,0.06)",
-                       tickfont=dict(color="#8B7355", size=8), tickprefix="$", nticks=3),
+            xaxis=dict(visible=True, showgrid=False, tickfont=dict(color="#8892AA", size=8), nticks=4),
+            yaxis=dict(visible=True, showgrid=True, gridcolor="rgba(255,255,255,0.04)",
+                       tickfont=dict(color="#8892AA", size=8), tickprefix="$", nticks=3),
             showlegend=False,
         )
     else:

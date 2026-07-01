@@ -31,7 +31,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["JBHT", "ODFL", "SAIA", "WERN", "UPS", "FDX", "XLI", "SPY"],
         "category": "macro",
-        "color": "#1C2B4A",
+        "color": "#7C3AED",
         "source_url": "https://www.trucking.org/economics-and-industry-data",
     },
 
@@ -53,7 +53,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["UNP", "CSX", "NSC", "CP", "CNI", "XLI"],
         "category": "macro",
-        "color": "#1B5E20",
+        "color": "#00D566",
         "source_url": "https://www.aar.org/data/weekly-railroad-traffic/",
     },
 
@@ -75,7 +75,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "QQQ", "XLY", "IWM", "XLP", "HD", "AMZN"],
         "category": "macro",
-        "color": "#7B1010",
+        "color": "#FF4444",
         "source_url": "https://www.dol.gov/ui/data.pdf",
     },
 
@@ -97,7 +97,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["XLY", "XLP", "HD", "TGT", "WMT", "AMZN", "COST", "LOW"],
         "category": "macro",
-        "color": "#B34700",
+        "color": "#F59E0B",
         "source_url": "https://www.bls.gov/jlt/",
     },
 
@@ -119,7 +119,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "XLY", "WMT", "TGT", "COST", "HD", "LOW", "IWM"],
         "category": "macro",
-        "color": "#0D4F5C",
+        "color": "#00C8E0",
         "source_url": "https://www.bls.gov/jlt/",
     },
 
@@ -173,7 +173,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "XLF", "IWM", "KRE", "TLT", "TBF", "SHY"],
         "category": "macro",
-        "color": "#8B7355",
+        "color": "#6B7FBF",
         "source_url": "https://fred.stlouisfed.org/series/T10Y2Y",
     },
 
@@ -217,7 +217,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["XLY", "AMZN", "WMT", "TGT", "COST", "HD", "LOW", "KSS", "M"],
         "category": "macro",
-        "color": "#1C2B4A",
+        "color": "#7C3AED",
         "source_url": "https://fred.stlouisfed.org/series/RSXFS",
     },
 
@@ -239,7 +239,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["XLY", "COST", "TGT", "HD", "LOW", "DPZ", "MCD", "SBUX"],
         "category": "macro",
-        "color": "#B34700",
+        "color": "#F59E0B",
         "source_url": "https://fred.stlouisfed.org/series/UMCSENT",
     },
 
@@ -261,7 +261,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "XLF", "HYG", "JNK", "TLT", "KRE", "LQD"],
         "category": "macro",
-        "color": "#7B1010",
+        "color": "#FF4444",
         "source_url": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2",
     },
 
@@ -283,7 +283,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["XLI", "CAT", "DE", "HON", "ETN", "ROK", "EMR", "GE", "PH"],
         "category": "macro",
-        "color": "#0D4F5C",
+        "color": "#00C8E0",
         "source_url": "https://fred.stlouisfed.org/series/DGORDER",
     },
 
@@ -330,7 +330,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["KR", "ACI", "SJM", "CAG", "ADM", "BG", "MOS", "NTR"],
         "category": "macro",
-        "color": "#1B5E20",
+        "color": "#00D566",
         "source_url": "https://www.bls.gov/cpi/",
     },
 
@@ -502,7 +502,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["CEG", "VST", "NEE", "AES", "ETN", "VRT", "PWR", "FCX", "CCJ"],
         "category": "nuclear",
-        "color": "#1C2B4A",
+        "color": "#7C3AED",
         "source_url": "https://www.eia.gov/electricity/",
     },
 
@@ -524,7 +524,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["FCX", "SCCO", "COPX", "TECK", "BHP", "SBSW", "CAT"],
         "category": "ai_infrastructure",
-        "color": "#B34700",
+        "color": "#F59E0B",
         "source_url": "https://www.lme.com/Metals/Non-ferrous/LME-Copper",
     },
 
@@ -548,7 +548,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "QQQ", "IWM", "XLF", "VIXY", "UVXY"],
         "category": "macro",
-        "color": "#7B1010",
+        "color": "#FF4444",
         "source_url": "https://finance.yahoo.com/quote/%5EVIX",
     },
 
@@ -570,7 +570,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["GLD", "GOLD", "FCX", "SCCO", "EEM", "EFA", "XOM", "CVX"],
         "category": "macro",
-        "color": "#0D4F5C",
+        "color": "#00C8E0",
         "source_url": "https://finance.yahoo.com/quote/DX-Y.NYB",
     },
 
@@ -616,7 +616,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "QQQ", "GLD", "BTC-USD", "IWM", "XLF"],
         "category": "macro",
-        "color": "#1C2B4A",
+        "color": "#7C3AED",
         "source_url": "https://fred.stlouisfed.org/series/M2SL",
     },
 
@@ -638,7 +638,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["XLF", "KRE", "SPY", "IWM", "HYG", "TLT"],
         "category": "macro",
-        "color": "#1C2B4A",
+        "color": "#7C3AED",
         "source_url": "https://finance.yahoo.com/quote/LQD",
     },
 
@@ -717,7 +717,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["NVDA", "AMD", "SMCI", "DELL", "VRT", "ETN", "PWR", "EQIX", "DLR"],
         "category": "ai_infrastructure",
-        "color": "#1C2B4A",
+        "color": "#7C3AED",
         "source_url": "https://www.sec.gov/cgi-bin/browse-edgar",
     },
 
@@ -1046,7 +1046,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "QQQ", "IWM", "XLF", "XLE"],
         "category": "macro",
-        "color": "#7B1010",
+        "color": "#FF4444",
         "source_url": "https://fred.stlouisfed.org/series/CPCE",
     },
 
@@ -1068,7 +1068,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "IWM", "XLF", "XLI", "FCX", "SCCO", "TLT"],
         "category": "macro",
-        "color": "#B34700",
+        "color": "#F59E0B",
         "source_url": "https://finance.yahoo.com/quote/HG=F",
     },
 
@@ -1112,7 +1112,7 @@ SIGNALS = {
         ],
         "relevant_tickers": ["SPY", "QQQ", "VIXY", "UVXY", "SPXU"],
         "category": "macro",
-        "color": "#0D4F5C",
+        "color": "#00C8E0",
         "source_url": "https://finance.yahoo.com/quote/%5EVIX9D",
     },
 }
@@ -1481,7 +1481,7 @@ THIRTEENF_CUSIP_TO_TICKER = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 CATEGORIES = {
-    "macro":              {"name": "Macro & Liquidity",      "icon": "", "color": "#1C2B4A"},
+    "macro":              {"name": "Macro & Liquidity",      "icon": "", "color": "#7C3AED"},
     "energy":             {"name": "Energy & Oil",           "icon": "", "color": "#5D4037"},
     "nuclear":            {"name": "Power & Nuclear",        "icon": "", "color": "#4A1B6B"},
     "ai_infrastructure":  {"name": "AI Infrastructure",      "icon": "", "color": "#B8860B"},

@@ -51,7 +51,7 @@ SECTOR_META = {
     "ai_infrastructure": {
         "name":  "Technology & AI",
         "icon":  "💻",
-        "color": "#1C2B4A",
+        "color": "#7C3AED",
         "etf":   "XLK / SMH",
         "desc":  "Hyperscaler capex, semiconductor demand, AI infrastructure build-out",
     },
@@ -65,21 +65,21 @@ SECTOR_META = {
     "nuclear": {
         "name":  "Nuclear / Utilities",
         "icon":  "⚡",
-        "color": "#7B1010",
+        "color": "#FF4444",
         "etf":   "XLU / URA",
         "desc":  "Uranium spot price, nuclear contract awards, power demand",
     },
     "financials": {
         "name":  "Financials",
         "icon":  "🏦",
-        "color": "#B8860B",
+        "color": "#F59E0B",
         "etf":   "XLF / KRE",
         "desc":  "Credit spreads, yield curve shape, interest rate environment",
     },
     "healthcare": {
         "name":  "Healthcare",
         "icon":  "🏥",
-        "color": "#1B5E20",
+        "color": "#00D566",
         "etf":   "XLV / IBB",
         "desc":  "Healthcare utilization, biotech funding, drug pricing signals",
     },
@@ -100,15 +100,15 @@ SECTOR_META = {
     "macro": {
         "name":  "Macro Backdrop",
         "icon":  "📊",
-        "color": "#0D4F5C",
+        "color": "#00C8E0",
         "etf":   "SPY / TLT",
         "desc":  "Rates, credit, housing, freight, jobless claims — the broader economic backdrop",
     },
 }
 
-STATUS_COLOR  = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
+STATUS_COLOR  = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF"}
 STATUS_LABEL  = {"bullish": "▲ BULLISH", "bearish": "▼ BEARISH", "neutral": "● MIXED"}
-STATUS_BG     = {"bullish": "#EDF7ED", "bearish": "#FDF0F0", "neutral": "#FAF7F0"}
+STATUS_BG     = {"bullish": "rgba(0,213,102,0.08)", "bearish": "rgba(255,68,68,0.08)", "neutral": "rgba(107,127,191,0.06)"}
 
 
 # ── Signal scoring — grouped by category ─────────────────────────────────────
@@ -202,8 +202,8 @@ _market_status = "bullish" if _bull_sectors > _bear_sectors + _neut_sectors * 0.
 _market_color = STATUS_COLOR[_market_status]
 
 st.markdown(f"""
-<div style="background:#1C2B4A;border-radius:10px;padding:18px 24px;margin-bottom:20px;
-            font-family:Georgia,serif;color:#FAF7F0;">
+<div style="background:#7C3AED;border-radius:10px;padding:18px 24px;margin-bottom:20px;
+            font-family:Inter,sans-serif;color:#12151E;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <div>
             <div style="font-size:0.68rem;letter-spacing:0.10em;color:#C9A84C;margin-bottom:4px;">
@@ -226,8 +226,8 @@ st.markdown(f"""
                 <div style="font-size:0.70rem;color:#EF9A9A;letter-spacing:0.06em;">BEARISH</div>
             </div>
             <div>
-                <div style="font-size:1.6rem;font-weight:800;color:#D4C9B0;">{_neut_sectors}</div>
-                <div style="font-size:0.70rem;color:#D4C9B0;letter-spacing:0.06em;">MIXED</div>
+                <div style="font-size:1.6rem;font-weight:800;color:rgba(255,255,255,0.08);">{_neut_sectors}</div>
+                <div style="font-size:0.70rem;color:rgba(255,255,255,0.08);letter-spacing:0.06em;">MIXED</div>
             </div>
         </div>
     </div>
@@ -250,7 +250,7 @@ _ordered_cats = sorted(
 _grid_cols = st.columns(3)
 for _i, _cat in enumerate(_ordered_cats):
     _d  = _sector_scores[_cat]
-    _m  = SECTOR_META.get(_cat, {"name": _cat, "icon": "●", "color": "#8B7355",
+    _m  = SECTOR_META.get(_cat, {"name": _cat, "icon": "●", "color": "#6B7FBF",
                                    "etf": "", "desc": ""})
     _sc = _d["score"]
     _st = _d["status"]
@@ -263,7 +263,7 @@ for _i, _cat in enumerate(_ordered_cats):
     # Top signals for this sector
     _top_html = ""
     for _sig_name, _sig_score, _sig_st in _d["top_signals"]:
-        _sig_c = STATUS_COLOR.get(_sig_st, "#8B7355")
+        _sig_c = STATUS_COLOR.get(_sig_st, "#6B7FBF")
         _sig_sym = "▲" if _sig_st == "bullish" else ("▼" if _sig_st == "bearish" else "●")
         _top_html += (
             f'<div style="font-size:0.72rem;color:{_sig_c};margin-top:2px;">'
@@ -273,27 +273,27 @@ for _i, _cat in enumerate(_ordered_cats):
     _col = _grid_cols[_i % 3]
     with _col:
         st.markdown(
-            f'<div style="background:{_card_bg};border:1px solid #D4C9B0;border-top:4px solid {_sc_color};'
-            f'border-radius:8px;padding:16px 18px;margin-bottom:16px;font-family:Georgia,serif;min-height:220px;">'
+            f'<div style="background:{_card_bg};border:1px solid rgba(255,255,255,0.08);border-top:4px solid {_sc_color};'
+            f'border-radius:8px;padding:16px 18px;margin-bottom:16px;font-family:Inter,sans-serif;min-height:220px;">'
             f'<div style="display:flex;align-items:center;justify-content:space-between;">'
-            f'<div style="font-size:1.1rem;font-weight:700;color:#1A1612;">{_m["icon"]} {_m["name"]}</div>'
+            f'<div style="font-size:1.1rem;font-weight:700;color:#E8EEFF;">{_m["icon"]} {_m["name"]}</div>'
             f'<div style="font-size:1.4rem;font-weight:800;color:{_sc_color};">{_sc:.0f}</div>'
             f'</div>'
-            f'<div style="font-size:0.72rem;color:#8B7355;margin-top:2px;margin-bottom:10px;">'
+            f'<div style="font-size:0.72rem;color:#6B7FBF;margin-top:2px;margin-bottom:10px;">'
             f'{_m["etf"]} &nbsp;&middot;&nbsp; {_d["n"]} signal{"s" if _d["n"] != 1 else ""}'
             f'</div>'
             f'<div style="font-weight:700;color:{_sc_color};font-size:0.82rem;margin-bottom:8px;">'
             f'{STATUS_LABEL[_st]}'
             f'</div>'
             f'<div style="display:flex;border-radius:3px;overflow:hidden;height:6px;margin-bottom:6px;">'
-            f'<div style="width:{_bar_w_b:.0f}%;background:#1B5E20;"></div>'
-            f'<div style="width:{_bar_w_n:.0f}%;background:#8B7355;"></div>'
-            f'<div style="width:{_bar_w_r:.0f}%;background:#7B1010;"></div>'
+            f'<div style="width:{_bar_w_b:.0f}%;background:#00D566;"></div>'
+            f'<div style="width:{_bar_w_n:.0f}%;background:#6B7FBF;"></div>'
+            f'<div style="width:{_bar_w_r:.0f}%;background:#FF4444;"></div>'
             f'</div>'
             f'<div style="font-size:0.68rem;color:#9E9E8E;margin-bottom:10px;">'
             f'&#9650;{_d["bull"]} bull &nbsp; &bull;{_d["neut"]} neutral &nbsp; &#9660;{_d["bear"]} bear'
             f'</div>'
-            f'<div style="border-top:1px solid #E8E0CE;padding-top:8px;">'
+            f'<div style="border-top:1px solid rgba(255,255,255,0.04);padding-top:8px;">'
             f'<div style="font-size:0.68rem;color:#9E9E8E;letter-spacing:0.06em;margin-bottom:4px;">TOP MOVERS</div>'
             f'{_top_html}'
             f'</div>'
@@ -330,15 +330,15 @@ _fig_bar = go.Figure(go.Bar(
     textposition="outside",
     hovertemplate="%{x}: %{y:.1f}<extra></extra>",
 ))
-_fig_bar.add_hline(y=65, line_dash="dot", line_color="#1B5E20", opacity=0.5,
+_fig_bar.add_hline(y=65, line_dash="dot", line_color="#00D566", opacity=0.5,
                     annotation_text="Bullish (65)", annotation_font_size=10)
-_fig_bar.add_hline(y=35, line_dash="dot", line_color="#7B1010", opacity=0.5,
+_fig_bar.add_hline(y=35, line_dash="dot", line_color="#FF4444", opacity=0.5,
                     annotation_text="Bearish (35)", annotation_font_size=10)
 _fig_bar.update_layout(
-    height=320, paper_bgcolor="#FAF7F0", plot_bgcolor="#FFFFFF",
-    font=dict(family="Georgia, serif", size=12, color="#1A1612"),
-    xaxis=dict(showgrid=False, tickfont=dict(color="#1A1612", size=11)),
-    yaxis=dict(showgrid=True, gridcolor="#E8E0CE", range=[0, 105], title="Signal Score"),
+    height=320, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
+    font=dict(family="Inter, sans-serif", size=12, color="#E8EEFF"),
+    xaxis=dict(showgrid=False, tickfont=dict(color="#E8EEFF", size=11)),
+    yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.04)", range=[0, 105], title="Signal Score"),
     margin=dict(l=0, r=0, t=20, b=0),
     showlegend=False,
 )
@@ -369,7 +369,7 @@ with st.expander("How to interpret this map"):
     """)
 
 st.markdown("""
-<div style="text-align:center;padding:16px;font-size:0.75rem;color:#9E9E8E;font-family:Georgia,serif;">
+<div style="text-align:center;padding:16px;font-size:0.75rem;color:#9E9E8E;font-family:Inter,sans-serif;">
     Unstructured Alpha · Sector scores update every 2 hours · Not financial advice
 </div>
 """, unsafe_allow_html=True)

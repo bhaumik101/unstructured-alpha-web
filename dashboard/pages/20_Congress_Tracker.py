@@ -355,7 +355,7 @@ with ch_left:
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", y=1.1),
         margin=dict(l=0, r=0, t=10, b=40),
-        font=dict(color="#C8C0B0", size=11),
+        font=dict(color="#8892AA", size=11),
         xaxis=dict(gridcolor="rgba(255,255,255,0.06)"),
         yaxis=dict(gridcolor="rgba(255,255,255,0.06)"),
     )
@@ -369,12 +369,12 @@ with ch_right:
         fig_pie = go.Figure(go.Pie(
             labels=party_buys["party"], values=party_buys["count"],
             marker_colors=colors_pie, hole=0.45,
-            textfont=dict(color="#FFFFFF", size=12),
+            textfont=dict(color="#0F1118", size=12),
         ))
         fig_pie.update_layout(
             height=280, margin=dict(l=0, r=0, t=10, b=10),
             paper_bgcolor="rgba(0,0,0,0)",
-            legend=dict(font=dict(color="#C8C0B0")),
+            legend=dict(font=dict(color="#8892AA")),
             showlegend=True,
         )
         st.plotly_chart(fig_pie, use_container_width=True)
@@ -474,7 +474,7 @@ if not net_df.empty:
     fig_net.update_layout(
         height=280, margin=dict(l=0, r=0, t=10, b=40),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="#C8C0B0", size=11),
+        font=dict(color="#8892AA", size=11),
         xaxis=dict(gridcolor="rgba(255,255,255,0.06)"),
         yaxis=dict(gridcolor="rgba(255,255,255,0.06)", title="Net Trades (Buy - Sell)"),
         showlegend=False,

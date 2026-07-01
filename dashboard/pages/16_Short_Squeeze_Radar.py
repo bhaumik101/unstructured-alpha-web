@@ -200,8 +200,8 @@ def build_squeeze_radar(signal_hash: int = 0) -> pd.DataFrame:
 
 st.markdown("# 🔥 Short Squeeze Radar")
 st.markdown(
-    '<div style="font-family:Georgia,serif;font-size:0.92rem;color:#4A4440;margin-bottom:18px;'
-    'background:#FAF7F0;border-left:4px solid #C9A84C;padding:12px 16px;border-radius:0 8px 8px 0;">'
+    '<div style="font-family:Inter,sans-serif;font-size:0.92rem;color:#4A4440;margin-bottom:18px;'
+    'background:#12151E;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:0 8px 8px 0;">'
     '<b>What this page does:</b> Finds tickers where (1) short sellers are heavily positioned, '
     '(2) the macro signal engine says the fundamentals are turning bullish against those shorts, '
     'and (3) company insiders have been buying in the last 21 days. '
@@ -236,8 +236,8 @@ _tier1 = _df[
 _tier2 = _df[~_df["ticker"].isin(_tier1["ticker"])].head(12)
 
 st.markdown(
-    '<div style="background:#1C2B4A;border-radius:10px;padding:14px 20px;margin-bottom:18px;">'
-    '<div style="font-size:0.68rem;letter-spacing:0.12em;color:#C9A84C;font-weight:700;'
+    '<div style="background:#7C3AED;border-radius:10px;padding:14px 20px;margin-bottom:18px;">'
+    '<div style="font-size:0.68rem;letter-spacing:0.12em;color:#F59E0B;font-weight:700;'
     'text-transform:uppercase;margin-bottom:4px;">HIGH CONVICTION — ALL THREE FACTORS ALIGNED</div>'
     f'<div style="font-size:0.90rem;color:#EEF3FA;">'
     f'<b>{len(_tier1)} setup{"s" if len(_tier1) != 1 else ""}</b> with high short interest + bullish macro + insider buying</div>'
@@ -247,12 +247,12 @@ st.markdown(
 
 def _squeeze_card(row: pd.Series, is_tier1: bool = False) -> str:
     """Render one ticker's squeeze card as HTML."""
-    bg = "#FAF7F0" if not is_tier1 else "#FFFDF5"
-    border_color = "#C9A84C" if is_tier1 else "#D4C9B0"
+    bg = "#12151E" if not is_tier1 else "#0F1118"
+    border_color = "#F59E0B" if is_tier1 else "rgba(255,255,255,0.08)"
     sq_color = (
-        "#1B5E20" if row["squeeze_score"] >= 75 else
+        "#00D566" if row["squeeze_score"] >= 75 else
         "#B8860B" if row["squeeze_score"] >= 55 else
-        "#8B7355"
+        "#6B7FBF"
     )
     insider_html = (
         f'🔥 {row["insider_buyers"]} insider buy{"s" if row["insider_buyers"] > 1 else ""} (21d)'
@@ -263,22 +263,22 @@ def _squeeze_card(row: pd.Series, is_tier1: bool = False) -> str:
     fire_badge = "🔥 " if is_tier1 else ""
     return (
         f'<div style="background:{bg};border-radius:8px;padding:12px 16px;margin-bottom:8px;'
-        f'border:1px solid {border_color};border-left:4px solid {sq_color};font-family:Georgia,serif;">'
+        f'border:1px solid {border_color};border-left:4px solid {sq_color};font-family:Inter,sans-serif;">'
         f'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
         f'  <div style="flex:1;">'
-        f'    <div style="font-size:1.0rem;font-weight:800;color:#1A1612;">{fire_badge}{row["ticker"]}</div>'
+        f'    <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;">{fire_badge}{row["ticker"]}</div>'
         f'    <div style="font-size:0.76rem;color:#4A4440;">{row["name"][:36]}</div>'
-        f'    <div style="font-size:0.67rem;color:#8B7355;margin-top:1px;">{row["sector"]}</div>'
+        f'    <div style="font-size:0.67rem;color:#6B7FBF;margin-top:1px;">{row["sector"]}</div>'
         f'  </div>'
         f'  <div style="text-align:right;min-width:70px;">'
         f'    <div style="font-size:1.3rem;font-weight:800;color:{sq_color};">{row["squeeze_score"]:.0f}</div>'
-        f'    <div style="font-size:0.63rem;color:#8B7355;text-transform:uppercase;">Squeeze Score</div>'
+        f'    <div style="font-size:0.63rem;color:#6B7FBF;text-transform:uppercase;">Squeeze Score</div>'
         f'  </div>'
         f'</div>'
         f'<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;font-size:0.72rem;">'
-        f'  <span style="background:#1C2B4A18;color:#1C2B4A;padding:2px 8px;border-radius:10px;font-weight:600;">'
+        f'  <span style="background:#7C3AED18;color:#7C3AED;padding:2px 8px;border-radius:10px;font-weight:600;">'
         f'    📊 Macro: {row["macro_score"]:.0f}/100 ({row["bull_signals"]}↑ {row["bear_signals"]}↓)</span>'
-        f'  <span style="background:#C9A84C18;color:#8B6914;padding:2px 8px;border-radius:10px;font-weight:600;">'
+        f'  <span style="background:#F59E0B18;color:#8B6914;padding:2px 8px;border-radius:10px;font-weight:600;">'
         f'    📉 Short ratio: {sr_display} (top {100-row["short_rank"]:.0f}%)</span>'
         f'  <span style="background:#4CAF5018;color:#2E7D32;padding:2px 8px;border-radius:10px;font-weight:600;">'
         f'    {insider_html}</span>'
@@ -306,7 +306,7 @@ else:
 
 st.divider()
 st.markdown(
-    '<div style="font-size:0.68rem;font-weight:700;color:#8B7355;letter-spacing:0.10em;'
+    '<div style="font-size:0.68rem;font-weight:700;color:#6B7FBF;letter-spacing:0.10em;'
     'text-transform:uppercase;margin-bottom:12px;">BROADER RADAR — MACRO BULL + ELEVATED SHORT INTEREST</div>',
     unsafe_allow_html=True,
 )

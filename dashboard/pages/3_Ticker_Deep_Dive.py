@@ -706,9 +706,9 @@ if section == "Overview":
             # Vertical dashed lines on the price chart for each earnings date
             # that falls inside the current view window.
             # Color coding:
-            #   Gold (#B8860B)  — upcoming / date not yet reported
-            #   Green (#1B5E20) — reported and beat (surprise > 0)
-            #   Red (#7B1010)   — reported and missed (surprise < 0)
+            #   Gold (#F59E0B)  — upcoming / date not yet reported
+            #   Green (#00D566) — reported and beat (surprise > 0)
+            #   Red (#FF4444)   — reported and missed (surprise < 0)
             #   Grey            — reported with no surprise data
             # Wrapped in try/except: a failed fetch never breaks the chart.
             try:
@@ -729,7 +729,7 @@ if section == "Overview":
                         continue
 
                     if not _e["reported"]:
-                        _ec = "#B8860B"        # upcoming — gold
+                        _ec = "#F59E0B"        # upcoming — gold
                         _ann = "Earnings ★"
                     elif _e["surprise_pct"] is None:
                         _ec = "#6B7FBF"        # reported, no surprise data — tan
@@ -1445,9 +1445,9 @@ if section == "Overview":
                         _when = (f"in {_days_delta}d" if _days_delta > 0
                                  else "Today" if _days_delta == 0
                                  else f"{abs(_days_delta)}d ago (est.)")
-                        _bg = "#FFF8E1"
-                        _border = "#B8860B"
-                        _badge = f'<span style="background:#B8860B;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">UPCOMING</span>'
+                        _bg = "rgba(245,158,11,0.08)"
+                        _border = "#F59E0B"
+                        _badge = f'<span style="background:#F59E0B;color:white;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">UPCOMING</span>'
                         _body = f'<div style="font-size:0.78rem;color:#8892AA;margin-top:4px;">{_when}</div>'
                         if _e["eps_estimate"] is not None:
                             _body += f'<div style="font-size:0.78rem;color:#8892AA;">Est. EPS: <b>{_e["eps_estimate"]:+.2f}</b></div>'
@@ -1463,7 +1463,7 @@ if section == "Overview":
                             _badge = f'<span style="background:#00D566;color:#0B0D12;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">BEAT +{_sp:.1f}%</span>'
                             _beat_txt = ""
                         else:
-                            _border = "#FF4444"; _bg = "#FDF0F0"
+                            _border = "#FF4444"; _bg = "rgba(255,68,68,0.08)"
                             _badge = f'<span style="background:#FF4444;color:#0B0D12;font-size:0.68rem;padding:1px 6px;border-radius:3px;font-weight:700;">MISS {_sp:.1f}%</span>'
                             _beat_txt = ""
                         _when = f"{abs(_days_delta)}d ago" if abs(_days_delta) < 365 else _e["date"].strftime("%b %d, %Y")
@@ -1875,7 +1875,7 @@ if section == "Overview":
         if _tripwire_lines:
             _items_html = "".join(
                 f'<div style="display:flex;gap:10px;margin-bottom:8px;">'
-                f'<span style="color:#B8860B;font-size:1.0rem;flex-shrink:0;">◈</span>'
+                f'<span style="color:#F59E0B;font-size:1.0rem;flex-shrink:0;">◈</span>'
                 f'<div style="font-size:0.80rem;color:#B8C0D4;line-height:1.6;">{line}</div>'
                 f'</div>'
                 for line in _tripwire_lines
@@ -1883,7 +1883,7 @@ if section == "Overview":
             st.markdown(
                 f'<div style="background:rgba(245,158,11,0.07);border-radius:8px;padding:16px 18px;'
                 f'margin:14px 0;border-left:4px solid #F59E0B;font-family:Inter,sans-serif;">'
-                f'<div style="font-size:0.72rem;font-weight:700;color:#B8860B;'
+                f'<div style="font-size:0.72rem;font-weight:700;color:#F59E0B;'
                 f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">'
                 f'{_header}</div>'
                 f'{_items_html}'
@@ -2039,7 +2039,7 @@ if section == "Overview":
 
                         if _curr_bucket_label:
                             st.markdown(
-                                f'<div style="background:#1C2B4A;border-radius:6px;padding:8px 14px;'
+                                f'<div style="background:#7C3AED;border-radius:6px;padding:8px 14px;'
                                 f'margin-bottom:12px;font-family:Inter,sans-serif;">'
                                 f'<span style="color:#C9A84C;font-size:0.70rem;text-transform:uppercase;'
                                 f'letter-spacing:0.08em;">CURRENT SCORE BUCKET</span> '
@@ -2321,7 +2321,7 @@ if section == "Overview":
 
             s_key = sig_status.split(" ")[-1].lower() if " " in sig_status else sig_status.lower()
             card_color = "#00D566" if "bullish" in s_key else ("#FF4444" if "bearish" in s_key else "#6B7FBF")
-            bg_color   = "#F0F7F0" if "bullish" in s_key else ("#FDF0F0" if "bearish" in s_key else "#F7F5F0")
+            bg_color   = "#F0F7F0" if "bullish" in s_key else ("rgba(255,68,68,0.08)" if "bearish" in s_key else "#F7F5F0")
             sym        = "▲" if "bullish" in s_key else ("▼" if "bearish" in s_key else "●")
 
             corr_note = (
@@ -2622,7 +2622,7 @@ elif section == "13F & Federal Contracts":
                     xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA")),
                     yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"),
                                title="Award Amount (USD)"),
-                    legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(250,247,240,0.9)"),
+                    legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(18,21,30,0.90)"),
                     margin=dict(l=0, r=0, t=30, b=0),
                 )
                 st.plotly_chart(fig_c, use_container_width=True)
@@ -2911,7 +2911,7 @@ elif section == "Deep Correlation Scan":
                 lags, corrs = list(lag_scan.keys()), list(lag_scan.values())
                 bar_colors = ["#00D566" if c > 0 else "#FF4444" for c in corrs]
                 if deep_lag < len(bar_colors):
-                    bar_colors[deep_lag] = "#B8860B"
+                    bar_colors[deep_lag] = "#F59E0B"
                 fig_lag = go.Figure(go.Bar(
                     x=[f"{l}w" for l in lags], y=corrs, marker_color=bar_colors,
                     text=[f"{c:+.3f}" for c in corrs], textposition="outside",
@@ -2964,7 +2964,7 @@ elif section == "Deep Correlation Scan":
                 ), secondary_y=True)
                 fig_ov.update_layout(
                     height=320, paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
-                    legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(250,247,240,0.9)"),
+                    legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(18,21,30,0.90)"),
                     hovermode="x unified",
                     xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA")),
                     margin=dict(l=0, r=0, t=20, b=0),

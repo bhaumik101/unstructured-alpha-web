@@ -185,7 +185,7 @@ else:
                     import plotly.graph_objects as go
                     _sh_scores = [h["score"] for h in _score_hist]
                     _sh_dates  = [h["snapshot_date"] for h in _score_hist]
-                    _sh_color  = "#1B5E20" if _sh_scores[-1] >= _sh_scores[0] else "#7B1010"
+                    _sh_color  = "#00D566" if _sh_scores[-1] >= _sh_scores[0] else "#FF4444"
                     _sh_fig = go.Figure(go.Scatter(
                         x=_sh_dates, y=_sh_scores, mode="lines",
                         line=dict(color=_sh_color, width=1.5),
@@ -217,7 +217,7 @@ else:
             else:
                 st.caption("Price unavailable")
             if chg_pct is not None:
-                _cc = "#1B5E20" if chg_pct > 0 else ("#7B1010" if chg_pct < 0 else "#8B7355")
+                _cc = "#00D566" if chg_pct > 0 else ("#FF4444" if chg_pct < 0 else "#6B7FBF")
                 _ca = "▲" if chg_pct > 0 else ("▼" if chg_pct < 0 else "●")
                 st.markdown(
                     f'<span style="color:{_cc};font-size:0.85rem;">{_ca} {chg_pct:+.2f}%</span>',
@@ -231,13 +231,13 @@ else:
             _post_c = pp.get("post_pct")
             _ext_lines = []
             if _pre_p is not None:
-                _ec = "#1B5E20" if (_pre_c or 0) >= 0 else "#7B1010"
+                _ec = "#00D566" if (_pre_c or 0) >= 0 else "#FF4444"
                 _ext_lines.append(
                     f'<span style="color:{_ec};font-size:0.72rem;">'
                     f'Pre ${_pre_p:,.2f} ({_pre_c:+.2f}%)</span>'
                 )
             if _post_p is not None:
-                _ec = "#1B5E20" if (_post_c or 0) >= 0 else "#7B1010"
+                _ec = "#00D566" if (_post_c or 0) >= 0 else "#FF4444"
                 _ext_lines.append(
                     f'<span style="color:{_ec};font-size:0.72rem;">'
                     f'Post ${_post_p:,.2f} ({_post_c:+.2f}%)</span>'
@@ -249,7 +249,7 @@ else:
             # 3-month mini sparkline with axes — long enough to show trend,
             # short enough not to flatten a recent move against multi-year history.
             if series is not None and not series.empty:
-                _spark_color = "#1B5E20" if (chg_pct or 0) >= 0 else "#7B1010"
+                _spark_color = "#00D566" if (chg_pct or 0) >= 0 else "#FF4444"
                 st.plotly_chart(
                     mini_sparkline(series, _spark_color, "3M", show_axes=True),
                     use_container_width=True,
@@ -344,7 +344,7 @@ with fc3:
         alerts_db.clear_all_alerts(user_id)
         st.rerun()
 
-DIRECTION_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010"}
+DIRECTION_COLOR = {"bullish": "#00D566", "bearish": "#FF4444"}
 TYPE_LABEL = {
     "score_threshold": "Confluence Score",
     "price_move": "Price",
@@ -359,17 +359,17 @@ if not alert_rows:
     st.info("No alerts yet. Add tickers to your watchlist and click \"Check Watchlist Now\" to evaluate them.")
 else:
     for a in alert_rows:
-        color = DIRECTION_COLOR.get(a["direction"], "#8B7355")
+        color = DIRECTION_COLOR.get(a["direction"], "#6B7FBF")
         unread_marker = "●" if not a["is_read"] else "○"
         type_label = TYPE_LABEL.get(a["alert_type"], a["alert_type"])
         company = TICKERS.get(a["ticker"], {}).get("name", "")
         ticker_disp = f"{a['ticker']} ({company})" if company else a["ticker"]
         st.markdown(f"""
         <div style="background:#F0EBE1;border-radius:6px;padding:10px 16px;margin-bottom:8px;
-                    border-left:4px solid {color};font-family:Georgia,serif;">
+                    border-left:4px solid {color};font-family:Inter,sans-serif;">
             <span style="color:{color};font-weight:700;">{unread_marker} {ticker_disp}</span>
-            <span style="color:#8B7355;font-size:0.78rem;letter-spacing:0.04em;"> · {type_label} · {a['created_at'][:16].replace('T', ' ')} UTC</span>
-            <div style="color:#1A1612;margin-top:4px;">{a['message']}</div>
+            <span style="color:#6B7FBF;font-size:0.78rem;letter-spacing:0.04em;"> · {type_label} · {a['created_at'][:16].replace('T', ' ')} UTC</span>
+            <div style="color:#E8EEFF;margin-top:4px;">{a['message']}</div>
         </div>
         """, unsafe_allow_html=True)
 

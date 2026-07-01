@@ -66,7 +66,7 @@ if not _tr_ticker:
     st.stop()
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
+STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF"}
 
 with st.spinner(f"Loading earnings history and score snapshots for {_tr_ticker}…"):
     _tr_earnings = fetch_earnings_dates(_tr_ticker)
@@ -202,38 +202,38 @@ for _r in sorted(_with_data, key=lambda x: x["earn_date"], reverse=True):
     if _score >= 60:
         _pred_dir   = "bullish"
         _pred_label = f"▲ Bullish signal ({_score:.0f}/100)"
-        _pred_color = "#1B5E20"
-        _pred_bg    = "#EDF7ED"
+        _pred_color = "#00D566"
+        _pred_bg    = "rgba(0,213,102,0.08)"
     elif _score <= 40:
         _pred_dir   = "bearish"
         _pred_label = f"▼ Bearish signal ({_score:.0f}/100)"
-        _pred_color = "#7B1010"
-        _pred_bg    = "#FDF0F0"
+        _pred_color = "#FF4444"
+        _pred_bg    = "rgba(255,68,68,0.08)"
     else:
         _pred_dir   = "neutral"
         _pred_label = f"● Mixed signals ({_score:.0f}/100)"
-        _pred_color = "#8B7355"
-        _pred_bg    = "#FAF7F0"
+        _pred_color = "#6B7FBF"
+        _pred_bg    = "#12151E"
 
     if _surp is not None:
         _surp_dir = "bullish" if _surp > 0 else ("bearish" if _surp < 0 else "neutral")
         if _surp > 0:
             _out_label = f"✅ Beat — EPS {_act:+.2f} vs est {_est:+.2f} (Surprise: +{_surp:.1f}%)"
-            _out_color = "#1B5E20"
+            _out_color = "#00D566"
         elif _surp < 0:
             _out_label = f"❌ Miss — EPS {_act:+.2f} vs est {_est:+.2f} (Surprise: {_surp:.1f}%)"
-            _out_color = "#7B1010"
+            _out_color = "#FF4444"
         else:
             _out_label = f"● Met estimate — EPS {_act:+.2f}"
-            _out_color = "#8B7355"
+            _out_color = "#6B7FBF"
 
         if _pred_dir != "neutral":
             _matched = _pred_dir == _surp_dir
             _call_label = "✅ Correct call" if _matched else "❌ Wrong call"
-            _call_color = "#1B5E20" if _matched else "#7B1010"
+            _call_color = "#00D566" if _matched else "#FF4444"
         else:
             _call_label = "— No directional call"
-            _call_color = "#8B7355"
+            _call_color = "#6B7FBF"
     else:
         _out_label = "No EPS surprise data"
         _out_color = "#9E9E8E"
@@ -241,11 +241,11 @@ for _r in sorted(_with_data, key=lambda x: x["earn_date"], reverse=True):
         _call_color = "#9E9E8E"
 
     st.markdown(f"""
-<div style="background:{_pred_bg};border:1px solid #D4C9B0;border-left:5px solid {_pred_color};
-            border-radius:8px;padding:16px 20px;margin-bottom:12px;font-family:Georgia,serif;">
+<div style="background:{_pred_bg};border:1px solid rgba(255,255,255,0.08);border-left:5px solid {_pred_color};
+            border-radius:8px;padding:16px 20px;margin-bottom:12px;font-family:Inter,sans-serif;">
     <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
         <div>
-            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:#8B7355;">
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:#6B7FBF;">
                 Earnings · {_r['earn_date']}
             </div>
             <div style="font-size:1.05rem;font-weight:700;color:{_out_color};margin-top:4px;">
@@ -253,7 +253,7 @@ for _r in sorted(_with_data, key=lambda x: x["earn_date"], reverse=True):
             </div>
         </div>
         <div style="text-align:right;">
-            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:#8B7355;">
+            <div style="font-size:0.68rem;text-transform:uppercase;letter-spacing:0.06em;color:#6B7FBF;">
                 Signal {_delta} days before
             </div>
             <div style="font-size:0.95rem;font-weight:700;color:{_pred_color};margin-top:2px;">
@@ -323,7 +323,7 @@ with _tdd_col:
         st.switch_page("pages/3_Ticker_Deep_Dive.py")
 
 st.markdown("""
-<div style="text-align:center;padding:16px;font-size:0.75rem;color:#9E9E8E;font-family:Georgia,serif;">
+<div style="text-align:center;padding:16px;font-size:0.75rem;color:#9E9E8E;font-family:Inter,sans-serif;">
     Unstructured Alpha · Track record data is observational, not validated. Not financial advice.
 </div>
 """, unsafe_allow_html=True)

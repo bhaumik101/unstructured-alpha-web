@@ -67,17 +67,17 @@ st.markdown("""
 .block-container { padding-top: 0.5rem !important; max-width: 1100px !important; }
 .regime-banner {
     border-radius: 8px; padding: 18px 24px; margin-bottom: 20px;
-    font-family: Georgia, serif; text-align: center;
+    font-family: Inter, sans-serif; text-align: center;
 }
-.regime-bull  { background: #0D3B0E; color: #A8D5A2; border: 2px solid #1B5E20; }
-.regime-bear  { background: #4B0000; color: #F4A0A0; border: 2px solid #7B1010; }
-.regime-mixed { background: #2C2410; color: #D4C47A; border: 2px solid #8B7355; }
+.regime-bull  { background: #0D3B0E; color: #A8D5A2; border: 2px solid #00D566; }
+.regime-bear  { background: #4B0000; color: #F4A0A0; border: 2px solid #FF4444; }
+.regime-mixed { background: #F59E0B; color: #D4C47A; border: 2px solid #6B7FBF; }
 .regime-title { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.04em; }
 .regime-sub   { font-size: 0.85rem; margin-top: 4px; opacity: 0.85; }
 .section-hdr  {
-    font-family: Georgia, serif; font-size: 0.70rem; font-weight: 700;
-    letter-spacing: 0.12em; color: #8B7355; text-transform: uppercase;
-    border-bottom: 1px solid #D4C9B0; padding-bottom: 4px; margin-bottom: 12px;
+    font-family: Inter, sans-serif; font-size: 0.70rem; font-weight: 700;
+    letter-spacing: 0.12em; color: #6B7FBF; text-transform: uppercase;
+    border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; margin-bottom: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -318,7 +318,7 @@ cat_col, radar_col = st.columns([3, 2])
 
 with cat_col:
     cat_rows = sorted(cat_scores.items(), key=lambda x: -x[1]["avg"])
-    STATUS_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
+    STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF"}
     STATUS_ICON = {"bullish": "▲", "bearish": "▼", "neutral": "→"}
 
     for cat_id, cdata in cat_rows:
@@ -326,12 +326,12 @@ with cat_col:
         icon = STATUS_ICON[cdata["status"]]
         score_val = cdata["avg"]
         bar_width = int(score_val)
-        bar_color = "#1B5E20" if score_val >= 65 else ("#7B1010" if score_val <= 35 else "#8B7355")
+        bar_color = "#00D566" if score_val >= 65 else ("#FF4444" if score_val <= 35 else "#6B7FBF")
         st.markdown(
             f"<div style='margin-bottom:10px;'>"
             f"<div style='display:flex;justify-content:space-between;font-size:0.82rem;"
-            f"font-family:Georgia,serif;margin-bottom:3px;'>"
-            f"<span style='color:#1A1612;font-weight:600;'>{cdata['name']}</span>"
+            f"font-family:Inter,sans-serif;margin-bottom:3px;'>"
+            f"<span style='color:#E8EEFF;font-weight:600;'>{cdata['name']}</span>"
             f"<span style='color:{color};font-weight:700;'>{icon} {score_val:.0f}</span>"
             f"</div>"
             f"<div style='background:#E8E0D4;border-radius:3px;height:6px;'>"
@@ -350,7 +350,7 @@ with radar_col:
         theta=radar_names + [radar_names[0]],
         fill="toself",
         fillcolor="rgba(27,94,32,0.25)",
-        line=dict(color="#1B5E20", width=2),
+        line=dict(color="#00D566", width=2),
         name="Current Regime",
     ))
     fig_radar.add_shape(
@@ -361,8 +361,8 @@ with radar_col:
     fig_radar.update_layout(
         polar=dict(
             radialaxis=dict(visible=True, range=[0, 100], tickfont=dict(size=9),
-                            gridcolor="#E8E0D4", tickcolor="#8B7355"),
-            angularaxis=dict(tickfont=dict(size=10, family="Georgia"), gridcolor="#E8E0D4"),
+                            gridcolor="#E8E0D4", tickcolor="#6B7FBF"),
+            angularaxis=dict(tickfont=dict(size=10, family="Inter, sans-serif"), gridcolor="#E8E0D4"),
             bgcolor="rgba(0,0,0,0)",
         ),
         paper_bgcolor="rgba(0,0,0,0)",
@@ -389,7 +389,7 @@ if regime_hist.empty or len(regime_hist) < 5:
     )
 else:
     fig_hist = go.Figure()
-    color_map = {"BULLISH": "#1B5E20", "BEARISH": "#7B1010", "MIXED": "#8B7355"}
+    color_map = {"BULLISH": "#00D566", "BEARISH": "#FF4444", "MIXED": "#6B7FBF"}
 
     # Shaded regime band
     for reg, color in color_map.items():
@@ -402,9 +402,9 @@ else:
             opacity=0.8,
         ))
 
-    fig_hist.add_hline(y=60, line_dash="dot", line_color="#1B5E20", annotation_text="Bullish threshold",
+    fig_hist.add_hline(y=60, line_dash="dot", line_color="#00D566", annotation_text="Bullish threshold",
                        annotation_font_size=10)
-    fig_hist.add_hline(y=40, line_dash="dot", line_color="#7B1010", annotation_text="Bearish threshold",
+    fig_hist.add_hline(y=40, line_dash="dot", line_color="#FF4444", annotation_text="Bearish threshold",
                        annotation_font_size=10)
     fig_hist.update_layout(
         barmode="overlay",
@@ -425,9 +425,9 @@ else:
     _reg_counts = regime_hist["regime"].value_counts()
     _reg_cols = st.columns(3)
     _reg_info = {
-        "BULLISH": ("#1B5E20", "📈"),
-        "MIXED":   ("#8B7355", "⚖️"),
-        "BEARISH": ("#7B1010", "📉"),
+        "BULLISH": ("#00D566", "📈"),
+        "MIXED":   ("#6B7FBF", "⚖️"),
+        "BEARISH": ("#FF4444", "📉"),
     }
     for i, (rname, (rcol, ricon)) in enumerate(_reg_info.items()):
         n = _reg_counts.get(rname, 0)
@@ -509,7 +509,7 @@ if fwd_returns:
         pivot = plot_df.pivot(index="Sector", columns="Regime", values="Avg Return (%)").fillna(0)
         pivot = pivot.reindex(sorted(pivot.index, key=lambda s: pivot.get("BULLISH", pd.Series([0])).get(s, 0), reverse=True))
 
-        reg_colors = {"BULLISH": "#1B5E20", "MIXED": "#8B7355", "BEARISH": "#7B1010"}
+        reg_colors = {"BULLISH": "#00D566", "MIXED": "#6B7FBF", "BEARISH": "#FF4444"}
         fig_bars = go.Figure()
         for reg in ["BULLISH", "MIXED", "BEARISH"]:
             if reg in pivot.columns:
@@ -532,7 +532,7 @@ if fwd_returns:
             margin=dict(l=40, r=20, t=30, b=40),
             height=380,
         )
-        fig_bars.update_xaxes(gridcolor="#E8E0D4", tickfont=dict(size=10, family="Georgia"))
+        fig_bars.update_xaxes(gridcolor="#E8E0D4", tickfont=dict(size=10, family="Inter, sans-serif"))
         fig_bars.update_yaxes(gridcolor="#E8E0D4", tickfont=dict(size=10))
         st.plotly_chart(fig_bars, use_container_width=True)
 
@@ -549,7 +549,7 @@ if fwd_returns:
             st.dataframe(
                 tbl_display.style.bar(
                     subset=["Avg Return (%)"],
-                    color=["#7B1010", "#1B5E20"],
+                    color=["#FF4444", "#00D566"],
                     vmin=-15, vmax=15,
                 ).format({"Avg Return (%)": "{:+.2f}%"}),
                 use_container_width=True,
@@ -618,8 +618,8 @@ else:
     )
 
 st.markdown(
-    f"<div style='background:#F5F0E8;border-left:4px solid #8B7355;padding:12px 16px;"
-    f"border-radius:0 6px 6px 0;font-family:Georgia,serif;font-size:0.88rem;color:#4A3728;'>"
+    f"<div style='background:#F5F0E8;border-left:4px solid #6B7FBF;padding:12px 16px;"
+    f"border-radius:0 6px 6px 0;font-family:Inter,sans-serif;font-size:0.88rem;color:#4A3728;'>"
     f"{_flip_msg}</div>",
     unsafe_allow_html=True,
 )
@@ -637,7 +637,7 @@ if regime in ("MIXED", "BEARISH"):
         cfg = SIGNALS.get(sid, {})
         score = sv.get("score", 50)
         st.markdown(
-            f"<span style='font-size:0.82rem;font-family:Georgia,serif;color:#7B1010;'>"
+            f"<span style='font-size:0.82rem;font-family:Inter,sans-serif;color:#FF4444;'>"
             f"▼ {cfg.get('name', sid)}</span> "
             f"<span style='font-size:0.80rem;color:#6B5E52;'>score {score:.0f} — needs +{35-score:.0f} pts to flip neutral</span>",
             unsafe_allow_html=True,
