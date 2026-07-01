@@ -2083,7 +2083,7 @@ if section == "Overview":
                                 height=380,
                                 paper_bgcolor="#0B0D12", plot_bgcolor="#0F1118",
                                 margin=dict(l=50, r=20, t=50, b=60),
-                                font=dict(family="Inter, sans-serif", color="#4A4440"),
+                                font=dict(family="Inter, sans-serif", color="#8892AA"),
                                 showlegend=True,
                                 legend=dict(font=dict(size=9)),
                             )
@@ -2393,12 +2393,25 @@ if section == "Overview":
 
         exp_df = pd.DataFrame(table_rows)
         csv_b  = exp_df.to_csv(index=False).encode()
-        st.download_button(
-            f"⬇️ Download {ticker_input} Signal Analysis (CSV)",
-            csv_b,
-            file_name=f"UA_{ticker_input}_{datetime.now().strftime('%Y%m%d')}.csv",
-            mime="text/csv",
-        )
+
+        _ecol1, _ecol2 = st.columns([2, 2])
+        with _ecol1:
+            st.download_button(
+                f"⬇️ Download {ticker_input} Signal Analysis (CSV)",
+                csv_b,
+                file_name=f"UA_{ticker_input}_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        with _ecol2:
+            if st.button(
+                f"📄 Export Full PDF Report",
+                key="tdd_to_pdf",
+                use_container_width=True,
+                help="Opens the Export page pre-filled with this ticker",
+            ):
+                st.session_state["export_ticker"] = ticker_input
+                st.switch_page("pages/28_Export.py")
 
 elif section == "Insider & Short Interest":
     # ── Insider Transactions ──────────────────────────────────────────────────────

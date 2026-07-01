@@ -120,7 +120,7 @@ def _parse_portfolio_input(raw: str) -> list[dict]:
 
 st.markdown("# 📊 Portfolio Macro Analyzer")
 st.markdown(
-    '<div style="font-family:Inter,sans-serif;font-size:0.92rem;color:#4A4440;margin-bottom:18px;'
+    '<div style="font-family:Inter,sans-serif;font-size:0.92rem;color:#8892AA;margin-bottom:18px;'
     'background:#0F1118;border-left:4px solid #7C3AED;padding:12px 16px;border-radius:0 8px 8px 0;">'
     'Enter your holdings and get an instant macro overlay. See which positions have the wind at '
     'their back right now, which are sailing into macro headwinds, and how your total portfolio '
@@ -336,7 +336,7 @@ with _ch2:
         xaxis_title="Portfolio Weight %",
         margin=dict(t=40, b=30, l=10, r=10), height=220,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="Inter, sans-serif", color="#4A4440"),
+        font=dict(family="Inter, sans-serif", color="#8892AA"),
     )
     st.plotly_chart(_fig_sector, use_container_width=True)
 
@@ -364,7 +364,7 @@ with _ch3:
         showlegend=False,
         margin=dict(t=40, b=30, l=40, r=10), height=220,
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(245,241,232,0.5)",
-        font=dict(family="Inter, sans-serif", color="#4A4440"),
+        font=dict(family="Inter, sans-serif", color="#8892AA"),
     )
     st.plotly_chart(_fig_bubble, use_container_width=True)
 
@@ -403,7 +403,7 @@ for _, _row in _df_display.iterrows():
         st.markdown(
             f'<div style="font-family:Inter,sans-serif;font-size:0.85rem;padding-top:4px;">'
             f'Weight: <b>{_row["weight_pct"]:.1f}%</b><br>'
-            f'Price: <span style="color:#4A4440;">{_price_html}</span>'
+            f'Price: <span style="color:#8892AA;">{_price_html}</span>'
             f'</div>',
             unsafe_allow_html=True,
         )
@@ -415,7 +415,7 @@ for _, _row in _df_display.iterrows():
             f'<span style="color:#9E9E8E;">Universe coverage pending</span>'
         )
         st.markdown(
-            f'<div style="font-size:0.72rem;padding-top:4px;color:#4A4440;">{_sig_html}</div>',
+            f'<div style="font-size:0.72rem;padding-top:4px;color:#8892AA;">{_sig_html}</div>',
             unsafe_allow_html=True,
         )
     with _hc4:
@@ -461,7 +461,7 @@ if not _best.empty:
     _interp_parts.append(f"Your strongest macro positions are {_best_names} — multiple signals are aligned in their favor.")
 
 for _p in _interp_parts:
-    st.markdown(f'<div style="font-size:0.85rem;color:#4A4440;margin-bottom:6px;line-height:1.6;">● {_p}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:0.85rem;color:#8892AA;margin-bottom:6px;line-height:1.6;">● {_p}</div>', unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 

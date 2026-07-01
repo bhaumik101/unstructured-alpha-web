@@ -58,10 +58,10 @@ st.markdown("""
 .section-hdr {
     font-family: Inter, sans-serif; font-size: 0.70rem; font-weight: 700;
     letter-spacing: 0.12em; color: #6B7FBF; text-transform: uppercase;
-    border-bottom: 1px solid #D4C9B0; padding-bottom: 4px; margin-bottom: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 4px; margin-bottom: 12px;
 }
 .event-card {
-    border: 1px solid #D4C9B0; border-radius: 6px; padding: 12px 16px;
+    border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 12px 16px;
     margin-bottom: 8px; font-family: Inter, sans-serif; background: #0F1118;
 }
 .event-bull  { border-left: 4px solid #00D566; }

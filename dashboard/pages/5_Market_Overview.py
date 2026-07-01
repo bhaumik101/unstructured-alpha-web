@@ -382,7 +382,7 @@ if section == "Markets":
             sc = "#00D566" if spread > 0 else "#FF4444"
             sl = "Normal (positive)" if spread > 0 else "Inverted (recession signal)"
             st.markdown(f"""
-            <div style="background:#F0EBE1;border-radius:6px;padding:12px 16px;
+            <div style="background:#12151E;border-radius:6px;padding:12px 16px;
                         border-left:4px solid {sc};border:1px solid rgba(255,255,255,0.08);
                         margin-top:10px;font-family:Inter,sans-serif;">
                 <div style="font-size:0.72rem;color:#6B7FBF;letter-spacing:0.06em;">10Y–3M YIELD CURVE SPREAD</div>
@@ -525,13 +525,13 @@ if section == "Markets":
         ctx_html = (f'<div style="font-size:0.68rem;color:#8892AA;margin-top:2px;">{context}</div>'
                     if context else "")
         return f"""
-        <div style="background:#F0EBE1;border-radius:6px;padding:14px 10px;text-align:center;
+        <div style="background:#12151E;border-radius:6px;padding:14px 10px;text-align:center;
                     border:1px solid rgba(255,255,255,0.08);border-top:3px solid {color};font-family:Inter,sans-serif;">
             <div style="font-size:0.68rem;color:#6B7FBF;text-transform:uppercase;
                         letter-spacing:0.06em;line-height:1.3;">{label}</div>
             <div style="font-size:1.5rem;font-weight:700;color:{color};margin:6px 0 2px;">{sym}</div>
             <div style="font-size:0.82rem;font-weight:600;color:{color};">{status.replace("_"," ").capitalize()}</div>
-            <div style="font-size:0.80rem;color:#4A4440;margin-top:4px;font-weight:600;">{detail}</div>
+            <div style="font-size:0.80rem;color:#B8C0D4;margin-top:4px;font-weight:600;">{detail}</div>
             {ctx_html}
         </div>"""
 
@@ -612,7 +612,7 @@ if section == "Markets":
         bc     = "#00D566" if pct >= 60 else ("#FF4444" if pct <= 30 else "#6B7FBF")
         blabel = "Risk-On Environment" if pct >= 60 else ("Risk-Off Environment" if pct <= 30 else "Mixed Signals")
         st.markdown(f"""
-        <div style="margin-top:14px;padding:10px 16px;background:#F0EBE1;border-radius:6px;
+        <div style="margin-top:14px;padding:10px 16px;background:#12151E;border-radius:6px;
                     border:1px solid rgba(255,255,255,0.08);border-left:4px solid {bc};font-family:Inter,sans-serif;">
             <span style="font-size:0.72rem;color:#6B7FBF;text-transform:uppercase;letter-spacing:0.06em;">
                 MARKET BREADTH — </span>

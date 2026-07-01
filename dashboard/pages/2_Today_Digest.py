@@ -33,10 +33,12 @@ from utils.score_history import (
 from utils.signals_cache import get_all_signal_scores
 from utils.narrative import generate_narrative
 from utils.convergence import get_convergence_events, render_convergence_events
+from utils.theme import inject_skeleton_css, empty_state
 
 st.set_page_config(page_title="Today's Brief — UA", layout="wide")
 render_header("Today's Brief")
 render_sidebar_base()
+inject_skeleton_css()
 
 render_page_header(
     "Today's Brief",
@@ -163,17 +165,17 @@ except Exception:
     pass
 
 st.markdown(
-    f'<div style="background:#1C2B4A;border-radius:8px;padding:10px 18px;margin-bottom:14px;'
+    f'<div style="background:#12151E;border-radius:8px;padding:10px 18px;margin-bottom:14px;'
     f'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;'
-    f'font-family:Georgia,serif;">'
-    f'<div style="color:#EEF3FA;font-size:0.82rem;">'
-    f'<span style="color:#8FB3D4;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">'
+    f'font-family:Inter,sans-serif;">'
+    f'<div style="color:#E8EEFF;font-size:0.82rem;">'
+    f'<span style="color:#8892AA;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">'
     f'DATA AS OF</span><br>'
     f'<b style="font-size:1.0rem;">{_as_of}</b>'
     f'</div>'
-    f'<div style="color:#8FB3D4;font-size:0.75rem;text-align:right;">'
+    f'<div style="color:#8892AA;font-size:0.75rem;text-align:right;">'
     f'{len(_all_scores)} signals · cached 2h<br>'
-    f'<span style="color:#6B8FA8;">signals are weekly/monthly; 2h cache is appropriate</span>'
+    f'<span style="color:#6B7FBF;">signals are weekly/monthly; 2h cache is appropriate</span>'
     f'</div>'
     f'</div>',
     unsafe_allow_html=True,
@@ -183,23 +185,23 @@ st.markdown(
 try:
     _nar = generate_narrative(_all_scores)
     _nar_rc  = _nar["regime_color"]
-    _nar_bg  = "#EDF7ED" if ("BULL" in _nar["regime"] or "ON" in _nar["regime"]) else \
-               ("#FDF0F0" if ("BEAR" in _nar["regime"] or "OFF" in _nar["regime"]) else "#FAF7F0")
+    _nar_bg  = "rgba(0,213,102,0.08)" if ("BULL" in _nar["regime"] or "ON" in _nar["regime"]) else \
+               ("rgba(255,68,68,0.08)" if ("BEAR" in _nar["regime"] or "OFF" in _nar["regime"]) else "#12151E")
     _nar_watch_html = (
-        f'<div style="margin-top:8px;padding:7px 10px;background:#FFF8E7;'
-        f'border-left:3px solid #B8860B;border-radius:4px;font-size:0.73rem;color:#5C4A1A;">'
+        f'<div style="margin-top:8px;padding:7px 10px;background:rgba(245,158,11,0.08);'
+        f'border-left:3px solid #F59E0B;border-radius:4px;font-size:0.73rem;color:#F59E0B;">'
         f'👁 {_nar["watch_note"]}</div>'
         if _nar.get("watch_note") else ""
     )
     st.markdown(
         f'<div style="background:{_nar_bg};border-radius:10px;padding:16px 20px;'
-        f'border-left:5px solid {_nar_rc};font-family:Georgia,serif;margin-bottom:18px;">'
+        f'border-left:5px solid {_nar_rc};font-family:Inter,sans-serif;margin-bottom:18px;">'
         f'<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px;">'
         f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;color:{_nar_rc};'
         f'text-transform:uppercase;">TODAY\'S MACRO CALL</div>'
-        f'<div style="font-size:1.1rem;font-weight:800;color:#1C2B4A;">{_nar["headline"]}</div>'
+        f'<div style="font-size:1.1rem;font-weight:800;color:#12151E;">{_nar["headline"]}</div>'
         f'</div>'
-        f'<div style="font-size:0.80rem;color:#4A4440;line-height:1.65;">'
+        f'<div style="font-size:0.80rem;color:#B8C0D4;line-height:1.65;">'
         f'{_nar["summary"]}</div>'
         f'{_nar_watch_html}'
         f'</div>',
@@ -219,13 +221,13 @@ try:
 
     if _d_flip_total > 0 or _d_movers or _d_regime:
         _regime_shift_html = (
-            f'<div style="background:#FFF8E7;border-left:3px solid #B8860B;padding:5px 10px;'
-            f'border-radius:4px;font-size:0.76rem;color:#5C4A1A;margin-bottom:8px;">'
+            f'<div style="background:rgba(245,158,11,0.08);border-left:3px solid #F59E0B;padding:5px 10px;'
+            f'border-radius:4px;font-size:0.76rem;color:#F59E0B;margin-bottom:8px;">'
             f'⚡ Regime shift: <b>{_d_regime}</b></div>'
             if _d_regime else ""
         )
         def _flip_pill(entry, direction):
-            col = "#1B5E20" if direction == "bull" else "#7B1010"
+            col = "#00D566" if direction == "bull" else "#FF4444"
             arrow = "▲" if direction == "bull" else "▼"
             return (
                 f'<span style="display:inline-block;margin:2px 3px;padding:2px 8px;'
@@ -237,26 +239,26 @@ try:
         _mover_pills = "".join(
             f'<span style="display:inline-block;margin:2px 3px;padding:2px 8px;'
             f'border-radius:10px;font-size:0.70rem;'
-            f'background:{"#1B5E2018" if m["direction"]=="up" else "#7B101018"};'
-            f'color:{"#1B5E20" if m["direction"]=="up" else "#7B1010"};font-weight:600;">'
+            f'background:{"rgba(0,213,102,0.09)" if m["direction"]=="up" else "rgba(255,68,68,0.09)"};'
+            f'color:{"#00D566" if m["direction"]=="up" else "#FF4444"};font-weight:600;">'
             f'{"▲" if m["direction"]=="up" else "▼"} {m["name"][:24]} ({m["delta"]:+.0f}pts)</span>'
             for m in _d_movers
         )
-        _diff_lbl_style = 'style="font-size:0.72rem;color:#4A4440;margin-bottom:4px"'
-        _diff_lbl_bear  = 'style="font-size:0.72rem;color:#4A4440;margin:6px 0 4px"'
-        _diff_lbl_move  = 'style="font-size:0.72rem;color:#4A4440;margin:6px 0 4px"'
+        _diff_lbl_style = 'style="font-size:0.72rem;color:#B8C0D4;margin-bottom:4px"'
+        _diff_lbl_bear  = 'style="font-size:0.72rem;color:#B8C0D4;margin:6px 0 4px"'
+        _diff_lbl_move  = 'style="font-size:0.72rem;color:#B8C0D4;margin:6px 0 4px"'
         _bull_section  = (f'<div {_diff_lbl_style}>Flipped bullish</div>' + _bull_pills) if _bull_pills else ""
         _bear_section  = (f'<div {_diff_lbl_bear}>Flipped bearish</div>' + _bear_pills) if _bear_pills else ""
         _mover_section = (f'<div {_diff_lbl_move}>Biggest score movers</div>' + _mover_pills) if _mover_pills else ""
         _flip_word     = "signals" if _d_flip_total != 1 else "signal"
         st.markdown(
-            f'<div style="background:#F5F1E8;border-radius:8px;padding:14px 18px;'
-            f'margin-bottom:18px;border:1px solid #D4C9B0;font-family:Georgia,serif;">'
-            f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;color:#8B7355;'
+            f'<div style="background:#12151E;border-radius:8px;padding:14px 18px;'
+            f'margin-bottom:18px;border:1px solid rgba(255,255,255,0.08);font-family:Inter,sans-serif;">'
+            f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;color:#8892AA;'
             f'text-transform:uppercase;margin-bottom:8px;">WHAT CHANGED SINCE LAST WEEK</div>'
             f'{_regime_shift_html}'
             f'{_bull_section}{_bear_section}{_mover_section}'
-            f'<div style="font-size:0.65rem;color:#9E9E8E;margin-top:8px;">'
+            f'<div style="font-size:0.65rem;color:#6B7FBF;margin-top:8px;">'
             f'vs 7 days ago · {_d_flip_total} {_flip_word} flipped direction</div>'
             f'</div>',
             unsafe_allow_html=True,
@@ -269,8 +271,8 @@ try:
     _conv = get_convergence_events(days_back=7, min_signals=3)
     if _conv:
         st.markdown(
-            '<div style="font-size:0.68rem;font-weight:700;color:#8B7355;letter-spacing:0.10em;'
-            'text-transform:uppercase;border-bottom:1px solid #D4C9B0;padding-bottom:6px;margin-bottom:10px;">'
+            '<div style="font-size:0.68rem;font-weight:700;color:#8892AA;letter-spacing:0.10em;'
+            'text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;margin-bottom:10px;">'
             '⚡ SIGNAL CONVERGENCE EVENTS — 3+ signals aligned this week</div>',
             unsafe_allow_html=True,
         )
@@ -286,10 +288,10 @@ try:
     _n_bear_flip  = _near.get("near_bearish_flip", [])
     if _n_bull_flip or _n_bear_flip:
         st.markdown(
-            '<div style="background:#FAF7F0;border-radius:10px;padding:14px 18px;margin-bottom:18px;'
-            'border:1px solid #D4C9B0;font-family:Georgia,serif;">'
-            '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;color:#8B7355;'
-            'text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid #D4C9B0;padding-bottom:6px;">'
+            '<div style="background:#12151E;border-radius:10px;padding:14px 18px;margin-bottom:18px;'
+            'border:1px solid rgba(255,255,255,0.08);font-family:Inter,sans-serif;">'
+            '<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;color:#8892AA;'
+            'text-transform:uppercase;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">'
             '⏳ ABOUT TO FLIP — signals within 5 pts of a threshold crossing</div>',
             unsafe_allow_html=True,
         )
@@ -297,7 +299,7 @@ try:
         with _flip_cols[0]:
             if _n_bull_flip:
                 st.markdown(
-                    '<div style="font-size:0.72rem;font-weight:700;color:#1B5E20;text-transform:uppercase;'
+                    '<div style="font-size:0.72rem;font-weight:700;color:#00D566;text-transform:uppercase;'
                     'letter-spacing:0.06em;margin-bottom:6px;">▲ Approaching BULLISH (≥65)</div>',
                     unsafe_allow_html=True,
                 )
@@ -308,25 +310,25 @@ try:
                         if _nf.get("eta_weeks") and _nf["eta_weeks"] < 10 else
                         (' · moving away' if _v <= 0 else '')
                     )
-                    _vel_color = "#1B5E20" if _v > 0 else ("#7B1010" if _v < 0 else "#8B7355")
+                    _vel_color = "#00D566" if _v > 0 else ("#FF4444" if _v < 0 else "#8892AA")
                     st.markdown(
-                        f'<div style="background:#EDF7ED;border-radius:5px;padding:7px 12px;margin-bottom:5px;'
-                        f'border-left:3px solid #1B5E20;">'
-                        f'<div style="font-size:0.80rem;font-weight:700;color:#1A1612;">{_nf["name"][:32]}</div>'
-                        f'<div style="font-size:0.72rem;color:#4A4440;margin-top:2px;">'
+                        f'<div style="background:rgba(0,213,102,0.08);border-radius:5px;padding:7px 12px;margin-bottom:5px;'
+                        f'border-left:3px solid #00D566;">'
+                        f'<div style="font-size:0.80rem;font-weight:700;color:#E8EEFF;">{_nf["name"][:32]}</div>'
+                        f'<div style="font-size:0.72rem;color:#B8C0D4;margin-top:2px;">'
                         f'Score: <b>{_nf["score"]}</b> · '
-                        f'<span style="color:#1B5E20;font-weight:700;">{_nf["pts_away"]} pts to flip</span>'
+                        f'<span style="color:#00D566;font-weight:700;">{_nf["pts_away"]} pts to flip</span>'
                         f' · <span style="color:{_vel_color};">'
                         f'{"▲" if _v > 0 else ("▼" if _v < 0 else "→")} {abs(_v):.1f} pts/wk</span>'
                         f'{_eta_txt}</div>'
-                        f'<div style="font-size:0.67rem;color:#8B7355;margin-top:1px;">{_nf["category"]}</div>'
+                        f'<div style="font-size:0.67rem;color:#8892AA;margin-top:1px;">{_nf["category"]}</div>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
         with _flip_cols[1]:
             if _n_bear_flip:
                 st.markdown(
-                    '<div style="font-size:0.72rem;font-weight:700;color:#7B1010;text-transform:uppercase;'
+                    '<div style="font-size:0.72rem;font-weight:700;color:#FF4444;text-transform:uppercase;'
                     'letter-spacing:0.06em;margin-bottom:6px;">▼ Approaching BEARISH (≤35)</div>',
                     unsafe_allow_html=True,
                 )
@@ -337,18 +339,18 @@ try:
                         if _nf.get("eta_weeks") and _nf["eta_weeks"] < 10 else
                         (' · moving away' if _v >= 0 else '')
                     )
-                    _vel_color = "#7B1010" if _v < 0 else ("#1B5E20" if _v > 0 else "#8B7355")
+                    _vel_color = "#FF4444" if _v < 0 else ("#00D566" if _v > 0 else "#8892AA")
                     st.markdown(
-                        f'<div style="background:#FDF0F0;border-radius:5px;padding:7px 12px;margin-bottom:5px;'
-                        f'border-left:3px solid #7B1010;">'
-                        f'<div style="font-size:0.80rem;font-weight:700;color:#1A1612;">{_nf["name"][:32]}</div>'
-                        f'<div style="font-size:0.72rem;color:#4A4440;margin-top:2px;">'
+                        f'<div style="background:rgba(255,68,68,0.08);border-radius:5px;padding:7px 12px;margin-bottom:5px;'
+                        f'border-left:3px solid #FF4444;">'
+                        f'<div style="font-size:0.80rem;font-weight:700;color:#E8EEFF;">{_nf["name"][:32]}</div>'
+                        f'<div style="font-size:0.72rem;color:#B8C0D4;margin-top:2px;">'
                         f'Score: <b>{_nf["score"]}</b> · '
-                        f'<span style="color:#7B1010;font-weight:700;">{_nf["pts_away"]} pts to flip</span>'
+                        f'<span style="color:#FF4444;font-weight:700;">{_nf["pts_away"]} pts to flip</span>'
                         f' · <span style="color:{_vel_color};">'
                         f'{"▲" if _v > 0 else ("▼" if _v < 0 else "→")} {abs(_v):.1f} pts/wk</span>'
                         f'{_eta_txt}</div>'
-                        f'<div style="font-size:0.67rem;color:#8B7355;margin-top:1px;">{_nf["category"]}</div>'
+                        f'<div style="font-size:0.67rem;color:#8892AA;margin-top:1px;">{_nf["category"]}</div>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
@@ -374,20 +376,20 @@ _pulse_col1, _pulse_col2, _pulse_col3 = st.columns(3)
 def _signal_card_html(sid: str, d: dict) -> str:
     score = d["score"]
     status = d["status"]
-    color = "#1B5E20" if status == "bullish" else ("#7B1010" if status == "bearish" else "#8B7355")
-    border = "#1B5E20" if status == "bullish" else ("#7B1010" if status == "bearish" else "#D4C9B0")
+    color = "#00D566" if status == "bullish" else ("#FF4444" if status == "bearish" else "#8892AA")
+    border = "#00D566" if status == "bullish" else ("#FF4444" if status == "bearish" else "rgba(255,255,255,0.08)")
     label = "BULL" if status == "bullish" else ("BEAR" if status == "bearish" else "—")
     if d.get("error"):
         score_str = "—"
         label = "ERR"
-        color = "#8B7355"
-        border = "#D4C9B0"
+        color = "#8892AA"
+        border = "rgba(255,255,255,0.08)"
     else:
         score_str = f"{score:.0f}"
     return (
-        f'<div style="background:#F5F1E8;border-radius:5px;padding:8px 12px;margin-bottom:6px;'
-        f'border-left:3px solid {border};font-family:Georgia,serif;">'
-        f'<span style="font-size:0.82rem;color:#1A1612;">{d["name"]}</span>'
+        f'<div style="background:#12151E;border-radius:5px;padding:8px 12px;margin-bottom:6px;'
+        f'border-left:3px solid {border};font-family:Inter,sans-serif;">'
+        f'<span style="font-size:0.82rem;color:#E8EEFF;">{d["name"]}</span>'
         f'<span style="float:right;font-size:0.80rem;font-weight:700;color:{color};">'
         f'{score_str} <span style="font-size:0.68rem;letter-spacing:0.05em;">{label}</span></span>'
         f'</div>'
@@ -395,8 +397,8 @@ def _signal_card_html(sid: str, d: dict) -> str:
 
 with _pulse_col1:
     st.markdown(
-        f'<div style="font-size:0.78rem;font-weight:700;color:#1B5E20;letter-spacing:0.06em;'
-        f'text-transform:uppercase;border-bottom:2px solid #1B5E20;padding-bottom:4px;margin-bottom:10px;">'
+        f'<div style="font-size:0.78rem;font-weight:700;color:#00D566;letter-spacing:0.06em;'
+        f'text-transform:uppercase;border-bottom:2px solid #00D566;padding-bottom:4px;margin-bottom:10px;">'
         f'▲ BULLISH ({len(_bull_sigs)})</div>',
         unsafe_allow_html=True,
     )
@@ -404,12 +406,12 @@ with _pulse_col1:
         for sid, d in _bull_sigs:
             st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
     else:
-        st.caption("No bullish signals right now.")
+        st.markdown(empty_state("📈", "No bullish signals", "All signals currently read neutral or bearish."), unsafe_allow_html=True)
 
 with _pulse_col2:
     st.markdown(
-        f'<div style="font-size:0.78rem;font-weight:700;color:#7B1010;letter-spacing:0.06em;'
-        f'text-transform:uppercase;border-bottom:2px solid #7B1010;padding-bottom:4px;margin-bottom:10px;">'
+        f'<div style="font-size:0.78rem;font-weight:700;color:#FF4444;letter-spacing:0.06em;'
+        f'text-transform:uppercase;border-bottom:2px solid #FF4444;padding-bottom:4px;margin-bottom:10px;">'
         f'▼ BEARISH ({len(_bear_sigs)})</div>',
         unsafe_allow_html=True,
     )
@@ -417,12 +419,12 @@ with _pulse_col2:
         for sid, d in _bear_sigs:
             st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
     else:
-        st.caption("No bearish signals right now.")
+        st.markdown(empty_state("📉", "No bearish signals", "All signals currently read neutral or bullish."), unsafe_allow_html=True)
 
 with _pulse_col3:
     st.markdown(
-        f'<div style="font-size:0.78rem;font-weight:700;color:#8B7355;letter-spacing:0.06em;'
-        f'text-transform:uppercase;border-bottom:2px solid #8B7355;padding-bottom:4px;margin-bottom:10px;">'
+        f'<div style="font-size:0.78rem;font-weight:700;color:#8892AA;letter-spacing:0.06em;'
+        f'text-transform:uppercase;border-bottom:2px solid #8892AA;padding-bottom:4px;margin-bottom:10px;">'
         f'● NEUTRAL ({len(_neut_sigs)})</div>',
         unsafe_allow_html=True,
     )
@@ -430,7 +432,7 @@ with _pulse_col3:
         for sid, d in _neut_sigs:
             st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
     else:
-        st.caption("No neutral signals right now.")
+        st.markdown(empty_state("⚖️", "No neutral signals", "Signals are polarized — all currently bullish or bearish."), unsafe_allow_html=True)
 
 # Summary bar
 _n_bull, _n_bear, _n_neut = len(_bull_sigs), len(_bear_sigs), len(_neut_sigs)
@@ -442,14 +444,14 @@ _neut_pct = _n_neut / _total * 100
 _overall_bias = "BULLISH LEANING" if _n_bull > _n_bear + _n_neut * 0.5 else (
     "BEARISH LEANING" if _n_bear > _n_bull + _n_neut * 0.5 else "MIXED / NEUTRAL"
 )
-_bias_color = "#1B5E20" if "BULL" in _overall_bias else ("#7B1010" if "BEAR" in _overall_bias else "#8B7355")
+_bias_color = "#00D566" if "BULL" in _overall_bias else ("#FF4444" if "BEAR" in _overall_bias else "#8892AA")
 
 st.markdown(
-    f'<div style="background:#F0EBE1;border:1px solid #D4C9B0;border-radius:6px;padding:10px 16px;'
-    f'margin-top:8px;font-family:Georgia,serif;font-size:0.85rem;">'
+    f'<div style="background:#12151E;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px 16px;'
+    f'margin-top:8px;font-family:Inter,sans-serif;font-size:0.85rem;">'
     f'<b style="color:{_bias_color};">{_overall_bias}</b> — '
     f'{_n_bull} bullish · {_n_bear} bearish · {_n_neut} neutral '
-    f'<span style="color:#8B7355;font-size:0.78rem;">({_bull_pct:.0f}% / {_bear_pct:.0f}% / {_neut_pct:.0f}%)</span>'
+    f'<span style="color:#8892AA;font-size:0.78rem;">({_bull_pct:.0f}% / {_bear_pct:.0f}% / {_neut_pct:.0f}%)</span>'
     f'</div>',
     unsafe_allow_html=True,
 )
@@ -465,43 +467,43 @@ try:
     _week_flips = get_signal_flips(days_back=7)
     if _week_flips:
         st.markdown(
-            f'<div style="background:#FAF7F0;border:1px solid #D4C9B0;border-left:5px solid #1C2B4A;'
-            f'border-radius:8px;padding:14px 20px;margin-bottom:14px;font-family:Georgia,serif;">'
+            f'<div style="background:#12151E;border:1px solid rgba(255,255,255,0.08);border-left:5px solid #12151E;'
+            f'border-radius:8px;padding:14px 20px;margin-bottom:14px;font-family:Inter,sans-serif;">'
             f'<div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;'
-            f'color:#1C2B4A;font-weight:700;margin-bottom:10px;">'
+            f'color:#12151E;font-weight:700;margin-bottom:10px;">'
             f'⚡ {len(_week_flips)} signal change{"s" if len(_week_flips) != 1 else ""} this week — what you may have missed</div>'
             f'<div style="display:flex;flex-wrap:wrap;gap:8px;">',
             unsafe_allow_html=True,
         )
-        _FLIP_C  = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355", "insufficient_data": "#9E9E8E"}
-        _FLIP_BG = {"bullish": "#EDF7ED", "bearish": "#FDF0F0", "neutral": "#FAF7F0", "insufficient_data": "#F5F5F5"}
+        _FLIP_C  = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#8892AA", "insufficient_data": "#6B7FBF"}
+        _FLIP_BG = {"bullish": "rgba(0,213,102,0.08)", "bearish": "rgba(255,68,68,0.08)", "neutral": "#12151E", "insufficient_data": "#1A1D2A"}
         _FLIP_S  = {"bullish": "▲", "bearish": "▼", "neutral": "●", "insufficient_data": "○"}
         _wflip_cells = ""
         for _wf in _week_flips[:12]:  # cap at 12 for layout
             _wf_name  = SIGNALS.get(_wf["signal_id"], {}).get("name", _wf["signal_id"])
-            _wf_tc    = _FLIP_C.get(_wf["to_status"], "#8B7355")
-            _wf_bg    = _FLIP_BG.get(_wf["to_status"], "#FAF7F0")
-            _wf_fc    = _FLIP_C.get(_wf["from_status"], "#8B7355")
+            _wf_tc    = _FLIP_C.get(_wf["to_status"], "#8892AA")
+            _wf_bg    = _FLIP_BG.get(_wf["to_status"], "#12151E")
+            _wf_fc    = _FLIP_C.get(_wf["from_status"], "#8892AA")
             _wf_ts    = _FLIP_S.get(_wf["to_status"], "●")
             _wf_fs    = _FLIP_S.get(_wf["from_status"], "●")
             _wflip_cells += (
                 f'<div style="background:{_wf_bg};border:1px solid {_wf_tc}40;border-left:3px solid {_wf_tc};'
                 f'border-radius:5px;padding:6px 10px;min-width:160px;flex:1;">'
-                f'<div style="font-size:0.76rem;font-weight:700;color:#1A1612;line-height:1.3;margin-bottom:3px;">'
+                f'<div style="font-size:0.76rem;font-weight:700;color:#E8EEFF;line-height:1.3;margin-bottom:3px;">'
                 f'{_wf_name[:30]}</div>'
                 f'<div style="font-size:0.78rem;">'
                 f'<span style="color:{_wf_fc};">{_wf_fs}</span>'
-                f' <span style="color:#9E9E8E;">→</span> '
+                f' <span style="color:#6B7FBF;">→</span> '
                 f'<span style="font-weight:700;color:{_wf_tc};">{_wf_ts} {_wf["to_status"].replace("_"," ").title()}</span>'
                 f'</div>'
-                f'<div style="font-size:0.67rem;color:#8B7355;margin-top:2px;">{_wf["to_date"]}</div>'
+                f'<div style="font-size:0.67rem;color:#8892AA;margin-top:2px;">{_wf["to_date"]}</div>'
                 f'</div>'
             )
         st.markdown(_wflip_cells + f'</div></div>', unsafe_allow_html=True)
         if len(_week_flips) > 12:
             st.caption(f"+ {len(_week_flips) - 12} more signal changes this week.")
     else:
-        st.info("No signal direction changes in the past 7 days — the macro picture is holding steady.", icon="✅")
+        st.markdown(empty_state("✅", "No signal changes this week", "The macro picture is holding steady — no direction flips in the past 7 days."), unsafe_allow_html=True)
 except Exception:
     pass  # Never crash the page if flip history unavailable
 
@@ -516,21 +518,21 @@ _flips = get_signal_flips(days_back=1)
 if not _flips:
     st.caption("No signal status changes recorded since yesterday — either nothing flipped, or today is the first visit (snapshots accumulate with each visit to this page).")
 else:
-    FLIP_COLOR = {"bullish": "#1B5E20", "bearish": "#7B1010", "neutral": "#8B7355"}
+    FLIP_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#8892AA"}
     FLIP_ARROW = {"bullish": "▲", "bearish": "▼", "neutral": "●"}
     for flip in _flips:
         sig_cfg = SIGNALS.get(flip["signal_id"], {})
         sig_name = sig_cfg.get("name", flip["signal_id"])
-        fc = FLIP_COLOR.get(flip["to_status"], "#8B7355")
+        fc = FLIP_COLOR.get(flip["to_status"], "#8892AA")
         fa = FLIP_ARROW.get(flip["to_status"], "●")
-        fc_from = FLIP_COLOR.get(flip["from_status"], "#8B7355")
+        fc_from = FLIP_COLOR.get(flip["from_status"], "#8892AA")
         st.markdown(
-            f'<div style="background:#F5F1E8;border-left:3px solid {fc};border-radius:4px;'
-            f'padding:8px 14px;margin-bottom:6px;font-family:Georgia,serif;font-size:0.85rem;">'
+            f'<div style="background:#12151E;border-left:3px solid {fc};border-radius:4px;'
+            f'padding:8px 14px;margin-bottom:6px;font-family:Inter,sans-serif;font-size:0.85rem;">'
             f'<b>{sig_name}</b> &nbsp;'
             f'<span style="color:{fc_from};">{flip["from_status"]}</span> → '
             f'<span style="color:{fc};font-weight:700;">{fa} {flip["to_status"]}</span>'
-            f'<span style="color:#8B7355;font-size:0.75rem;float:right;">'
+            f'<span style="color:#8892AA;font-size:0.75rem;float:right;">'
             f'{flip["from_date"]} → {flip["to_date"]}</span>'
             f'</div>',
             unsafe_allow_html=True,
@@ -555,7 +557,7 @@ else:
         "History accumulates as tickers are viewed on Ticker Deep Dive — not a complete universe."
     )
 
-    CASE_COLOR = {"BULL": "#1B5E20", "BEAR": "#7B1010", "NEUTRAL": "#8B7355"}
+    CASE_COLOR = {"BULL": "#00D566", "BEAR": "#FF4444", "NEUTRAL": "#8892AA"}
 
     for _, row in _movers_df.iterrows():
         ticker = row["ticker"]
@@ -565,8 +567,8 @@ else:
         case = str(row.get("case", "NEUTRAL") or "NEUTRAL").upper()
         from_date = row.get("from_date", "")
         to_date = row.get("to_date", "")
-        case_color = CASE_COLOR.get(case, "#8B7355")
-        delta_color = "#1B5E20" if delta > 0 else ("#7B1010" if delta < 0 else "#8B7355")
+        case_color = CASE_COLOR.get(case, "#8892AA")
+        delta_color = "#00D566" if delta > 0 else ("#FF4444" if delta < 0 else "#8892AA")
         delta_arrow = "▲" if delta > 0 else ("▼" if delta < 0 else "●")
         company = TICKERS.get(ticker, {}).get("name", "")
 
@@ -578,9 +580,9 @@ else:
                 st.caption(company)
         with mc2:
             st.markdown(
-                f'<div style="font-family:Georgia,serif;font-size:0.85rem;padding-top:4px;">'
-                f'<span style="color:#8B7355;">{from_date}</span> → <span style="color:#1A1612;font-weight:700;">{to_date}</span>'
-                f'<br><span style="color:#8B7355;">{from_score:.0f}</span> → '
+                f'<div style="font-family:Inter,sans-serif;font-size:0.85rem;padding-top:4px;">'
+                f'<span style="color:#8892AA;">{from_date}</span> → <span style="color:#E8EEFF;font-weight:700;">{to_date}</span>'
+                f'<br><span style="color:#8892AA;">{from_score:.0f}</span> → '
                 f'<b style="color:{case_color};">{to_score:.0f}</b>'
                 f'</div>',
                 unsafe_allow_html=True,
@@ -645,7 +647,7 @@ else:
                 else:
                     st.caption("Price unavailable")
                 if chg_pct is not None:
-                    _cc = "#1B5E20" if chg_pct > 0 else ("#7B1010" if chg_pct < 0 else "#8B7355")
+                    _cc = "#00D566" if chg_pct > 0 else ("#FF4444" if chg_pct < 0 else "#8892AA")
                     _ca = "▲" if chg_pct > 0 else ("▼" if chg_pct < 0 else "●")
                     st.markdown(
                         f'<span style="color:{_cc};font-size:0.85rem;">{_ca} {chg_pct:+.2f}% today</span>',
@@ -657,12 +659,12 @@ else:
                     _snap_score = snap["score"]
                     _snap_case = str(snap.get("case", "NEUTRAL") or "NEUTRAL").upper()
                     _snap_date = snap.get("snapshot_date", "")
-                    _sc_color = "#1B5E20" if _snap_case == "BULL" else ("#7B1010" if _snap_case == "BEAR" else "#8B7355")
+                    _sc_color = "#00D566" if _snap_case == "BULL" else ("#FF4444" if _snap_case == "BEAR" else "#8892AA")
                     st.markdown(
-                        f'<div style="text-align:right;font-family:Georgia,serif;">'
+                        f'<div style="text-align:right;font-family:Inter,sans-serif;">'
                         f'<span style="font-size:1.2rem;font-weight:700;color:{_sc_color};">{_snap_score:.0f}</span>'
                         f'<span style="font-size:0.72rem;font-weight:700;color:{_sc_color};margin-left:4px;">{_snap_case}</span>'
-                        f'<br><span style="font-size:0.70rem;color:#8B7355;">as of {_snap_date}</span>'
+                        f'<br><span style="font-size:0.70rem;color:#8892AA;">as of {_snap_date}</span>'
                         f'</div>',
                         unsafe_allow_html=True,
                     )
@@ -683,13 +685,13 @@ if _cur_user:
 
 if not _already_opted_in:
     st.markdown("""
-<div style="background:#1C2B4A;border-radius:10px;padding:20px 24px;margin:20px 0 14px;
-            font-family:Georgia,serif;display:flex;align-items:center;
+<div style="background:#12151E;border-radius:10px;padding:20px 24px;margin:20px 0 14px;
+            font-family:Inter,sans-serif;display:flex;align-items:center;
             justify-content:space-between;flex-wrap:wrap;gap:14px;">
     <div>
         <div style="font-size:0.68rem;letter-spacing:0.12em;color:#C9A84C;font-weight:600;
                     text-transform:uppercase;margin-bottom:4px;">WANT THIS IN YOUR INBOX?</div>
-        <div style="font-size:0.95rem;font-weight:700;color:#FAF7F0;">
+        <div style="font-size:0.95rem;font-weight:700;color:#12151E;">
             Get Today's Brief every morning at 7 AM ET
         </div>
         <div style="font-size:0.80rem;color:#A0A8B8;margin-top:4px;line-height:1.5;">

@@ -81,19 +81,26 @@ def _fetch_price_metrics(ticker: str) -> dict:
         return {}
 
 
-def _derive_confluence(all_signals: dict, ticker: str) -> tuple[float, str]:
+@st.cache_data(ttl=3600, max_entries=20, show_spinner=False)
+def _compute_real_score(ticker: str) -> dict:
     """
-    Simple unweighted average of all non-error signal scores as a proxy
-    for the full per-ticker Confluence Score (which requires price history).
-    Used here for the summary report when we don't want to rerun the full engine.
+    Run the full per-ticker correlation-weighted Confluence Score via
+    compute_full_ticker_score(). Cached for 1 hour per ticker.
+    Falls back gracefully on failure.
     """
-    scores = [sv["score"] for sv in all_signals.values()
-              if not sv.get("error") and sv.get("score") is not None]
-    if not scores:
-        return 50.0, "neutral"
-    avg = float(np.mean(scores))
-    status = "bullish" if avg >= 65 else ("bearish" if avg <= 35 else "neutral")
-    return avg, status
+    try:
+        from utils.ticker_score import compute_full_ticker_score
+        return compute_full_ticker_score(ticker)
+    except Exception as exc:
+        return {
+            "confluence": {"overall_score": 50.0, "case": "neutral"},
+            "insider_score": None,
+            "short_interest_score": None,
+            "thirteenf_score": None,
+            "insider_tx": [],
+            "thirteenf_fund_rows": [],
+            "_error": str(exc),
+        }
 
 
 def build_pdf(
@@ -104,6 +111,11 @@ def build_pdf(
     all_signals: dict,
     price_metrics: dict,
     generated_at: str,
+    insider_score: float | None = None,
+    short_interest_score: float | None = None,
+    thirteenf_score: float | None = None,
+    insider_tx: list | None = None,
+    thirteenf_fund_rows: list | None = None,
 ) -> bytes:
     """Build and return PDF bytes for the ticker report."""
     from fpdf import FPDF
@@ -286,6 +298,91 @@ def build_pdf(
         pdf.cell(20, 4.5, f"{pcs}/10", align="C", fill=True)
         pdf.ln()
 
+    # ── Positioning & Alternative Data ────────────────────────────────────────
+    _alt_data = [
+        ("Insider Activity",  insider_score),
+        ("Short Interest",    short_interest_score),
+        ("13F Institutional", thirteenf_score),
+    ]
+    _has_alt = any(v is not None for _, v in _alt_data)
+    if _has_alt:
+        if pdf.get_y() > 248:
+            pdf.add_page()
+        section_header("Positioning & Alternative Data")
+        y0 = pdf.get_y() + 3
+        box_w, box_h, gap = 58, 20, 6
+        col_i = 0
+        for label, val in _alt_data:
+            if val is None:
+                continue
+            st_key = "bullish" if val >= 65 else ("bearish" if val <= 35 else "neutral")
+            rgb = STATUS_RGB.get(st_key, (80, 90, 140))
+            x = 10 + col_i * (box_w + gap)
+            pdf.set_fill_color(*GRAY_L)
+            pdf.rect(x, y0, box_w, box_h, "F")
+            pdf.set_xy(x, y0 + 2)
+            pdf.set_font("Helvetica", "", 6.5)
+            pdf.set_text_color(80, 90, 110)
+            pdf.cell(box_w, 4, label, align="C")
+            pdf.set_xy(x, y0 + 7)
+            pdf.set_font("Helvetica", "B", 12)
+            pdf.set_text_color(*rgb)
+            pdf.cell(box_w, 8, f"{val:.0f}", align="C")
+            pdf.set_xy(x, y0 + 15)
+            pdf.set_font("Helvetica", "B", 6)
+            pdf.set_text_color(*rgb)
+            pdf.cell(box_w, 4, STATUS_LABEL.get(st_key, ""), align="C")
+            col_i += 1
+        pdf.set_y(y0 + box_h + 4)
+
+        # Insider transactions (top 4)
+        if insider_tx:
+            pdf.set_font("Helvetica", "B", 7)
+            pdf.set_text_color(*NAVY)
+            pdf.set_x(10)
+            pdf.cell(190, 5, "Recent Insider Transactions (SEC Form 4)")
+            pdf.ln(1)
+            for tx in (insider_tx or [])[:4]:
+                name_tx  = str(tx.get("insider_name", ""))[:26]
+                title_tx = str(tx.get("title", ""))[:18]
+                txtype   = str(tx.get("transaction_type", ""))
+                shares   = tx.get("shares", 0) or 0
+                date_tx  = str(tx.get("transaction_date", ""))[:10]
+                is_buy   = txtype.upper() in ("P", "BUY", "PURCHASE", "A")
+                t_rgb    = STATUS_RGB["bullish"] if is_buy else STATUS_RGB["bearish"]
+                pdf.set_xy(10, pdf.get_y())
+                pdf.set_font("Helvetica", "", 6.5)
+                pdf.set_text_color(*BLACK)
+                pdf.cell(52, 4.5, name_tx)
+                pdf.cell(36, 4.5, title_tx)
+                pdf.set_text_color(*t_rgb)
+                pdf.set_font("Helvetica", "B", 6.5)
+                pdf.cell(22, 4.5, "BUY" if is_buy else "SELL")
+                pdf.set_text_color(*BLACK)
+                pdf.set_font("Helvetica", "", 6.5)
+                pdf.cell(40, 4.5, f"{int(shares):,} sh")
+                pdf.cell(40, 4.5, date_tx, align="R")
+                pdf.ln()
+            pdf.ln(2)
+
+        # 13F top funds (top 4)
+        if thirteenf_fund_rows:
+            pdf.set_font("Helvetica", "B", 7)
+            pdf.set_text_color(*NAVY)
+            pdf.set_x(10)
+            pdf.cell(190, 5, "Top Institutional Holders (13F)")
+            pdf.ln(1)
+            for fund in (thirteenf_fund_rows or [])[:4]:
+                fname  = str(fund.get("fund_name", fund.get("manager", "")))[:50]
+                shares = fund.get("shares", fund.get("value", 0)) or 0
+                pdf.set_xy(10, pdf.get_y())
+                pdf.set_font("Helvetica", "", 6.5)
+                pdf.set_text_color(*BLACK)
+                pdf.cell(145, 4.5, fname)
+                pdf.cell(45, 4.5, f"{int(shares):,}", align="R")
+                pdf.ln()
+            pdf.ln(2)
+
     # ── Methodology note ──────────────────────────────────────────────────────
     if pdf.get_y() > 255:
         pdf.add_page()
@@ -295,10 +392,11 @@ def build_pdf(
     pdf.set_xy(10, pdf.get_y() + 2)
     pdf.multi_cell(190, 4, (
         "Signal scores are computed as 0-100 percentile ranks within each series' trailing 2-year "
-        "distribution, mapped through a tanh function. The Confluence Score shown is the unweighted "
-        "average of all non-error signal scores and is an approximation of the full per-ticker "
-        "correlation-weighted score (which requires live price data). Signals are sourced from FRED, "
-        "EIA, SEC EDGAR, FINRA, and yfinance. All data is public domain. "
+        "distribution, mapped through a tanh function. The Confluence Score is the full "
+        "correlation-weighted per-ticker score, blending macro signals (weighted by price correlation), "
+        "price momentum (20%), and optional positioning signals (insider activity, short interest, "
+        "13F institutional flows, 12% each where available). Signals are sourced from FRED, EIA, "
+        "SEC EDGAR, FINRA, and yfinance. All data is public domain. "
         "NOT FINANCIAL ADVICE. Past signal accuracy does not predict future performance. "
         "Always conduct independent due diligence before making any investment decision. "
         "Platform: unstructuredalpha.com | Generated by Unstructured Alpha " + generated_at
@@ -316,13 +414,16 @@ def build_pdf(
 
 
 # ── UI ────────────────────────────────────────────────────────────────────────
+# Pre-fill ticker if navigated here from Ticker Deep Dive
+_prefill = st.session_state.pop("export_ticker", "NVDA")
+
 col_ticker, col_btn, col_space = st.columns([2, 2, 4])
 with col_ticker:
     ticker_input = st.text_input(
         "Ticker",
-        value="NVDA",
+        value=_prefill,
         placeholder="e.g. AAPL, TSLA, XOM",
-        key="export_ticker",
+        key="export_ticker_input",
     ).strip().upper()
 
 if not ticker_input:
@@ -336,7 +437,20 @@ _sk.markdown(skeleton_cards(n=3, height=60, cols=3), unsafe_allow_html=True)
 all_signals = get_all_signal_scores()
 _sk.empty()
 
-score, score_status = _derive_confluence(all_signals, ticker_input)
+# Real per-ticker correlation-weighted Confluence Score
+with st.spinner(f"Computing {ticker_input} score…"):
+    _score_result = _compute_real_score(ticker_input)
+
+_confluence_data   = _score_result.get("confluence", {})
+score              = float(_confluence_data.get("overall_score", 50.0))
+score_status       = _confluence_data.get("case", "neutral")
+if score_status not in ("bullish", "bearish", "neutral", "insufficient_data"):
+    score_status = "neutral"
+insider_score      = _score_result.get("insider_score")
+short_interest_score = _score_result.get("short_interest_score")
+thirteenf_score    = _score_result.get("thirteenf_score")
+_insider_tx        = _score_result.get("insider_tx") or []
+_thirteenf_rows    = _score_result.get("thirteenf_fund_rows") or []
 
 # Preview metrics
 with st.spinner(f"Loading {ticker_input} price data…"):
@@ -414,6 +528,11 @@ if generate or st.session_state.get("pdf_ready"):
                 all_signals=all_signals,
                 price_metrics=price_metrics,
                 generated_at=generated_at,
+                insider_score=insider_score,
+                short_interest_score=short_interest_score,
+                thirteenf_score=thirteenf_score,
+                insider_tx=_insider_tx,
+                thirteenf_fund_rows=_thirteenf_rows,
             )
         st.session_state["pdf_ready"] = True
 
@@ -427,9 +546,9 @@ if generate or st.session_state.get("pdf_ready"):
             key="pdf_dl",
         )
         st.caption(
-            "Report includes: Confluence Score, all 38 signal scores and statuses, "
-            "price metrics, and methodology note. Score shown is macro signal average — "
-            "for the full correlation-weighted score, see Ticker Deep Dive."
+            "Report includes: full correlation-weighted Confluence Score, all signal scores, "
+            "price metrics, insider activity, short interest, 13F institutional positioning, "
+            "and methodology note."
         )
     except ImportError:
         st.error(

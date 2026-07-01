@@ -405,6 +405,7 @@ def style_area_chart(fig, line_color: str = GREEN, fill_opacity: float = 0.12,
 
 _SKELETON_CSS = """
 <style>
+/* ── Shimmer / Skeleton ──────────────────────────────────────────────────── */
 @keyframes ua_shimmer {
   0%   { background-position: -1200px 0; }
   100% { background-position:  1200px 0; }
@@ -443,6 +444,158 @@ _SKELETON_CSS = """
   padding: 16px 18px;
   margin-bottom: 10px;
 }
+
+/* ── Fade-in animation ───────────────────────────────────────────────────── */
+@keyframes ua_fadein {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.ua-fade-in {
+  animation: ua_fadein 0.28s ease forwards;
+}
+
+/* ── Card components ─────────────────────────────────────────────────────── */
+.ua-card {
+  background: #12151E;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 16px 20px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+  font-family: Inter, -apple-system, sans-serif;
+}
+.ua-card:hover {
+  border-color: rgba(124,58,237,0.35);
+  box-shadow: 0 0 0 1px rgba(124,58,237,0.15), 0 4px 16px rgba(0,0,0,0.35);
+}
+.ua-card-green:hover {
+  border-color: rgba(0,213,102,0.35);
+  box-shadow: 0 0 0 1px rgba(0,213,102,0.12), 0 4px 16px rgba(0,0,0,0.35);
+}
+.ua-card-red:hover {
+  border-color: rgba(255,68,68,0.35);
+  box-shadow: 0 0 0 1px rgba(255,68,68,0.12), 0 4px 16px rgba(0,0,0,0.35);
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.ua-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 28px 20px;
+  text-align: center;
+  color: #8892AA;
+  font-size: 0.85rem;
+  font-family: Inter, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+.ua-empty-icon {
+  font-size: 1.6rem;
+  margin-bottom: 10px;
+  opacity: 0.6;
+}
+.ua-empty-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #B8C0D4;
+  margin-bottom: 4px;
+}
+
+/* ── Metric / stat tile ──────────────────────────────────────────────────── */
+.ua-metric {
+  background: #12151E;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-family: Inter, -apple-system, sans-serif;
+  transition: border-color 0.15s ease;
+}
+.ua-metric-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #8892AA;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 4px;
+}
+.ua-metric-value {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #E8EEFF;
+  line-height: 1.15;
+}
+
+/* ── Status tags ─────────────────────────────────────────────────────────── */
+.ua-tag {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: Inter, -apple-system, sans-serif;
+}
+.ua-tag-bull {
+  background: rgba(0,213,102,0.12);
+  color: #00D566;
+  border: 1px solid rgba(0,213,102,0.25);
+}
+.ua-tag-bear {
+  background: rgba(255,68,68,0.12);
+  color: #FF4444;
+  border: 1px solid rgba(255,68,68,0.25);
+}
+.ua-tag-neutral {
+  background: rgba(107,127,191,0.12);
+  color: #6B7FBF;
+  border: 1px solid rgba(107,127,191,0.25);
+}
+.ua-tag-pro {
+  background: rgba(124,58,237,0.15);
+  color: #A78BFA;
+  border: 1px solid rgba(124,58,237,0.3);
+}
+
+/* ── Section divider ─────────────────────────────────────────────────────── */
+.ua-divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.07) 20%,
+    rgba(255,255,255,0.07) 80%,
+    transparent 100%
+  );
+  margin: 18px 0;
+}
+
+/* ── Streamlit element polish ────────────────────────────────────────────── */
+/* Smoother button transitions */
+.stButton > button {
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+              box-shadow 0.15s ease, opacity 0.15s ease !important;
+}
+/* Download button same treatment */
+.stDownloadButton > button {
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+              box-shadow 0.15s ease !important;
+}
+/* Metric delta coloring */
+[data-testid="stMetricDelta"] svg { display: none; }
+/* Expander header hover */
+.streamlit-expanderHeader {
+  transition: color 0.15s ease !important;
+}
+/* Tab underline transition */
+.stTabs [data-baseweb="tab"] {
+  transition: color 0.15s ease !important;
+}
+/* Dataframe hover row highlight */
+.dvn-scroller:hover td { cursor: default; }
 </style>
 """
 
@@ -492,6 +645,29 @@ def skeleton_chart_block(height: int = 300, title_lines: int = 1) -> str:
         f'<div class="ua-sk-wrap">'
         f'  {lines_html}'
         f'  <div class="ua-sk" style="height:{height}px;width:100%;margin-top:8px;"></div>'
+        f'</div>'
+    )
+
+
+def empty_state(icon: str, title: str, body: str = "") -> str:
+    """
+    Return HTML for a tasteful empty-state block.
+
+    Usage::
+
+        st.markdown(empty_state("📭", "No alerts yet",
+                                "Set a threshold on any ticker to get started."),
+                    unsafe_allow_html=True)
+    """
+    body_html = (
+        f'<div style="font-size:0.82rem;color:#8892AA;margin-top:4px;line-height:1.55;">'
+        f'{body}</div>'
+    ) if body else ""
+    return (
+        f'<div class="ua-empty">'
+        f'<div class="ua-empty-icon">{icon}</div>'
+        f'<div class="ua-empty-title">{title}</div>'
+        f'{body_html}'
         f'</div>'
     )
 

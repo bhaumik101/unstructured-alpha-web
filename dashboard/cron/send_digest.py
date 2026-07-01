@@ -194,6 +194,7 @@ def main() -> None:
                 bull_n=bull_n,
                 bear_n=bear_n,
                 neut_n=neut_n,
+                signal_scores=signal_scores,
             )
             sent += 1
             print(f"[digest] sent to {email_addr!r}", flush=True)

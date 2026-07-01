@@ -571,7 +571,7 @@ elif section == "Nuclear Contracts":
         vel_recent = vel.get("recent_total", 0)
         vel_prior  = vel.get("prior_total", 0)
         col.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:6px;padding:14px;
+        <div style="background:#12151E;border-radius:6px;padding:14px;
                     border-left:3px solid {vel_color};
                     border-top:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
                     margin-bottom:8px;font-family:Inter,sans-serif;">

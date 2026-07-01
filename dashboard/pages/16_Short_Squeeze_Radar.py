@@ -200,7 +200,7 @@ def build_squeeze_radar(signal_hash: int = 0) -> pd.DataFrame:
 
 st.markdown("# 🔥 Short Squeeze Radar")
 st.markdown(
-    '<div style="font-family:Inter,sans-serif;font-size:0.92rem;color:#4A4440;margin-bottom:18px;'
+    '<div style="font-family:Inter,sans-serif;font-size:0.92rem;color:#8892AA;margin-bottom:18px;'
     'background:#12151E;border-left:4px solid #F59E0B;padding:12px 16px;border-radius:0 8px 8px 0;">'
     '<b>What this page does:</b> Finds tickers where (1) short sellers are heavily positioned, '
     '(2) the macro signal engine says the fundamentals are turning bullish against those shorts, '
@@ -267,7 +267,7 @@ def _squeeze_card(row: pd.Series, is_tier1: bool = False) -> str:
         f'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
         f'  <div style="flex:1;">'
         f'    <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;">{fire_badge}{row["ticker"]}</div>'
-        f'    <div style="font-size:0.76rem;color:#4A4440;">{row["name"][:36]}</div>'
+        f'    <div style="font-size:0.76rem;color:#8892AA;">{row["name"][:36]}</div>'
         f'    <div style="font-size:0.67rem;color:#6B7FBF;margin-top:1px;">{row["sector"]}</div>'
         f'  </div>'
         f'  <div style="text-align:right;min-width:70px;">'
