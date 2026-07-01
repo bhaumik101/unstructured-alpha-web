@@ -27,6 +27,7 @@ from utils.analysis import (
     score_signal, score_cot, compute_supercycle_score, score_contract_velocity,
 )
 from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
+from utils.theme import source_badge
 
 st.set_page_config(page_title="Power Supercycle — UA", layout="wide")
 render_header("Power Supercycle")
@@ -154,7 +155,7 @@ sc_status = supercycle["thesis_status"]
 sc_color  = "#00D566" if sc_case == "BULL" else ("#FF4444" if sc_case == "BEAR" else "#6B7FBF")
 
 st.markdown(f"""
-<div style="background:linear-gradient(135deg, #F0EBE1 60%, #EAE3D5);
+<div style="background:linear-gradient(135deg, #12151E 0%, #0B0D12 100%);
             border-radius:8px;padding:24px 28px;
             border:2px solid {sc_color};margin-bottom:20px;font-family:Inter,sans-serif;">
     <div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
@@ -212,7 +213,7 @@ for col, (leg_name, leg_sigs) in zip(leg_cols, leg_map.items()):
         leg_symbol = "▲" if leg_avg >= 65 else ("▼" if leg_avg <= 35 else "●")
 
         st.markdown(f"""
-        <div style="background:#F0EBE1;border-radius:6px;padding:14px;
+        <div style="background:#12151E;border-radius:6px;padding:14px;
                     border-top:3px solid {leg_color};
                     border-left:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
                     text-align:center;font-family:Inter,sans-serif;">
@@ -343,6 +344,10 @@ if section == "Signal Trends":
     fig_legs.update_yaxes(showgrid=True, gridcolor="rgba(255,255,255,0.04)", tickfont=dict(size=9, color="#8892AA"))
     fig_legs.update_annotations(font=dict(size=11, color="#7C3AED"))
     st.plotly_chart(fig_legs, use_container_width=True)
+    st.markdown(
+        f"&nbsp; {source_badge('fred')} &nbsp; {source_badge('yfinance')}",
+        unsafe_allow_html=True,
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB: Ticker Performance
@@ -385,6 +390,7 @@ elif section == "Ticker Performance":
         hovermode="x unified", margin=dict(l=0, r=0, t=10, b=0),
     )
     st.plotly_chart(perf_fig, use_container_width=True)
+    st.markdown(f"&nbsp; {source_badge('yfinance')}", unsafe_allow_html=True)
 
     st.caption("Click any ticker to open its full Ticker Deep Dive analysis:")
     for basket_name, basket_tickers in POWER_SUPERCYCLE_TICKERS.items():
@@ -457,6 +463,7 @@ elif section == "Copper COT":
             margin=dict(l=0, r=0, t=30, b=0),
         )
         st.plotly_chart(fig_cot, use_container_width=True)
+        st.markdown(f"&nbsp; {source_badge('cftc', 'CFTC Commitment of Traders')}", unsafe_allow_html=True)
     else:
         st.info("CFTC COT data temporarily unavailable.")
 

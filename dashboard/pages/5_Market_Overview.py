@@ -30,6 +30,7 @@ import yfinance as yf
 
 from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.fetchers import fetch_live_quote
+from utils.theme import source_badge
 
 st.set_page_config(page_title="Market Overview — UA", layout="wide")
 render_header("Market Overview")
@@ -717,7 +718,7 @@ elif section == "Macro Indicators":
                 fill="tozeroy", fillcolor="rgba(28,43,74,0.09)",
             ))
             st.plotly_chart(_light_chart(fig, 200, "ATA Trucking Index"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:,.1f}** &nbsp; 4-week change: {chg:+.1f}% &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:,.1f}** &nbsp; 4-week change: {chg:+.1f}% &nbsp; {chip} &nbsp; {source_badge('fred','TRUCKD11')}", unsafe_allow_html=True)
         else:
             st.info("Trucking data unavailable. Add FRED API key.")
 
@@ -729,7 +730,7 @@ elif section == "Macro Indicators":
             fig = go.Figure(go.Scatter(x=ism.index, y=ism.values, mode="lines", line=dict(color="#F59E0B", width=1.8)))
             fig.add_hline(y=50, line=dict(color="#6B7FBF", dash="dot", width=1.5))
             st.plotly_chart(_light_chart(fig, 200, "ISM Manufacturing PMI"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:.1f}** &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:.1f}** &nbsp; {chip} &nbsp; {source_badge('fred','GACDFSA066MSFRBPHI','Philly Fed')}", unsafe_allow_html=True)
         else:
             st.info("ISM PMI unavailable. Add FRED API key.")
 
@@ -743,7 +744,7 @@ elif section == "Macro Indicators":
             fig = go.Figure(go.Bar(x=dgo.index, y=dgo.values,
                                     marker_color=["#00D566" if v > 0 else "#FF4444" for v in dgo.values]))
             st.plotly_chart(_light_chart(fig, 200, "Durable Goods Orders (MoM %)"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:+.2f}%** &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:+.2f}%** &nbsp; {chip} &nbsp; {source_badge('fred','DGORDER')}", unsafe_allow_html=True)
         else:
             st.info("Durable Goods unavailable. Add FRED API key.")
 
@@ -758,7 +759,7 @@ elif section == "Macro Indicators":
             chip   = _status_chip(last_v, (220000, 280000), ("Healthy (<220K)", "Elevated (>280K)", "Normal"), inverse=True)
             fig = go.Figure(go.Scatter(x=ic.index, y=ic.values, mode="lines", line=dict(color="#FF4444", width=1.8)))
             st.plotly_chart(_light_chart(fig, 200, "Initial Jobless Claims (4-Week Avg)"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:,.0f}** claims &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:,.0f}** claims &nbsp; {chip} &nbsp; {source_badge('fred','IC4WSA')}", unsafe_allow_html=True)
         else:
             st.info("Jobless claims unavailable. Add FRED API key.")
 
@@ -769,7 +770,7 @@ elif section == "Macro Indicators":
             chip   = _status_chip(last_v, (1.0, 2.5), ("High demand (>2.5)", "Low demand (<1.0)", "Normal"))
             fig = go.Figure(go.Scatter(x=jolts_ld.index, y=jolts_ld.values, mode="lines", line=dict(color="#00D566", width=1.8)))
             st.plotly_chart(_light_chart(fig, 200, "JOLTS — Layoffs & Discharges Rate"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:.2f}%** &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:.2f}%** &nbsp; {chip} &nbsp; {source_badge('fred','JTSLDR')}", unsafe_allow_html=True)
         else:
             st.info("JOLTS data unavailable. Add FRED API key.")
 
@@ -782,7 +783,7 @@ elif section == "Macro Indicators":
             fig = go.Figure(go.Scatter(x=rail.index, y=rail.values, mode="lines", line=dict(color="#7C3AED", width=1.8)))
             fig.add_hline(y=mean_v, line=dict(color="#F59E0B", dash="dot", width=1))
             st.plotly_chart(_light_chart(fig, 200, "Rail Intermodal Traffic"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:,.0f}** units &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:,.0f}** units &nbsp; {chip} &nbsp; {source_badge('fred','RAILFRTINTERMODAL')}", unsafe_allow_html=True)
         else:
             st.info("Rail freight data unavailable. Add FRED API key.")
 
@@ -799,7 +800,7 @@ elif section == "Macro Indicators":
             fig = go.Figure(go.Scatter(x=umcs.index, y=umcs.values, mode="lines", line=dict(color="#F59E0B", width=1.8)))
             fig.add_hline(y=mean_v, line=dict(color="#7C3AED", dash="dot", width=1))
             st.plotly_chart(_light_chart(fig, 200, "U. Michigan Consumer Sentiment"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:.1f}** &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:.1f}** &nbsp; {chip} &nbsp; {source_badge('fred','UMCSENT')}", unsafe_allow_html=True)
         else:
             st.info("Consumer sentiment unavailable.")
 
@@ -813,7 +814,7 @@ elif section == "Macro Indicators":
             fig = go.Figure(go.Bar(x=rsxfs.index, y=rsxfs.values,
                                     marker_color=["#00D566" if v > 0 else "#FF4444" for v in rsxfs.values]))
             st.plotly_chart(_light_chart(fig, 200, "Retail Sales ex-Autos (MoM %)"), use_container_width=True)
-            st.markdown(f"Latest: **{last_v:+.2f}%** &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Latest: **{last_v:+.2f}%** &nbsp; {chip} &nbsp; {source_badge('fred','RSXFS')}", unsafe_allow_html=True)
         else:
             st.info("Retail sales unavailable.")
 
@@ -825,7 +826,7 @@ elif section == "Macro Indicators":
             chip = _status_chip(yoy if not pd.isna(yoy) else 0, (2, 5), ("Stable (<2%)", "High (>5%)", "Moderate"), inverse=True)
             fig = go.Figure(go.Scatter(x=cpi_food.index, y=cpi_food.values, mode="lines", line=dict(color="#FF4444", width=1.8)))
             st.plotly_chart(_light_chart(fig, 200, "CPI — Food at Home (Index Level)"), use_container_width=True)
-            st.markdown(f"Index: **{last_v:.1f}** &nbsp; YoY: **{yoy:+.1f}%** &nbsp; {chip}", unsafe_allow_html=True)
+            st.markdown(f"Index: **{last_v:.1f}** &nbsp; YoY: **{yoy:+.1f}%** &nbsp; {chip} &nbsp; {source_badge('fred','CPIUFDSL')}", unsafe_allow_html=True)
         else:
             st.info("CPI food data unavailable.")
 
@@ -847,6 +848,8 @@ elif section == "Macro Indicators":
         st.markdown(
             f"Current spread: **{last_spread:+.2f}%** &nbsp; "
             + ("Curve is **inverted** — historical recession signal." if last_spread < 0 else "Curve is **positive** — normal.")
+            + f" &nbsp; {source_badge('fred','T10Y2Y')}",
+            unsafe_allow_html=True,
         )
     else:
         st.info("Yield curve data unavailable. Add FRED API key.")
