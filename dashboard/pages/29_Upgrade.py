@@ -226,6 +226,13 @@ if stripe_session_id:
             result = handle_checkout_success(stripe_session_id, user["id"])
         st.session_state[f"_stripe_done_{stripe_session_id}"] = True
         st.session_state.pop(f"_tier_{user['id']}", None)
+        # Send Pro onboarding guide email (fire-and-forget, never blocks UI)
+        if result.get("ok"):
+            try:
+                from utils.email import send_pro_welcome_email
+                send_pro_welcome_email(user["email"])
+            except Exception as _e:
+                print(f"[upgrade] Pro welcome email failed: {_e}", flush=True)
     else:
         result = {"ok": True, "tier": get_user_tier(user["id"]), "error": ""}
 

@@ -845,3 +845,206 @@ def send_welcome_email(to_email: str) -> None:
     except requests.RequestException as e:
         print(f"[welcome] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send welcome email to {to_email}: {e}") from e
+
+
+def send_pro_welcome_email(to_email: str) -> None:
+    """
+    Send a rich onboarding email immediately after a user upgrades to Pro.
+    Guides them to the highest-value Pro features so they get value on day 1.
+    Called in a try/except so it never blocks the upgrade flow.
+    """
+    api_key, from_email = _get_resend_config()
+    print(f"[pro-welcome] sending to={to_email!r}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    html = """
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+                max-width:580px;margin:0 auto;background:#0B0D12;color:#E8EEFF;">
+
+      <!-- Header -->
+      <div style="background:linear-gradient(135deg,#7C3AED 0%,#0B0D12 100%);
+                  padding:32px 32px 28px;border-radius:12px 12px 0 0;">
+        <div style="font-size:0.65rem;color:#A78BFA;letter-spacing:0.14em;
+                    text-transform:uppercase;margin-bottom:8px;">
+          Unstructured Alpha · Pro
+        </div>
+        <div style="font-size:1.7rem;font-weight:800;color:#FFFFFF;line-height:1.2;">
+          You're in. Here's where to start.
+        </div>
+        <div style="font-size:0.9rem;color:#C4B5FD;margin-top:10px;">
+          Your Pro access is live — every signal, every tool, no paywalls.
+        </div>
+      </div>
+
+      <!-- Intro -->
+      <div style="background:#12151E;padding:28px 32px 8px;">
+        <p style="font-size:0.95rem;color:#B8C0D4;line-height:1.7;margin:0 0 8px;">
+          Most people open the dashboard and immediately go to the ticker they're
+          watching. That's fine — but here's how to get the most out of the machine
+          in the first week.
+        </p>
+      </div>
+
+      <!-- Feature guide -->
+      <div style="background:#12151E;padding:8px 32px 28px;">
+
+        <!-- Item 1 -->
+        <div style="border-left:3px solid #7C3AED;padding:14px 0 14px 18px;margin-bottom:20px;">
+          <div style="font-size:1rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">
+            📋 Today's Brief — read this every morning
+          </div>
+          <div style="font-size:0.88rem;color:#8892AA;line-height:1.6;">
+            The daily signal pulse: what's bullish, what's bearish, what flipped
+            overnight. Takes 60 seconds. Sets your macro frame for the day.
+          </div>
+          <a href="https://unstructuredalpha.com/Today%27s_Brief"
+             style="display:inline-block;margin-top:10px;font-size:0.82rem;
+                    color:#A78BFA;text-decoration:none;font-weight:600;">
+            Open Today's Brief →
+          </a>
+        </div>
+
+        <!-- Item 2 -->
+        <div style="border-left:3px solid #00D566;padding:14px 0 14px 18px;margin-bottom:20px;">
+          <div style="font-size:1rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">
+            🔍 Ticker Deep Dive — your most powerful tool
+          </div>
+          <div style="font-size:0.88rem;color:#8892AA;line-height:1.6;">
+            Type any ticker. You'll see the Confluence Score, which macro signals
+            are driving it, an auto-explainer, insider cluster detection, a radar
+            chart across 5 signal axes, and the full PDF export. This is the core.
+          </div>
+          <a href="https://unstructuredalpha.com/Ticker_Deep_Dive"
+             style="display:inline-block;margin-top:10px;font-size:0.82rem;
+                    color:#00D566;text-decoration:none;font-weight:600;">
+            Open Ticker Deep Dive →
+          </a>
+        </div>
+
+        <!-- Item 3 -->
+        <div style="border-left:3px solid #00C8E0;padding:14px 0 14px 18px;margin-bottom:20px;">
+          <div style="font-size:1rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">
+            📊 PDF Export — institutional-quality reports
+          </div>
+          <div style="font-size:0.88rem;color:#8892AA;line-height:1.6;">
+            From any Ticker Deep Dive, hit "Export Full PDF Report." You get the
+            full correlation-weighted score, all signal breakdowns, insider
+            transactions, 13F institutional holders, and methodology notes —
+            formatted and ready to share or archive.
+          </div>
+          <a href="https://unstructuredalpha.com/Export"
+             style="display:inline-block;margin-top:10px;font-size:0.82rem;
+                    color:#00C8E0;text-decoration:none;font-weight:600;">
+            Try PDF Export →
+          </a>
+        </div>
+
+        <!-- Item 4 -->
+        <div style="border-left:3px solid #F59E0B;padding:14px 0 14px 18px;margin-bottom:20px;">
+          <div style="font-size:1rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">
+            ⚡ Short Squeeze Radar
+          </div>
+          <div style="font-size:0.88rem;color:#8892AA;line-height:1.6;">
+            Screens for tickers with high short interest + macro tailwinds +
+            insider cluster buying. The combination that historically precedes
+            sharp moves. Updated daily.
+          </div>
+          <a href="https://unstructuredalpha.com/Short_Squeeze_Radar"
+             style="display:inline-block;margin-top:10px;font-size:0.82rem;
+                    color:#F59E0B;text-decoration:none;font-weight:600;">
+            Open Radar →
+          </a>
+        </div>
+
+        <!-- Item 5 -->
+        <div style="border-left:3px solid #FF4444;padding:14px 0 14px 18px;margin-bottom:20px;">
+          <div style="font-size:1rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">
+            📈 Signal Backtester — build and test your own thesis
+          </div>
+          <div style="font-size:0.88rem;color:#8892AA;line-height:1.6;">
+            Pick any combination of signals and see how they would have
+            performed historically on any ticker. Pro-only. Great for validating
+            whether a setup you see today has actually worked before.
+          </div>
+          <a href="https://unstructuredalpha.com/Signal_Backtester"
+             style="display:inline-block;margin-top:10px;font-size:0.82rem;
+                    color:#FF4444;text-decoration:none;font-weight:600;">
+            Open Backtester →
+          </a>
+        </div>
+
+        <!-- Item 6 -->
+        <div style="border-left:3px solid #8892AA;padding:14px 0 14px 18px;margin-bottom:4px;">
+          <div style="font-size:1rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">
+            🔔 Watchlist & Alerts — let it come to you
+          </div>
+          <div style="font-size:0.88rem;color:#8892AA;line-height:1.6;">
+            Add your tickers to the Watchlist and set score-threshold alerts.
+            You'll get notified when a ticker crosses into bullish or bearish
+            territory — without having to check manually.
+          </div>
+          <a href="https://unstructuredalpha.com/Watchlist"
+             style="display:inline-block;margin-top:10px;font-size:0.82rem;
+                    color:#8892AA;text-decoration:none;font-weight:600;">
+            Set up Watchlist →
+          </a>
+        </div>
+
+      </div>
+
+      <!-- Morning digest opt-in nudge -->
+      <div style="background:#0f1119;border:1px solid rgba(124,58,237,0.3);
+                  border-radius:8px;margin:0 32px 24px;padding:18px 20px;">
+        <div style="font-size:0.85rem;font-weight:700;color:#A78BFA;margin-bottom:6px;">
+          📬 Morning Digest (Pro)
+        </div>
+        <div style="font-size:0.82rem;color:#8892AA;line-height:1.6;">
+          Get a Seeking Alpha-style macro briefing in your inbox every morning at
+          7 AM ET — signal pulse, what flipped, top movers, and an editorial
+          take on the day's setup. Enable it in your
+          <a href="https://unstructuredalpha.com/Watchlist"
+             style="color:#A78BFA;">Watchlist settings</a>.
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div style="background:#12151E;padding:12px 32px 28px;text-align:center;">
+        <a href="https://unstructuredalpha.com"
+           style="display:inline-block;background:linear-gradient(135deg,#7C3AED,#00C8E0);
+                  color:#FFFFFF;padding:14px 36px;border-radius:8px;
+                  text-decoration:none;font-size:0.95rem;font-weight:700;
+                  letter-spacing:0.02em;">
+          Open Unstructured Alpha →
+        </a>
+      </div>
+
+      <!-- Footer -->
+      <div style="background:#0B0D12;padding:16px 32px;border-radius:0 0 12px 12px;
+                  border-top:1px solid rgba(255,255,255,0.06);
+                  font-size:0.70rem;color:#4A5280;text-align:center;line-height:1.6;">
+        Unstructured Alpha · Pro Member<br>
+        Not financial advice. All signals are statistical correlations, not predictions.<br>
+        Questions? Reply to this email.
+      </div>
+
+    </div>
+    """
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [to_email],
+                "subject": "You're Pro — here's where to start on Unstructured Alpha",
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[pro-welcome] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[pro-welcome] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send Pro welcome email to {to_email}: {e}") from e
