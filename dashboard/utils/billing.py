@@ -191,6 +191,27 @@ def handle_checkout_success(session_id: str, user_id: int) -> dict:
 
         sub_id = sub["id"] if sub else ""
         set_user_tier(user_id, "pro", customer_id=customer_id, subscription_id=sub_id)
+
+        # Auto-opt into morning digest and record trial end date.
+        # New Pro users get digest by default — they can turn it off in settings.
+        # trial_end_at lets the day-6 reminder cron identify who to email.
+        try:
+            from sqlalchemy import update as sa_update
+            from utils.db import engine, users
+
+            extra: dict = {"digest_opted_in": True}
+            if sub and sub.get("trial_end"):
+                extra["trial_end_at"] = datetime.fromtimestamp(
+                    sub["trial_end"], tz=timezone.utc
+                ).isoformat()
+
+            with engine.begin() as conn:
+                conn.execute(
+                    sa_update(users).where(users.c.id == user_id).values(**extra)
+                )
+        except Exception as exc:
+            logger.warning("Post-checkout extras failed for user %s: %s", user_id, exc)
+
         return {"ok": True, "tier": "pro", "error": ""}
 
     return {"ok": False, "tier": "free", "error": f"Payment status: {payment_status}"}
@@ -379,7 +400,24 @@ def require_pro(page_name: str = "this page") -> None:
         st.session_state[cache_key] = get_user_tier(user["id"])
 
     if st.session_state[cache_key] == "pro":
-        return  # ✅ all good
+        # Once per session, re-verify live Stripe subscription status so lapsed
+        # subscriptions get downgraded automatically without a manual trigger.
+        sync_key = f"_sync_done_{user['id']}"
+        if not st.session_state.get(sync_key):
+            st.session_state[sync_key] = True  # set before the call to prevent loops
+            try:
+                live_tier = check_and_sync_subscription(user["id"])
+                st.session_state[cache_key] = live_tier
+                if live_tier != "pro":
+                    # Subscription lapsed — fall through to upgrade gate below
+                    pass
+                else:
+                    return  # ✅ confirmed Pro
+            except Exception as exc:
+                logger.warning("Subscription sync failed for user %s: %s", user["id"], exc)
+                return  # fail open — don't lock out user on transient Stripe error
+        else:
+            return  # ✅ already synced this session
 
     # Free user — show upgrade gate
     st.markdown(_PRO_GATE_CSS, unsafe_allow_html=True)

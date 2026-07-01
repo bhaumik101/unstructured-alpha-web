@@ -283,3 +283,83 @@ def send_digest_email(
     except requests.RequestException as e:
         print(f"[digest] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send digest to {to_email}: {e}") from e
+
+
+def send_trial_reminder_email(to_email: str, trial_end_display: str) -> None:
+    """
+    Send a "your trial ends tomorrow" nudge email to a user on day 6 of their
+    7-day free trial. Called by cron/send_trial_reminder.py.
+
+    trial_end_display: human-readable date string, e.g. "July 1, 2026"
+    """
+    api_key, from_email = _get_resend_config()
+    print(f"[trial-reminder] sending to={to_email!r} trial_end={trial_end_display!r}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    html = f"""
+    <div style="font-family:Georgia,serif;max-width:540px;color:#1A1612;">
+        <div style="background:#1C2B4A;padding:18px 24px;border-radius:8px 8px 0 0;">
+            <div style="font-size:0.70rem;color:#C9A84C;letter-spacing:0.12em;text-transform:uppercase;">
+                Unstructured Alpha
+            </div>
+            <div style="font-size:1.2rem;font-weight:700;color:#FAF7F0;margin-top:4px;">
+                Your free trial ends tomorrow
+            </div>
+        </div>
+
+        <div style="background:#FFFFFF;padding:24px 24px;">
+            <p style="font-size:1rem;color:#1A1612;margin:0 0 16px;">
+                Your 7-day Pro trial wraps up on <strong>{trial_end_display}</strong>.
+            </p>
+            <p style="font-size:0.9rem;color:#4A4A4A;margin:0 0 16px;">
+                After that, you'll move to the Free plan — you'll keep your account and
+                watchlist, but lose access to:
+            </p>
+            <ul style="color:#4A4A4A;font-size:0.9rem;padding-left:20px;margin:0 0 20px;">
+                <li>Factor Exposure — Fama-French regression for any ticker</li>
+                <li>PDF Research Reports</li>
+                <li>Signal Backtester</li>
+                <li>Portfolio Analyzer</li>
+                <li>Options Flow</li>
+                <li>Morning digest email</li>
+            </ul>
+            <p style="font-size:0.9rem;color:#4A4A4A;margin:0 0 24px;">
+                Keep access by adding a payment method before your trial ends.
+                No charge until <strong>{trial_end_display}</strong>.
+            </p>
+            <div style="text-align:center;">
+                <a href="https://unstructuredalpha.com/Upgrade"
+                   style="background:linear-gradient(90deg,#7C3AED,#00C8E0);color:#fff;
+                          padding:12px 28px;border-radius:6px;text-decoration:none;
+                          font-size:0.95rem;font-weight:700;display:inline-block;">
+                    Continue with Pro →
+                </a>
+            </div>
+        </div>
+
+        <div style="background:#F0EBE1;padding:10px 24px;border-radius:0 0 8px 8px;
+                    font-size:0.72rem;color:#9E9E8E;text-align:center;">
+            Unstructured Alpha · unstructuredalpha.com<br>
+            Questions? Just reply to this email.
+        </div>
+    </div>
+    """
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [to_email],
+                "subject": "Your Unstructured Alpha trial ends tomorrow",
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[trial-reminder] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[trial-reminder] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send trial reminder to {to_email}: {e}") from e

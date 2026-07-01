@@ -126,6 +126,10 @@ users = Table(
     Column("subscription_tier", String(16), nullable=False, server_default="'free'"),
     Column("stripe_customer_id", String(64)),
     Column("stripe_subscription_id", String(64)),
+    # ISO-8601 UTC datetime string of when the Stripe trial ends (populated on
+    # checkout success). Used by cron/send_trial_reminder.py to fire the
+    # day-6 "trial ends tomorrow" email.
+    Column("trial_end_at", String(64)),
 )
 
 watchlist = Table(

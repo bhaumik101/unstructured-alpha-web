@@ -1,148 +1,155 @@
-# Reddit Marketing Posts — Unstructured Alpha
-# Post these yourself. Do NOT post all on the same day — spread over 1–2 weeks.
-# Most important: engage with every comment within the first hour of posting.
+# Reddit Posts — Unstructured Alpha
+# STRATEGY: Post one at a time, spread 5–7 days apart.
+# Build karma in each sub by commenting on 3–5 posts BEFORE you post.
+# Reply to every comment within the first hour — this is what drives distribution.
 
 ---
 
-## POST 1 — r/algotrading (best audience, post this first)
-**Karma requirement: usually 10+. Check your account has some activity first.**
+## POST 1 — r/algotrading
+**Status: First attempt removed (new account). Comment on a few posts there first, then repost.**
+**Flair: Data**
 
 **Title:**
-I built an alternative data platform for equities: 38 signals (FRED, EIA, SEC EDGAR, FINRA), Bonferroni-corrected lag scans, out-of-sample validation. Here's what I found.
+I kept getting burned by in-sample backtests, so I built a validation framework across 38 alternative data signals. Here's what actually held up OOS.
 
 **Body:**
-I spent the last several months building Unstructured Alpha — a signal intelligence dashboard that aggregates public alternative data into a per-ticker Confluence Score. Figured this crowd would appreciate the methodology details more than the pitch.
+Honest question for this sub: how many of you have had a signal look incredible in backtesting, then completely fall apart when you actually trade it?
 
-**What it actually does:**
+I burned myself enough times that I stopped trusting in-sample results entirely and built something to validate properly. The result is Unstructured Alpha — I've been running it for several months across 38 public data signals. Here's what I found.
 
-38 signals across macro (yield curve, credit spreads, M2, jobless claims), energy (crude inventories, nat gas storage, rig count), insider transactions (Form 4 XML parsing from SEC EDGAR), short interest (FINRA semi-monthly data), 13F institutional positioning, congressional trades, options flow, and social sentiment.
+**The setup:**
 
-Each signal is Z-score normalized over a 52-week rolling window, mapped to [0, 100] via `score = 50 + 30 * tanh(z/2)`, then directionally adjusted for signals that historically invert. The per-ticker Confluence Score is a correlation-weighted average of only the signals with statistically validated lead times for that specific ticker.
+For each signal × ticker pair, I scan lags 1–16 weeks and only keep a signal if it:
 
-**The validation methodology (this is the part I care most about):**
+1. Survives Bonferroni correction (alpha/16 ≈ 0.003, not 0.05)
+2. Holds on a fully held-out OOS window (final 25% of data, never touched during fitting)
 
-For each signal × ticker pair, I run a lag scan across k = 1..16 weeks:
-```
-rho_k = corr(signal(t-k), return(t))
-```
-The best lag k* is only used if it:
-1. Survives Bonferroni correction (alpha/16 ≈ 0.003 instead of 0.05)
-2. Holds on a held-out OOS window (final 25% of the series, never touched during fitting)
+Both. Not one or the other.
 
-Both conditions must be met. Without the correction, I was seeing ~30 spurious significant results per ticker just from multiple comparisons noise — that paper by Harvey, Liu & Zhu (2016) on factor zoo false discoveries is the direct motivation here.
+Without the correction I was finding ~30 "significant" predictors per ticker that were pure noise. Harvey, Liu & Zhu (2016) covers exactly this failure mode.
 
-**What survived:** Insider buying clusters, credit spread widening/tightening, crude inventory draws, jobless claims trends, and yield curve shape changes. Congressional trades are directionally correct but small sample. Short interest is noisy at the individual-security level.
+**What survived:**
 
-**What didn't survive:** Most single-commodity signals, most sector ETF momentum proxies, and most of the social sentiment signals I tried (Google Trends + StockTwits). They pass in-sample, fail OOS — classic overfitting.
+- Insider buying clusters (2+ insiders within 21 days) — strongest signal, but N is small per name
+- HY credit spread widening — reliable 4–6wk lead on risk-off drawdowns
+- EIA crude inventory draws — leads energy names ~3–5 weeks
+- Jobless claims 4wk MA — leads cyclicals at the sector level
+- Yield curve slope — real, but mostly at index level, not individual stocks
 
-I publish these results openly on a Model Validation page rather than hiding the failures, because a platform where you can't see what doesn't work isn't actually useful.
+**What didn't:**
 
-**Tech stack if anyone's curious:** Python 3.12, Streamlit, Plotly, yfinance, pandas/scipy/SQLAlchemy, PostgreSQL on Render, Anthropic API for a weekly macro research note generator.
+- Single-commodity signals (gasoline, copper, lumber) — textbook overfitting
+- Social sentiment (Google Trends, StockTwits) — noise, regime-dependent, basically useless standalone
+- Short interest alone — useful context but not predictive on its own
 
-Live at: unstructuredalpha.com (no account needed to browse most of it)
+All failures are published openly on a Model Validation page. If you can't see what didn't work, the platform isn't useful.
 
-Happy to get into any of the methodology details in comments.
+Try it at unstructuredalpha.com — most pages are free without an account. There's a Deep Correlation Scan where you can run the lag analysis yourself on any ticker/signal pair and see the OOS split.
+
+Happy to get into the methodology. Curious if anyone's made BH correction work better than Bonferroni at this scale.
 
 ---
 
-## POST 2 — r/SideProject (post 3–4 days after Post 1)
-**This subreddit is very welcoming to "I built this" posts. No restrictions.**
+## POST 2 — r/SideProject
+**Post 5–7 days after the first successful post. No karma requirements.**
 
 **Title:**
-I built an alternative data intelligence platform for stocks — 28 pages, 38 signals, live on Render, free to try
+6 months of evenings later — I built a 28-page alternative data intelligence platform for stocks. Here's what I learned.
 
 **Body:**
-Been building this on and off for about 6 months. It's called Unstructured Alpha.
+Unstructured Alpha has been my obsession for the last 6 months.
 
-The core idea: non-price data (insider trades, credit spreads, commodity inventory draws, congressional trade disclosures, institutional 13F shifts) tends to lead equity price moves by 2–8 weeks. Instead of watching price charts after the fact, the platform surfaces these signals before the market has fully priced them in.
+The idea started simple: non-price data moves *before* prices, not after. Insider transactions, credit spreads, energy inventory draws, congressional trades — these have historically led equity price moves by 2–8 weeks. So instead of watching charts after something's already happened, the platform tries to surface what the data is saying *right now*.
 
-**What it includes:**
-- Signal Dashboard: 38 alternative data signals, each scored 0–100 with bullish/bearish/neutral status
-- Ticker Deep Dive: full signal analysis for any equity, with a correlation-weighted Confluence Score, dual-axis price/signal chart, insider cluster detection, short interest history, and a "What would change my mind" block
-- Factor Exposure: Fama-French style regression decomposing any ticker into market, size, value, momentum, and quality factor loadings
-- Market Heatmap: S&P 500 sector treemap colored by signal-derived macro scores
-- Signal Backtester: build custom signal combinations and backtest them
-- Congress Tracker: live congressional trade disclosures from SEC EDGAR
-- Export Report: download a PDF research report for any ticker
-- Weekly Brief: AI-generated macro research note using Anthropic's Claude API
+**What it does:**
 
-**Honest about limitations:** Most signals haven't been independently validated. The platform publishes OOS validation results for every signal including the ones that failed. The Confluence Score is directionally interesting but not a trading system.
+38 signals across macro, energy, credit, and event-driven categories. Everything is validated with proper out-of-sample testing (I'll explain below). The Confluence Score per ticker is a correlation-weighted composite of only the signals that actually passed validation for that specific name.
 
-**Stack:** Python 3.12 / Streamlit / Plotly / PostgreSQL / Render / fpdf2 / Anthropic API
+Pages: Signal Dashboard, Ticker Deep Dive, Factor Exposure, Market Heatmap, Signal Backtester, Congress Trade Tracker, Options Flow, Export Report, and a weekly AI-generated macro brief.
 
-Try it: unstructuredalpha.com — most pages are accessible without an account.
+**The thing I'm most proud of:**
 
-What would you add? Happy to take feedback.
+The validation is honest. I publish OOS results for every signal including the ones that failed — social sentiment didn't make it, most commodity signals didn't, short interest alone isn't reliable. Hiding failures is how you end up with a useless product.
+
+**Stack:** Python 3.12 / Streamlit / Plotly / PostgreSQL on Render / Anthropic API
+
+Live at unstructuredalpha.com — most pages work without signing up.
+
+What would you change? Genuinely open to feedback.
 
 ---
 
-## POST 3 — r/investing (post 5–7 days after Post 1)
-**IMPORTANT: r/investing mods remove promotional posts fast. Lead with genuine value. Don't mention the platform name in the title.**
+## POST 3 — r/investing
+**Post 5–7 days after Post 2. Do NOT mention the platform name in the title — mods remove it fast.**
 
 **Title:**
-I analyzed 38 alternative data signals for predictive content in equity returns. Here's what actually worked (OOS) and what didn't.
+I tested 38 public alternative data signals for predictive power in stock returns. Here's what actually worked (and what flopped).
 
 **Body:**
-I've spent the last several months systematically testing whether public alternative data series have statistically reliable lead times over equity returns. Posting the findings because I think the methodology is useful regardless of whether you use my specific platform.
+Spent the last several months systematically testing whether public data has reliable lead times over equity returns. Sharing the methodology here because I think it holds up regardless of whether you use my specific tool.
 
-**The signals I tested** (all from public sources — FRED, EIA, SEC EDGAR, FINRA):
-- Macro: yield curve slope, HY credit spreads, jobless claims, M2 money supply, retail sales, consumer sentiment, housing starts, durable goods orders, industrial production
-- Energy: crude oil inventories (EIA), natural gas storage, rig count
-- Credit/liquidity: investment grade spreads, TED spread, financial conditions indices
-- Event-driven: insider Form 4 transactions, FINRA short interest, institutional 13F positioning shifts, congressional trade disclosures
+**What I tested** (all free/public — FRED, EIA, SEC EDGAR, FINRA):
 
-**The methodology:** For each signal × equity pair, I scan lags 1–16 weeks, take the best Pearson r, apply Bonferroni correction (alpha/16), and require the signal to hold on a held-out OOS window (final 25% of the series).
+Macro: yield curve slope, HY credit spreads, jobless claims, M2, retail sales, industrial production
+Energy: EIA crude inventories, nat gas storage, rig count
+Event-driven: insider Form 4 transactions, FINRA short interest, 13F positioning shifts, congressional trades
 
-**What survived OOS:**
-- Insider buying clusters (2+ insiders buying within 21 days) — strongest signal, but small N for most tickers
-- HY credit spread widening: reliable leading indicator of risk-off equity drawdowns, ~4–6 week lead
-- Crude inventory draws: leads energy sector by ~3–5 weeks
-- Yield curve slope: well-established in the literature, confirmed here at the sector level
-- Jobless claims 4-week moving average: leads cyclical equities
+**How I validated:**
 
-**What didn't survive:**
-- Most single-commodity proxies (gasoline, lumber, copper): pass in-sample, fail OOS reliably
-- Social sentiment (search trends, forum activity): very noisy, highly regime-dependent
-- Short interest alone: useful context but not a reliable standalone predictor
-- Most macro signals for individual equities: the signal is real at the sector/index level but attenuates badly for single stocks
+Lag scan 1–16 weeks per signal × equity pair. A signal only "counts" if it survives Bonferroni correction AND holds on a held-out OOS window (final 25%, never touched during fitting). Without the correction I was finding false positives constantly — testing 16 lags without adjusting the threshold is how you fool yourself.
 
-The key methodological failure mode is multiple comparisons without correction. If you test 16 lags without Bonferroni, you'll find "significant" predictors for almost any series — they just won't hold up OOS.
+**What actually worked OOS:**
 
-Happy to discuss the methodology in comments. I built a platform around this if anyone's curious (unstructuredalpha.com) but the findings stand on their own.
+Insider buying clusters are the strongest signal when they appear. HY credit spread widening reliably leads risk-off moves 4–6 weeks out. EIA crude draws lead energy names ~3–5 weeks. Yield curve slope is real but mainly at the sector level, not individual stocks.
+
+**What flopped:**
+
+Social sentiment failed almost universally. Single commodity signals (gasoline, copper, lumber) look great in-sample and fall apart OOS every single time. Short interest alone is not a reliable predictor.
+
+I built a platform around this if anyone wants to explore it: unstructuredalpha.com. But the findings are what matters here — happy to go deep on any of them in comments.
 
 ---
 
-## POST 4 — r/stocks (post 8–10 days after Post 1)
-**Lighter/more accessible tone. r/stocks has moderate spam filter.**
+## POST 4 — r/stocks
+**Post 5–7 days after Post 3. Fill in [CURRENT DATA] sections from your dashboard before posting.**
 
 **Title:**
-I've been tracking insider trades, credit spreads, energy inventories, and 35 other alternative data signals for months. Here's a quick summary of what they're saying right now.
+Been tracking insider trades, credit spreads, crude inventories, and 35 other data signals for months. Here's what they're saying right now.
 
 **Body:**
-I built a dashboard that aggregates 38 public data signals across macro, energy, credit, and event-driven categories. Wanted to share a snapshot of where things stand, because I find this kind of cross-signal view more useful than any single indicator.
+I run a dashboard that pulls 38 public alternative data signals and aggregates them into a daily picture of where macro, credit, and event-driven data are pointing. Cross-signal views are more useful than any single indicator, so sharing a live snapshot.
 
-**What alternative data is currently showing** (as of posting date — these update daily):
+**What the data looks like right now:**
 
-Most of the macro signals I track have [FILL IN CURRENT SIGNAL STATE FROM YOUR DASHBOARD BEFORE POSTING — e.g., "the HY credit spread signal is mildly bearish, having widened ~85bps over the past 6 weeks. The yield curve has steepened modestly but remains inverted at the 2Y/10Y spread. Crude inventories drew down sharply last week, which has historically been bullish for energy names with a 3–5 week lag."]
+[FILL IN before posting — pull from Signal Dashboard + Today's Brief. Example:]
 
-The Confluence Score across all 38 signals is currently [FILL IN SCORE]/100, which puts the macro backdrop in [bullish/neutral/bearish] territory.
+*Credit/macro:* HY credit spreads are [tightening/widening — X bps over Y weeks]. Yield curve [shape]. Jobless claims [trend].
 
-I track all of this at unstructuredalpha.com — most of it is free to browse without an account.
+*Energy:* EIA crude inventories [drew down/built] last week. Historically this [leads/lags] energy sector by ~3–5 weeks.
 
-Questions about any specific signal happy to discuss.
+*Insider activity:* [Any notable clusters this week from your insider page]
+
+*Overall Confluence Score:* [X]/100 across all 38 signals — putting the macro backdrop in [bullish/neutral/bearish] territory.
 
 ---
 
-## NOTES ON POSTING STRATEGY
+I track all of this at unstructuredalpha.com, most of it is free to browse.
 
-**Timing:** Post between 8–10am ET on weekdays. Avoid Mondays and Fridays.
+Happy to pull numbers on any specific signal or sector if people are curious.
 
-**Engage fast:** Reply to every comment within 1 hour of posting. Reddit's algorithm heavily weights early comment velocity. A post with 20 upvotes and 15 comments will get 10x the distribution of a post with 20 upvotes and 2 comments.
+---
 
-**For Post 4 specifically:** Fill in the [FILL IN] sections with actual current signal readings from your dashboard before posting. A post about live data that shows actual numbers is dramatically more credible than one that's vague.
+## POSTING NOTES
 
-**Don't post all four at once.** Spread them over 2 weeks minimum. Posting from the same account to multiple finance subreddits within the same week triggers Reddit's spam filter.
+**Why r/algotrading removed the first attempt:**
+New account = instant mod suspicion. Spend a week commenting genuinely on threads in that sub, then repost. The content is good — the account trust score is the issue.
 
-**If a post gets traction (50+ upvotes):** Follow up in the comments with screenshots, deeper methodology details, or a specific example of a signal call that played out. This is where you convert readers to users.
+**Timing:** 8–10am ET, Tuesday–Thursday. Avoid Mondays and Fridays.
 
-**Cross-post r/algotrading post to r/quant** after it gets some upvotes — that's allowed and extends reach.
+**Reply fast:** Comment velocity in the first hour is what Reddit's algorithm weights most. Reply to everyone.
+
+**When a post gets 50+ upvotes:**
+Follow up with a concrete example — a signal that called something that played out, with dates and numbers. This is what converts readers to signups.
+
+**Cross-posting:**
+After r/algotrading gets traction, cross-post to r/quant. Allowed, expands reach.
