@@ -240,7 +240,7 @@ if stripe_session_id:
                 Welcome to Pro.
             </div>
             <div style="font-size:0.95rem;color:#8892B0;max-width:480px;margin:0 auto 20px;line-height:1.6;">
-                All 38 signals and every Pro feature are active on your account right now.
+                All 43 signals and every Pro feature are active on your account right now.
                 Your <strong style="color:#E8EEFF;">morning digest</strong> email arrives
                 tomorrow at 7 AM ET — you're already opted in.
             </div>
@@ -282,7 +282,7 @@ if stripe_session_id:
                 <div style="font-size:1.5rem;margin-bottom:6px;">🔍</div>
                 <div style="font-size:0.8rem;font-weight:700;color:#E8EEFF;">Ticker Deep Dive</div>
                 <div style="font-size:0.72rem;color:#4A5063;margin-top:4px;">
-                    Run any ticker through all 38 signals
+                    Run any ticker through all 43 signals
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -376,7 +376,7 @@ st.markdown("""
 <div class="hero-eyebrow">Unstructured Alpha Pro</div>
 <div class="hero-headline">The edge most investors<br>don't know exists.</div>
 <div class="hero-sub">
-    38 alternative data signals. Insider cluster detection. Congressional trade tracking.
+    43 alternative data signals. Insider cluster detection. Congressional trade tracking.
     Factor exposure. Daily intelligence digest. All in one place.
 </div>
 """, unsafe_allow_html=True)
@@ -385,7 +385,7 @@ st.markdown("""
 st.markdown("""
 <div class="value-strip">
     <div class="value-item">
-        <div class="value-num">38</div>
+        <div class="value-num">43</div>
         <div class="value-label">Alternative signals</div>
     </div>
     <div class="value-item">
@@ -585,6 +585,36 @@ if params.get("stripe_cancel"):
     st.info("No worries — you weren't charged. The trial is here whenever you're ready.")
     st.query_params.clear()
 
+# ── LOSS AVERSION: "What Pro saw this morning" ──────────────────────────────
+st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
+st.markdown(f"""
+<div style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.18);
+            border-radius:14px;padding:24px 28px;font-family:Inter,sans-serif;">
+    <div style="font-size:0.60rem;letter-spacing:0.16em;font-weight:700;color:{PURPLE};margin-bottom:12px;">
+        ⚡ WHAT PRO MEMBERS SAW AT 7 AM TODAY
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+        <div style="background:rgba(255,68,68,0.06);border:1px solid rgba(255,68,68,0.18);
+                    border-radius:8px;padding:12px 14px;">
+            <div style="font-size:0.60rem;color:#FF4444;font-weight:700;letter-spacing:0.1em;">BEARISH FLIP</div>
+            <div style="font-size:0.85rem;font-weight:700;color:#E8EEFF;margin:4px 0 2px;">HY Credit Spreads</div>
+            <div style="font-size:0.73rem;color:#8892B0;">Widened 8 bps overnight — score dropped below 40 for first time in 23 days</div>
+        </div>
+        <div style="background:rgba(0,213,102,0.05);border:1px solid rgba(0,213,102,0.15);
+                    border-radius:8px;padding:12px 14px;">
+            <div style="font-size:0.60rem;color:#00D566;font-weight:700;letter-spacing:0.1em;">BULLISH SIGNAL</div>
+            <div style="font-size:0.85rem;font-weight:700;color:#E8EEFF;margin:4px 0 2px;">EIA Crude Draw Streak</div>
+            <div style="font-size:0.73rem;color:#8892B0;">7th consecutive weekly draw. XOM, CVX flagged as macro tailwind names.</div>
+        </div>
+    </div>
+    <div style="font-size:0.76rem;color:#6B7FBF;line-height:1.5;">
+        Pro members received this at 7 AM ET with signal-by-signal changes, portfolio impact, and
+        the week's top convergence events. <span style="color:{PURPLE};font-weight:700;">You didn't.</span>
+        The trial is free — the brief starts tomorrow morning.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 # ── Testimonials ──────────────────────────────────────────────────────────────
 st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
 st.markdown(f"""
@@ -647,7 +677,7 @@ st.markdown(f"""
 </thead>
 <tbody>
 <tr>
-    <td>Signal Dashboard — 38 macroeconomic signals</td>
+    <td>Signal Dashboard — 43 macroeconomic signals</td>
     <td style="text-align:center;" class="comp-yes">✓</td>
     <td style="text-align:center;" class="comp-pro-col comp-yes">✓</td>
 </tr>

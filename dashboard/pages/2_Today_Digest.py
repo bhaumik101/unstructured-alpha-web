@@ -693,19 +693,20 @@ if not _already_opted_in:
             Get Today's Brief every morning at 7 AM ET
         </div>
         <div style="font-size:0.80rem;color:#A0A8B8;margin-top:4px;line-height:1.5;">
-            Free. No spam. 38 signals distilled into a 2-minute read. Unsubscribe any time.
+            43 signals distilled into a 2-minute read at 7 AM ET. Pro feature · 7-day free trial.
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
     _nc1, _nc2, _ = st.columns([1.4, 1.4, 2])
     with _nc1:
-        if st.button("📬 Create free account", use_container_width=True, type="primary", key="digest_signup_cta"):
-            st.switch_page("pages/home_page.py")
+        _btn_label = "→ Get it in my inbox" if _cur_user else "📬 Create free account"
+        _btn_page  = "pages/29_Upgrade.py" if _cur_user else "pages/home_page.py"
+        if st.button(_btn_label, use_container_width=True, type="primary", key="digest_signup_cta"):
+            st.switch_page(_btn_page)
     with _nc2:
-        if _cur_user:
-            if st.button("Enable in Watchlist →", use_container_width=True, key="digest_enable_cta"):
-                st.switch_page("pages/10_Watchlist.py")
+        if st.button("See what's included →", use_container_width=True, key="digest_pro_cta"):
+            st.switch_page("pages/29_Upgrade.py")
 
 st.markdown("""
 <div class="disclaimer">
