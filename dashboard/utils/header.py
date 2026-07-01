@@ -366,6 +366,22 @@ div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="success"]
 div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="info"]    { background: rgba(0,200,224,0.08) !important; border: 1px solid rgba(0,200,224,0.2) !important; }
 div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="warning"] { background: rgba(245,158,11,0.08) !important; border: 1px solid rgba(245,158,11,0.2) !important; }
 div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="error"]   { background: rgba(255,68,68,0.08) !important; border: 1px solid rgba(255,68,68,0.2) !important; }
+
+/* ── Mobile responsiveness ───────────────────────────────────────────────── */
+/* Streamlit renders columns as flex on desktop; these overrides stack them
+   gracefully on narrow viewports (phones / portrait tablets). */
+@media (max-width: 768px) {
+    /* Stack 4-col grids to 2 columns */
+    [data-testid="stHorizontalBlock"] > [data-testid="stVerticalBlock"] {
+        min-width: 45% !important;
+    }
+    /* Shrink hero headline on mobile */
+    .hero-title { font-size: 1.9rem !important; }
+    /* Reduce block-container padding on mobile */
+    .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+    /* Hide the live ticker strip on very narrow screens to prevent jank */
+    .ticker-strip-outer { display: none !important; }
+}
 </style>
 """
 
@@ -484,6 +500,33 @@ def render_header(page_subtitle: str = "") -> None:
     from datetime import datetime
 
     st.markdown(_CSS, unsafe_allow_html=True)
+
+    # ── OpenGraph / social meta tags (JS injection) ────────────────────────────
+    # Reddit's link scraper is server-side and won't execute this JS, but
+    # Googlebot (which does execute JS) and Twitter's card validator will.
+    # The title tag set by st.set_page_config IS visible to all scrapers.
+    st.markdown("""
+<script>
+(function() {
+    var metas = [
+        {property: 'og:site_name',    content: 'Unstructured Alpha'},
+        {property: 'og:type',         content: 'website'},
+        {property: 'og:url',          content: 'https://unstructuredalpha.com'},
+        {property: 'og:title',        content: 'Unstructured Alpha — 43-Signal Macro Intelligence'},
+        {property: 'og:description',  content: 'Score insider trades, credit spreads, energy inventories and 40 other signals daily. Free to browse. Pro $20/mo.'},
+        {name:     'description',     content: 'Score insider trades, credit spreads, energy inventories and 40 other macro signals daily. Confluence Score for any stock. Free to browse.'},
+        {name:     'twitter:card',    content: 'summary'},
+        {name:     'twitter:title',   content: 'Unstructured Alpha — Alternative Data Intelligence'},
+        {name:     'twitter:description', content: '43 macro signals scored daily. Free to browse. Insider trades, credit spreads, VIX term structure, copper/gold ratio and more.'},
+    ];
+    metas.forEach(function(m) {
+        var el = document.createElement('meta');
+        Object.keys(m).forEach(function(k) { el.setAttribute(k, m[k]); });
+        document.head.appendChild(el);
+    });
+})();
+</script>
+""", unsafe_allow_html=True)
 
     # ── Live ticker strip ──────────────────────────────────────────────────────
     _render_live_ticker_strip()

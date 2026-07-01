@@ -296,6 +296,20 @@ def fetch_signal_series(cfg: dict, start: str, end: str) -> pd.Series:
             return fetch_price(cfg["series_id"], start, end)
         elif src in ("yfinance_basket", "yfinance_multi"):
             return fetch_basket(cfg.get("series_ids", [cfg.get("series_id", "SPY")]), start, end)
+        elif src == "yfinance_ratio":
+            ids = cfg.get("series_ids", [])
+            if len(ids) < 2:
+                return pd.Series(dtype=float)
+            s1 = fetch_price(ids[0], start, end)
+            s2 = fetch_price(ids[1], start, end)
+            if s1.empty or s2.empty:
+                return pd.Series(dtype=float)
+            combined = pd.concat([s1, s2], axis=1, join="inner").dropna()
+            if combined.empty or (combined.iloc[:, 1] == 0).any():
+                return pd.Series(dtype=float)
+            result = (combined.iloc[:, 0] / combined.iloc[:, 1])
+            result.name = "ratio"
+            return result
         elif src == "arxiv":
             return fetch_arxiv_velocity(query=cfg.get("series_id", "quantum computing"))
         elif src == "fda":

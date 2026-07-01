@@ -106,8 +106,8 @@ st.markdown(f"""
     </div>
     <div style="font-size:1.0rem;color:#8892AA;margin:20px auto 0;max-width:560px;
                 line-height:1.7;font-weight:400;">
-        38 macro signals — Fed policy, energy flows, credit spreads, insider buying —
-        scored in real time and mapped to the stocks you actually hold.
+        43 macro signals — Fed policy, energy flows, credit spreads, insider buying,
+        put/call sentiment — scored in real time and mapped to the stocks you actually hold.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -284,7 +284,7 @@ if _data_loaded:
                 f'<div style="font-size:0.62rem;color:#6B7FBF;margin:12px 0 6px;font-weight:700;letter-spacing:0.08em;">MACRO HEADWIND ▼</div>'
                 f'{_bear_rows}'
                 f'<div style="font-size:0.62rem;color:#6B7FBF;margin-top:12px;">'
-                f'38 macro signals · no price charts · pure fundamentals</div>'
+                f'43 macro signals · no price charts · pure fundamentals</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -619,6 +619,32 @@ for _col, (_n, _ac, _title, _body, _page, _btn, _key) in zip(_st_cols, _steps):
         if st.button(_btn, use_container_width=True, key=_key):
             st.switch_page(_page)
 
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
+# ── PRO UPGRADE BANNER ────────────────────────────────────────────────────────
+st.markdown("""
+<div style="background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(0,200,224,0.08));
+            border:1px solid rgba(124,58,237,0.28);border-radius:14px;
+            padding:22px 28px;font-family:Inter,sans-serif;
+            display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+    <div>
+        <div style="font-size:0.58rem;letter-spacing:0.18em;font-weight:700;color:#7C3AED;margin-bottom:6px;">
+            UNSTRUCTURED ALPHA PRO
+        </div>
+        <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.2px;margin-bottom:4px;">
+            Morning digest email · Signal Backtester · Factor Exposure · Congress Tracker
+        </div>
+        <div style="font-size:0.78rem;color:#8892AA;line-height:1.5;">
+            $20/month · 7-day free trial · Cancel anytime · No commitment
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+_pro_col1, _pro_col2, _pro_col3 = st.columns([2.5, 1, 2.5])
+with _pro_col2:
+    if st.button("Try Pro Free →", type="primary", use_container_width=True, key="cta_pro_mid"):
+        st.switch_page("pages/29_Upgrade.py")
+
 st.divider()
 
 # ── ADDITIONAL TOOLS ──────────────────────────────────────────────────────────
@@ -676,9 +702,10 @@ with _q1:
 with _q2:
     with st.expander("What does it cost?"):
         st.markdown(
-            "Free to browse all signals, Today's Brief, Sector Map, Signal Dashboard, and Deep Dive. "
-            "A free account (email only, no card) unlocks the Watchlist, price alerts, and morning "
-            "email digest. No paid tier — this isn't a subscription service."
+            "**Free** to browse signals, Today's Brief, Sector Map, Signal Dashboard, and Deep Dive — "
+            "no account needed. A free account (email only, no card) unlocks the Watchlist and alert tracking. "
+            "**Pro** ($20/mo, 7-day free trial) adds morning email digest, Signal Backtester, "
+            "Factor Exposure, and all future Pro features. No long-term commitment."
         )
     with st.expander("Is this financial advice?"):
         st.markdown(

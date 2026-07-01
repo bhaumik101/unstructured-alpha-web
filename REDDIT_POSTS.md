@@ -111,7 +111,8 @@ I built a platform around this if anyone wants to explore it: unstructuredalpha.
 ---
 
 ## POST 4 — r/stocks
-**Post 5–7 days after Post 3. Fill in [CURRENT DATA] sections from your dashboard before posting.**
+**Status: READY TO POST (data filled in as of June 30, 2026)**
+**⚠️ Before posting: pull the live Confluence Score from unstructuredalpha.com → Today's Brief and replace [CONFLUENCE SCORE] below.**
 
 **Title:**
 Been tracking insider trades, credit spreads, crude inventories, and 35 other data signals for months. Here's what they're saying right now.
@@ -119,21 +120,19 @@ Been tracking insider trades, credit spreads, crude inventories, and 35 other da
 **Body:**
 I run a dashboard that pulls 38 public alternative data signals and aggregates them into a daily picture of where macro, credit, and event-driven data are pointing. Cross-signal views are more useful than any single indicator, so sharing a live snapshot.
 
-**What the data looks like right now:**
+**What the data looks like right now (week of June 30, 2026):**
 
-[FILL IN before posting — pull from Signal Dashboard + Today's Brief. Example:]
+*Credit/macro:* HY credit spreads (ICE BofA OAS) widened ~15 bps during June to 2.78% — still near multi-year lows but the direction flipped from tightening to widening mid-month, which is worth watching. Yield curve is now positively sloped for the first time since 2022 (10Y at 4.38%, 2Y at 4.07%, spread +31 bps). Jobless claims fell to 215K the week of June 20 after three weeks in the 226-229K range — labor market not cracking yet. 4-week MA sits at ~223K.
 
-*Credit/macro:* HY credit spreads are [tightening/widening — X bps over Y weeks]. Yield curve [shape]. Jobless claims [trend].
+*Energy:* EIA crude inventories have drawn down for 7 consecutive weeks. The last three draws: -7.2M (June 5), -8.3M (June 12), -6.1M (June 19) — all well above consensus. Cushing hub is sitting near its lowest level since 2014. Historically the EIA draw streak leads energy equity outperformance by 3–5 weeks in my lag-scan data. XOM, CVX, SLB are the names that correlate most strongly with this signal.
 
-*Energy:* EIA crude inventories [drew down/built] last week. Historically this [leads/lags] energy sector by ~3–5 weeks.
+*Insider activity:* Buying clusters are sparse right now. The standout this week is the opposite — 61 sell clusters vs. 28 buy clusters on June 26, with 61% of insider-sell dollars concentrated in chips and AI hardware (Nvidia, Applied Materials, Marvell, Credo, Dell). When company insiders are selling in concert at this scale it's the signal I track most closely, and it's pointing cautious on semis specifically.
 
-*Insider activity:* [Any notable clusters this week from your insider page]
-
-*Overall Confluence Score:* [X]/100 across all 38 signals — putting the macro backdrop in [bullish/neutral/bearish] territory.
+*Overall Confluence Score:* [CONFLUENCE SCORE]/100 across all 38 signals — pull this from the dashboard before posting. Based on the above the macro backdrop looks neutral-to-slightly-bullish overall (yield curve normalizing + labor resilience + crude draws), but the insider selling in AI/semis skews it bearish for that specific sector.
 
 ---
 
-I track all of this at unstructuredalpha.com, most of it is free to browse.
+I track all of this at unstructuredalpha.com, most of it is free to browse. The Insider page and Deep Correlation Scan don't require an account.
 
 Happy to pull numbers on any specific signal or sector if people are curious.
 

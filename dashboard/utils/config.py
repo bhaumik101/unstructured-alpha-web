@@ -1025,6 +1025,96 @@ SIGNALS = {
     # index, ISM PMI, yield, credit spreads, hyperscaler capex) that have
     # genuine, testable causal mechanisms independent of the ticker's own
     # price. See TICKERS below for the remapped signal lists.
+
+    # ── TIER 2 — MARKET SENTIMENT & CROSS-ASSET SIGNALS ──────────────────────────
+
+    "put_call_ratio": {
+        "name": "CBOE Equity Put/Call Ratio",
+        "tier": 2,
+        "pcs": 7,
+        "source": "fred",
+        "series_id": "CPCE",
+        "frequency": "daily",
+        "lag_weeks": 2,
+        "inverse": True,
+        "unit": "Ratio",
+        "description": "Daily ratio of equity put options purchased to equity call options purchased (CBOE). Excludes index options for a cleaner crowd-sentiment read. Readings above 0.9 signal elevated fear; below 0.55 signal complacency. Used as a contrarian indicator: extreme put-buying historically precedes short-term market recoveries.",
+        "causal_mechanism": "Option buyers are predominantly retail investors who tend to hedge at market bottoms. Elevated put/call reflects panic hedging, not informed directional conviction. When put buying exhausts itself, the directional move typically reverses.",
+        "documented_cases": [
+            "Equity put/call spiked above 1.0 on March 16, 2020 — S&P 500 bottomed within 7 trading days",
+            "Equity put/call above 0.9 on Oct 13, 2022 coincided with the S&P 500's 2022 bear market low",
+        ],
+        "relevant_tickers": ["SPY", "QQQ", "IWM", "XLF", "XLE"],
+        "category": "macro",
+        "color": "#7B1010",
+        "source_url": "https://fred.stlouisfed.org/series/CPCE",
+    },
+
+    "copper_gold_ratio": {
+        "name": "Copper/Gold Ratio",
+        "tier": 2,
+        "pcs": 7,
+        "source": "yfinance_ratio",
+        "series_ids": ["HG=F", "GLD"],
+        "frequency": "daily",
+        "lag_weeks": 4,
+        "inverse": False,
+        "unit": "Ratio (COMEX Cu $/lb ÷ GLD ETF price)",
+        "description": "Ratio of COMEX copper futures (HG=F) to SPDR Gold ETF (GLD). Rising ratio = copper outperforming gold = growth optimism. Falling ratio = gold outperforming copper = risk-off/growth fear. Used by Gundlach and others as a leading indicator for 10Y Treasury yields and cyclical equity rotation.",
+        "causal_mechanism": "Copper is the industrial metal most sensitive to global growth. Gold is the 'fear' metal. Their ratio strips out commodity-wide moves to isolate growth-vs-fear sentiment. Historically leads 10Y Treasury yields and cyclical-vs-defensive rotation by 4–8 weeks.",
+        "documented_cases": [
+            "Copper/gold ratio collapsed in Q4 2018 and Q1 2020, preceding broad equity drawdowns by 4–6 weeks",
+            "Ratio rebounded sharply in Nov 2020, preceding the 10Y yield surge and cyclical rotation from growth to value",
+        ],
+        "relevant_tickers": ["SPY", "IWM", "XLF", "XLI", "FCX", "SCCO", "TLT"],
+        "category": "macro",
+        "color": "#B34700",
+        "source_url": "https://finance.yahoo.com/quote/HG=F",
+    },
+
+    "tips_breakeven": {
+        "name": "10Y TIPS Breakeven Inflation Rate",
+        "tier": 2,
+        "pcs": 6,
+        "source": "fred",
+        "series_id": "T10YIE",
+        "frequency": "daily",
+        "lag_weeks": 4,
+        "inverse": False,
+        "unit": "Percent",
+        "description": "10-year TIPS breakeven rate — the spread between 10Y nominal Treasury yield and 10Y TIPS yield. Measures bond market implied inflation expectations for the next decade. Rising breakevens benefit commodities, TIPS, energy, and materials; falling breakevens benefit long-duration assets and growth stocks.",
+        "causal_mechanism": "TIPS breakeven is the bond market's continuous inflation consensus. Rising expectations rotate capital into inflation-protected assets (energy, materials, TIPS). Falling expectations signal disinflation/deflation fear, benefiting growth stocks via lower real rates.",
+        "documented_cases": [
+            "Breakeven surged from 1.1% to 2.6% in 2020-2021 — energy/materials significantly outperformed during this period",
+            "Breakeven peaked at 3.0% in April 2022 preceding a commodity selloff as Fed tightening credibility returned",
+        ],
+        "relevant_tickers": ["TIP", "XLE", "XLB", "GLD", "FCX", "XOM", "CVX"],
+        "category": "macro",
+        "color": "#4A1B6B",
+        "source_url": "https://fred.stlouisfed.org/series/T10YIE",
+    },
+
+    "vix_term_structure": {
+        "name": "VIX Term Structure (9D/30D Ratio)",
+        "tier": 2,
+        "pcs": 6,
+        "source": "yfinance_ratio",
+        "series_ids": ["^VIX9D", "^VIX"],
+        "frequency": "daily",
+        "lag_weeks": 1,
+        "inverse": True,
+        "unit": "Ratio",
+        "description": "Ratio of 9-day VIX (^VIX9D) to 30-day VIX (^VIX). Ratio > 1 = VIX term structure in backwardation (near-term fear exceeds medium-term) = panic spike, historically a near-term bottoming signal. Ratio < 1 = contango (normal/calm). A fast-twitch contrarian indicator for timing short-term mean-reversion.",
+        "causal_mechanism": "When near-term implied vol exceeds longer-dated vol, options dealers are pricing a short-lived shock. This compression typically unwinds within days. VIX9D/VIX > 1.05 has historically been followed by 1–2 week reversals as the fear event resolves.",
+        "documented_cases": [
+            "VIX9D/VIX exceeded 1.1 in March 2020 and August 2024 — both marked short-term local lows with sharp reversals",
+            "Sustained backwardation (ratio > 1 for 3+ days) preceded positive 2-week returns at elevated frequency in 2018-2024",
+        ],
+        "relevant_tickers": ["SPY", "QQQ", "VIXY", "UVXY", "SPXU"],
+        "category": "macro",
+        "color": "#0D4F5C",
+        "source_url": "https://finance.yahoo.com/quote/%5EVIX9D",
+    },
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
