@@ -230,24 +230,79 @@ if stripe_session_id:
         result = {"ok": True, "tier": get_user_tier(user["id"]), "error": ""}
 
     if result["ok"]:
-        st.markdown("""
+        st.markdown(f"""
         <div class="success-box">
-            <div style="font-size:3rem;margin-bottom:12px;">🎉</div>
-            <div style="font-size:1.5rem;font-weight:800;color:#00D566;margin-bottom:8px;">
-                You're officially Pro.
+            <div style="font-size:3rem;margin-bottom:14px;">🎉</div>
+            <div style="font-size:1.6rem;font-weight:900;
+                        background:linear-gradient(135deg,#00D566,{CYAN});
+                        -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                        background-clip:text;margin-bottom:10px;">
+                Welcome to Pro.
             </div>
-            <div style="font-size:0.95rem;color:#8892B0;max-width:400px;margin:0 auto;">
-                All Pro features are now unlocked. The machine is running full power for you.
+            <div style="font-size:0.95rem;color:#8892B0;max-width:480px;margin:0 auto 20px;line-height:1.6;">
+                All 38 signals and every Pro feature are active on your account right now.
+                Your <strong style="color:#E8EEFF;">morning digest</strong> email arrives
+                tomorrow at 7 AM ET — you're already opted in.
+            </div>
+            <div style="display:flex;justify-content:center;gap:24px;flex-wrap:wrap;
+                        font-size:0.8rem;color:#4A5063;margin-bottom:4px;">
+                <span>✓ Morning digest — enabled</span>
+                <span>✓ Unlimited watchlist</span>
+                <span>✓ Factor Exposure</span>
+                <span>✓ Signal Backtester</span>
             </div>
         </div>
+        <div style="font-size:0.88rem;font-weight:700;color:#8892B0;
+                    text-align:center;margin:0 0 16px;letter-spacing:0.06em;
+                    text-transform:uppercase;">
+            Start here →
+        </div>
         """, unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
+
+        col1, col2, col3 = st.columns(3)
         with col1:
-            if st.button("→ Ticker Deep Dive", use_container_width=True, type="primary"):
-                st.switch_page("pages/3_Ticker_Deep_Dive.py")
+            st.markdown(f"""
+            <div style="background:{BG_CARD};border:1px solid rgba(255,255,255,0.08);
+                        border-radius:10px;padding:16px;text-align:center;height:110px;
+                        display:flex;flex-direction:column;justify-content:center;">
+                <div style="font-size:1.5rem;margin-bottom:6px;">📊</div>
+                <div style="font-size:0.8rem;font-weight:700;color:#E8EEFF;">Today's Brief</div>
+                <div style="font-size:0.72rem;color:#4A5063;margin-top:4px;">
+                    See what signals flipped overnight
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Open Today's Brief", use_container_width=True, type="primary", key="cta_brief"):
+                st.switch_page("pages/2_Today_Digest.py")
         with col2:
-            if st.button("→ Factor Exposure", use_container_width=True):
+            st.markdown(f"""
+            <div style="background:{BG_CARD};border:1px solid rgba(124,58,237,0.3);
+                        border-radius:10px;padding:16px;text-align:center;height:110px;
+                        display:flex;flex-direction:column;justify-content:center;">
+                <div style="font-size:1.5rem;margin-bottom:6px;">🔍</div>
+                <div style="font-size:0.8rem;font-weight:700;color:#E8EEFF;">Ticker Deep Dive</div>
+                <div style="font-size:0.72rem;color:#4A5063;margin-top:4px;">
+                    Run any ticker through all 38 signals
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Open Deep Dive", use_container_width=True, key="cta_tdd"):
+                st.switch_page("pages/3_Ticker_Deep_Dive.py")
+        with col3:
+            st.markdown(f"""
+            <div style="background:{BG_CARD};border:1px solid rgba(0,200,224,0.2);
+                        border-radius:10px;padding:16px;text-align:center;height:110px;
+                        display:flex;flex-direction:column;justify-content:center;">
+                <div style="font-size:1.5rem;margin-bottom:6px;">🧮</div>
+                <div style="font-size:0.8rem;font-weight:700;color:#E8EEFF;">Factor Exposure</div>
+                <div style="font-size:0.72rem;color:#4A5063;margin-top:4px;">
+                    Pro-only Fama-French regression
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("Open Factor Exposure", use_container_width=True, key="cta_factor"):
                 st.switch_page("pages/27_Factor_Exposure.py")
+
         st.query_params.clear()
     else:
         st.error(f"Payment verification failed: {result['error']}. Contact support at bpgiri2005@gmail.com.")

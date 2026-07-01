@@ -195,6 +195,16 @@ def verify_email(email: str, code: str) -> dict:
             )
         )
 
+    # Fire-and-forget welcome email — must NOT raise so a Resend hiccup never
+    # prevents the user from logging in after verifying.
+    try:
+        email_module.send_welcome_email(row["email"])
+    except Exception as _exc:  # EmailSendError or anything else from Resend
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "Welcome email failed for %s: %s", row["email"], _exc
+        )
+
     return {"id": row["id"], "email": row["email"]}
 
 

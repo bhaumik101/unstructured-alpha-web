@@ -363,3 +363,98 @@ def send_trial_reminder_email(to_email: str, trial_end_display: str) -> None:
     except requests.RequestException as e:
         print(f"[trial-reminder] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send trial reminder to {to_email}: {e}") from e
+
+
+def send_welcome_email(to_email: str) -> None:
+    """
+    Send a day-0 welcome email immediately after a user verifies their email
+    address. Goal: warm, useful, one clear CTA (open the dashboard).
+    Called by auth.verify_email() in a try/except so it never blocks
+    the verification flow.
+    """
+    api_key, from_email = _get_resend_config()
+    print(f"[welcome] sending to={to_email!r}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    html = """
+    <div style="font-family:Georgia,serif;max-width:540px;color:#1A1612;">
+        <div style="background:#1C2B4A;padding:20px 28px;border-radius:8px 8px 0 0;">
+            <div style="font-size:0.70rem;color:#C9A84C;letter-spacing:0.12em;text-transform:uppercase;">
+                Unstructured Alpha
+            </div>
+            <div style="font-size:1.3rem;font-weight:700;color:#FAF7F0;margin-top:6px;">
+                Your account is ready.
+            </div>
+        </div>
+
+        <div style="background:#FFFFFF;padding:28px 28px 24px;">
+            <p style="font-size:1rem;color:#1A1612;margin:0 0 18px;line-height:1.6;">
+                Welcome. Unstructured Alpha scores 28 macro and alternative data signals
+                daily — credit spreads, energy inventories, Fed liquidity, insider activity,
+                options flow — and tells you what they're saying about the market right now.
+            </p>
+
+            <p style="font-size:0.9rem;color:#4A4A4A;margin:0 0 6px;font-weight:700;">
+                Start here:
+            </p>
+            <ul style="color:#4A4A4A;font-size:0.9rem;padding-left:20px;margin:0 0 24px;line-height:1.8;">
+                <li>
+                    <a href="https://unstructuredalpha.com/Today%27s_Brief"
+                       style="color:#1C2B4A;font-weight:700;">Today's Brief</a>
+                    — daily signal pulse with what flipped overnight
+                </li>
+                <li>
+                    <a href="https://unstructuredalpha.com/Ticker_Deep_Dive"
+                       style="color:#1C2B4A;font-weight:700;">Ticker Deep Dive</a>
+                    — type any stock ticker to see which signals are driving it
+                </li>
+                <li>
+                    <a href="https://unstructuredalpha.com/Watchlist"
+                       style="color:#1C2B4A;font-weight:700;">Watchlist</a>
+                    — track your stocks and set alerts
+                </li>
+            </ul>
+
+            <div style="text-align:center;">
+                <a href="https://unstructuredalpha.com"
+                   style="background:#1C2B4A;color:#FAF7F0;padding:13px 30px;
+                          border-radius:5px;text-decoration:none;
+                          font-size:0.95rem;font-weight:700;display:inline-block;">
+                    Open the Dashboard →
+                </a>
+            </div>
+
+            <p style="font-size:0.82rem;color:#8B8B8B;margin:24px 0 0;line-height:1.5;">
+                You're on the <strong>Free plan</strong>. Upgrade to Pro anytime for
+                factor exposure, PDF reports, the signal backtester, and the morning
+                digest email.
+                <a href="https://unstructuredalpha.com/Upgrade"
+                   style="color:#1C2B4A;">See what's included →</a>
+            </p>
+        </div>
+
+        <div style="background:#F0EBE1;padding:10px 28px;border-radius:0 0 8px 8px;
+                    font-size:0.72rem;color:#9E9E8E;text-align:center;">
+            Unstructured Alpha · Not financial advice · All data from public sources
+        </div>
+    </div>
+    """
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [to_email],
+                "subject": "Welcome to Unstructured Alpha",
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[welcome] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[welcome] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send welcome email to {to_email}: {e}") from e

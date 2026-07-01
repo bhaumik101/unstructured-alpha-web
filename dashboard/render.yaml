@@ -66,3 +66,22 @@ services:
         sync: false
       - key: EIA_API_KEY
         sync: false
+
+  # Day-6 trial-end reminder cron — runs at 10:00 ET (15:00 UTC) daily.
+  # Finds Pro users whose 7-day trial ends within the next 20–32 hours
+  # and emails them a "trial ends tomorrow" nudge.
+  - type: cron
+    name: unstructured-alpha-trial-reminder
+    runtime: python
+    plan: free
+    rootDir: dashboard
+    schedule: "0 15 * * *"   # 15:00 UTC = 10:00 ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_trial_reminder
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
