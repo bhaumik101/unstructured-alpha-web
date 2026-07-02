@@ -33,12 +33,13 @@ from utils.score_history import (
 from utils.signals_cache import get_all_signal_scores
 from utils.narrative import generate_narrative
 from utils.convergence import get_convergence_events, render_convergence_events
-from utils.theme import inject_skeleton_css, empty_state
+from utils.theme import inject_skeleton_css, inject_premium_css, empty_state, section_label
 
 st.set_page_config(page_title="Today's Brief — UA", layout="wide")
 render_header("Today's Brief")
 render_sidebar_base()
 inject_skeleton_css()
+inject_premium_css()
 
 render_page_header(
     "Today's Brief",
@@ -142,12 +143,9 @@ try:
 except Exception:
     _today_str = datetime.now().strftime("%A, %B %-d, %Y")
 
-st.markdown(f"# Today's Intelligence Brief")
-st.caption(f"{_today_str} — signal state, score movers, and watchlist activity at a glance.")
-
 # ── Section 1: Signal Pulse ───────────────────────────────────────────────────
 
-st.markdown('<div class="section-header">SIGNAL PULSE</div>', unsafe_allow_html=True)
+st.markdown(section_label("Signal Pulse", dot="#00D566"), unsafe_allow_html=True)
 
 with st.spinner("Loading signal pulse (38 signals — cached 2 hours)…"):
     _all_scores = get_all_signal_scores()
@@ -165,17 +163,20 @@ except Exception:
     pass
 
 st.markdown(
-    f'<div style="background:#12151E;border-radius:8px;padding:10px 18px;margin-bottom:14px;'
-    f'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;'
-    f'font-family:Inter,sans-serif;">'
-    f'<div style="color:#E8EEFF;font-size:0.82rem;">'
-    f'<span style="color:#8892AA;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;">'
-    f'DATA AS OF</span><br>'
-    f'<b style="font-size:1.0rem;">{_as_of}</b>'
+    f'<div style="background:#12151E;border:1px solid rgba(255,255,255,0.07);border-radius:10px;'
+    f'padding:10px 18px;margin-bottom:14px;display:flex;align-items:center;'
+    f'justify-content:space-between;flex-wrap:wrap;gap:8px;font-family:Inter,sans-serif;">'
+    f'<div style="display:flex;align-items:center;gap:8px;">'
+    f'<span class="ua-pulse-dot"></span>'
+    f'<div>'
+    f'<div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.12em;">'
+    f'{_today_str}</div>'
+    f'<div style="font-size:0.88rem;font-weight:700;color:#E8EEFF;">As of {_as_of}</div>'
     f'</div>'
-    f'<div style="color:#8892AA;font-size:0.75rem;text-align:right;">'
-    f'{len(_all_scores)} signals · cached 2h<br>'
-    f'<span style="color:#6B7FBF;">signals are weekly/monthly; 2h cache is appropriate</span>'
+    f'</div>'
+    f'<div style="font-size:0.72rem;color:#6B7FBF;text-align:right;">'
+    f'{len(_all_scores)} signals · 2h cache<br>'
+    f'<span style="color:#4A5478;">weekly/monthly signals; 2h refresh is appropriate</span>'
     f'</div>'
     f'</div>',
     unsafe_allow_html=True,
@@ -194,13 +195,14 @@ try:
         if _nar.get("watch_note") else ""
     )
     st.markdown(
-        f'<div style="background:{_nar_bg};border-radius:10px;padding:16px 20px;'
-        f'border-left:5px solid {_nar_rc};font-family:Inter,sans-serif;margin-bottom:18px;">'
-        f'<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px;">'
-        f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.12em;color:{_nar_rc};'
-        f'text-transform:uppercase;">TODAY\'S MACRO CALL</div>'
-        f'<div style="font-size:1.1rem;font-weight:800;color:#12151E;">{_nar["headline"]}</div>'
+        f'<div class="ua-spotlight" style="--ua-spotlight-accent:{_nar_rc};margin-bottom:18px;">'
+        f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
+        f'<span class="ua-pulse-dot" style="background:{_nar_rc};flex-shrink:0;"></span>'
+        f'<span style="font-size:0.62rem;font-weight:700;letter-spacing:0.14em;color:{_nar_rc};'
+        f'text-transform:uppercase;">Today\'s Macro Call</span>'
         f'</div>'
+        f'<div style="font-size:1.05rem;font-weight:800;color:#E8EEFF;margin-bottom:8px;'
+        f'line-height:1.3;letter-spacing:-0.2px;">{_nar["headline"]}</div>'
         f'<div style="font-size:0.80rem;color:#B8C0D4;line-height:1.65;">'
         f'{_nar["summary"]}</div>'
         f'{_nar_watch_html}'
@@ -377,29 +379,43 @@ def _signal_card_html(sid: str, d: dict) -> str:
     score = d["score"]
     status = d["status"]
     color = "#00D566" if status == "bullish" else ("#FF4444" if status == "bearish" else "#8892AA")
-    border = "#00D566" if status == "bullish" else ("#FF4444" if status == "bearish" else "rgba(255,255,255,0.08)")
+    bg_tint = (
+        "rgba(0,213,102,0.06)" if status == "bullish" else
+        "rgba(255,68,68,0.06)" if status == "bearish" else
+        "rgba(18,21,30,0.8)"
+    )
     label = "BULL" if status == "bullish" else ("BEAR" if status == "bearish" else "—")
     if d.get("error"):
         score_str = "—"
         label = "ERR"
         color = "#8892AA"
-        border = "rgba(255,255,255,0.08)"
+        bg_tint = "rgba(18,21,30,0.8)"
     else:
         score_str = f"{score:.0f}"
     return (
-        f'<div style="background:#12151E;border-radius:5px;padding:8px 12px;margin-bottom:6px;'
-        f'border-left:3px solid {border};font-family:Inter,sans-serif;">'
-        f'<span style="font-size:0.82rem;color:#E8EEFF;">{d["name"]}</span>'
-        f'<span style="float:right;font-size:0.80rem;font-weight:700;color:{color};">'
-        f'{score_str} <span style="font-size:0.68rem;letter-spacing:0.05em;">{label}</span></span>'
+        f'<div style="background:{bg_tint};border-radius:7px;padding:7px 12px;margin-bottom:5px;'
+        f'border-left:2px solid {color};border:1px solid rgba(255,255,255,0.06);'
+        f'border-left-width:2px;font-family:Inter,sans-serif;'
+        f'transition:border-color 0.15s ease;">'
+        f'<div style="display:flex;align-items:center;justify-content:space-between;">'
+        f'<span style="font-size:0.78rem;color:#C8D0E4;flex:1;margin-right:8px;'
+        f'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{d["name"]}</span>'
+        f'<span style="font-size:0.82rem;font-weight:800;color:{color};'
+        f'text-shadow:0 0 12px {color}40;white-space:nowrap;">'
+        f'{score_str} <span style="font-size:0.62rem;letter-spacing:0.06em;'
+        f'font-weight:700;">{label}</span></span>'
+        f'</div>'
         f'</div>'
     )
 
 with _pulse_col1:
     st.markdown(
-        f'<div style="font-size:0.78rem;font-weight:700;color:#00D566;letter-spacing:0.06em;'
-        f'text-transform:uppercase;border-bottom:2px solid #00D566;padding-bottom:4px;margin-bottom:10px;">'
-        f'▲ BULLISH ({len(_bull_sigs)})</div>',
+        f'<div style="font-size:0.70rem;font-weight:700;color:#00D566;letter-spacing:0.08em;'
+        f'text-transform:uppercase;border-bottom:2px solid rgba(0,213,102,0.4);'
+        f'padding-bottom:5px;margin-bottom:10px;display:flex;align-items:center;gap:6px;">'
+        f'<span style="background:rgba(0,213,102,0.12);border:1px solid rgba(0,213,102,0.3);'
+        f'border-radius:12px;padding:1px 8px;font-size:0.68rem;">▲ {len(_bull_sigs)}</span>'
+        f'BULLISH</div>',
         unsafe_allow_html=True,
     )
     if _bull_sigs:
@@ -410,9 +426,12 @@ with _pulse_col1:
 
 with _pulse_col2:
     st.markdown(
-        f'<div style="font-size:0.78rem;font-weight:700;color:#FF4444;letter-spacing:0.06em;'
-        f'text-transform:uppercase;border-bottom:2px solid #FF4444;padding-bottom:4px;margin-bottom:10px;">'
-        f'▼ BEARISH ({len(_bear_sigs)})</div>',
+        f'<div style="font-size:0.70rem;font-weight:700;color:#FF4444;letter-spacing:0.08em;'
+        f'text-transform:uppercase;border-bottom:2px solid rgba(255,68,68,0.4);'
+        f'padding-bottom:5px;margin-bottom:10px;display:flex;align-items:center;gap:6px;">'
+        f'<span style="background:rgba(255,68,68,0.12);border:1px solid rgba(255,68,68,0.3);'
+        f'border-radius:12px;padding:1px 8px;font-size:0.68rem;">▼ {len(_bear_sigs)}</span>'
+        f'BEARISH</div>',
         unsafe_allow_html=True,
     )
     if _bear_sigs:
@@ -423,9 +442,12 @@ with _pulse_col2:
 
 with _pulse_col3:
     st.markdown(
-        f'<div style="font-size:0.78rem;font-weight:700;color:#8892AA;letter-spacing:0.06em;'
-        f'text-transform:uppercase;border-bottom:2px solid #8892AA;padding-bottom:4px;margin-bottom:10px;">'
-        f'● NEUTRAL ({len(_neut_sigs)})</div>',
+        f'<div style="font-size:0.70rem;font-weight:700;color:#8892AA;letter-spacing:0.08em;'
+        f'text-transform:uppercase;border-bottom:2px solid rgba(136,146,170,0.3);'
+        f'padding-bottom:5px;margin-bottom:10px;display:flex;align-items:center;gap:6px;">'
+        f'<span style="background:rgba(136,146,170,0.10);border:1px solid rgba(136,146,170,0.25);'
+        f'border-radius:12px;padding:1px 8px;font-size:0.68rem;">● {len(_neut_sigs)}</span>'
+        f'NEUTRAL</div>',
         unsafe_allow_html=True,
     )
     if _neut_sigs:
@@ -447,11 +469,17 @@ _overall_bias = "BULLISH LEANING" if _n_bull > _n_bear + _n_neut * 0.5 else (
 _bias_color = "#00D566" if "BULL" in _overall_bias else ("#FF4444" if "BEAR" in _overall_bias else "#8892AA")
 
 st.markdown(
-    f'<div style="background:#12151E;border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:10px 16px;'
-    f'margin-top:8px;font-family:Inter,sans-serif;font-size:0.85rem;">'
-    f'<b style="color:{_bias_color};">{_overall_bias}</b> — '
-    f'{_n_bull} bullish · {_n_bear} bearish · {_n_neut} neutral '
-    f'<span style="color:#8892AA;font-size:0.78rem;">({_bull_pct:.0f}% / {_bear_pct:.0f}% / {_neut_pct:.0f}%)</span>'
+    f'<div style="background:#12151E;border:1px solid rgba(255,255,255,0.08);border-radius:10px;'
+    f'padding:12px 18px;margin-top:8px;font-family:Inter,sans-serif;">'
+    f'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'
+    f'<b style="font-size:0.88rem;color:{_bias_color};">{_overall_bias}</b>'
+    f'<span style="font-size:0.72rem;color:#8892AA;">{_n_bull}B / {_n_bear}Be / {_n_neut}N</span>'
+    f'</div>'
+    f'<div style="display:flex;height:6px;border-radius:4px;overflow:hidden;gap:1px;">'
+    f'<div style="flex:{_bull_pct:.0f};background:#00D566;min-width:{"2px" if _bull_pct > 0 else "0"};"></div>'
+    f'<div style="flex:{_bear_pct:.0f};background:#FF4444;min-width:{"2px" if _bear_pct > 0 else "0"};"></div>'
+    f'<div style="flex:{_neut_pct:.0f};background:#6B7FBF;min-width:{"2px" if _neut_pct > 0 else "0"};"></div>'
+    f'</div>'
     f'</div>',
     unsafe_allow_html=True,
 )
@@ -511,7 +539,7 @@ st.divider()
 
 # ── Section 2: Signal Flips ───────────────────────────────────────────────────
 
-st.markdown('<div class="section-header">SIGNAL FLIPS (SINCE YESTERDAY)</div>', unsafe_allow_html=True)
+st.markdown(section_label("Signal Flips — Since Yesterday", dot="#F59E0B"), unsafe_allow_html=True)
 
 _flips = get_signal_flips(days_back=1)
 
@@ -542,7 +570,7 @@ st.divider()
 
 # ── Section 3: Score Movers ───────────────────────────────────────────────────
 
-st.markdown('<div class="section-header">SCORE MOVERS (LAST 7 DAYS)</div>', unsafe_allow_html=True)
+st.markdown(section_label("Score Movers — Last 7 Days", dot="#7C3AED"), unsafe_allow_html=True)
 
 _movers_df = get_score_movers(days_back=7)
 
@@ -601,7 +629,7 @@ st.divider()
 
 # ── Section 3: Watchlist Activity ─────────────────────────────────────────────
 
-st.markdown('<div class="section-header">WATCHLIST ACTIVITY</div>', unsafe_allow_html=True)
+st.markdown(section_label("Watchlist Activity", dot="#00C8E0"), unsafe_allow_html=True)
 
 _user = st.session_state.get("user")
 if not _user:
@@ -685,17 +713,18 @@ if _cur_user:
 
 if not _already_opted_in:
     st.markdown("""
-<div style="background:#12151E;border-radius:10px;padding:20px 24px;margin:20px 0 14px;
-            font-family:Inter,sans-serif;display:flex;align-items:center;
-            justify-content:space-between;flex-wrap:wrap;gap:14px;">
-    <div>
-        <div style="font-size:0.68rem;letter-spacing:0.12em;color:#C9A84C;font-weight:600;
-                    text-transform:uppercase;margin-bottom:4px;">WANT THIS IN YOUR INBOX?</div>
-        <div style="font-size:0.95rem;font-weight:700;color:#12151E;">
-            Get Today's Brief every morning at 7 AM ET
-        </div>
-        <div style="font-size:0.80rem;color:#A0A8B8;margin-top:4px;line-height:1.5;">
-            43 signals distilled into a 2-minute read at 7 AM ET. Pro feature · 7-day free trial.
+<div class="ua-pro-banner" style="margin:20px 0 14px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;">
+        <div>
+            <div style="font-size:0.60rem;font-weight:700;letter-spacing:0.16em;color:#A78BFA;
+                        text-transform:uppercase;margin-bottom:6px;">📬 Want this in your inbox?</div>
+            <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;margin-bottom:4px;
+                        letter-spacing:-0.2px;">
+                Get Today's Brief every morning at 7 AM ET
+            </div>
+            <div style="font-size:0.78rem;color:#8892AA;line-height:1.55;">
+                43 signals distilled into a 2-minute read. Pro feature · 7-day free trial.
+            </div>
         </div>
     </div>
 </div>

@@ -27,11 +27,13 @@ from utils.analysis import (
     score_signal, score_cot, compute_supercycle_score, score_contract_velocity,
 )
 from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
-from utils.theme import source_badge
+from utils.theme import source_badge, inject_premium_css, inject_skeleton_css, section_label
 
 st.set_page_config(page_title="Power Supercycle — UA", layout="wide")
 render_header("Power Supercycle")
 render_sidebar_base()
+inject_premium_css()
+inject_skeleton_css()
 
 render_page_header(
     "Power Supercycle",
@@ -46,10 +48,6 @@ COLS  = {"Nuclear Fuel Chain": "#4A1B6B", "Grid & Power Infra": "#F59E0B",
          "AI / Hyperscalers": "#7C3AED"}
 
 STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF"}
-
-# ── Page header ───────────────────────────────────────────────────────────────
-st.markdown("# Power Supercycle Tracker")
-st.caption("The convergence thesis: AI demand → power demand → grid buildout → nuclear + copper + gas")
 
 with st.expander("The Thesis — Read This First", expanded=False):
     st.markdown("""
@@ -155,34 +153,45 @@ sc_status = supercycle["thesis_status"]
 sc_color  = "#00D566" if sc_case == "BULL" else ("#FF4444" if sc_case == "BEAR" else "#6B7FBF")
 
 st.markdown(f"""
-<div style="background:linear-gradient(135deg, #12151E 0%, #0B0D12 100%);
-            border-radius:8px;padding:24px 28px;
-            border:2px solid {sc_color};margin-bottom:20px;font-family:Inter,sans-serif;">
-    <div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
-        <div style="text-align:center;">
-            <div style="font-size:0.72rem;color:#9E9E8E;text-transform:uppercase;letter-spacing:0.1em;">
-                Supercycle Score
-            </div>
-            <div style="font-size:4rem;font-weight:900;color:{sc_color};line-height:1.0;">
-                {sc_score:.0f}
-            </div>
-            <div style="font-size:0.72rem;color:#9E9E8E;">/ 100</div>
-        </div>
-        <div style="flex:1;min-width:240px;">
-            <div style="font-size:1.05rem;font-weight:700;color:#E8EEFF;margin-bottom:8px;">
-                {sc_status}
-            </div>
-            <div style="font-size:0.9rem;color:#8892AA;">
-                Signal case: <b style="color:{sc_color};">{sc_case}</b> &nbsp;|&nbsp;
-                Conviction: <b>{sc_conv}</b>
-            </div>
-            <div style="font-size:0.80rem;color:#9E9E8E;margin-top:8px;">
-                ▲ {supercycle['bull_count']} bullish &nbsp;
-                ▼ {supercycle['bear_count']} bearish &nbsp;
-                ● {supercycle['neutral_count']} neutral
-            </div>
-        </div>
+<div class="ua-gradient-border" style="margin-bottom:20px;">
+  <div style="display:flex;align-items:center;gap:28px;flex-wrap:wrap;padding:22px 26px;">
+    <div style="text-align:center;min-width:110px;">
+      <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;
+                  letter-spacing:0.14em;margin-bottom:6px;">Supercycle Score</div>
+      <div class="ua-kpi-animate" style="font-size:4.2rem;font-weight:900;color:{sc_color};
+           line-height:1.0;text-shadow:0 0 32px {sc_color}55,0 0 8px {sc_color}35;
+           letter-spacing:-3px;">{sc_score:.0f}</div>
+      <div style="font-size:0.65rem;color:#8892AA;margin-top:3px;">/ 100</div>
     </div>
+    <div style="width:1px;height:72px;background:rgba(255,255,255,0.08);flex-shrink:0;"></div>
+    <div style="flex:1;min-width:210px;">
+      <div style="font-size:0.96rem;font-weight:700;color:#E8EEFF;margin-bottom:8px;
+                  line-height:1.35;">{sc_status}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">
+        <span style="font-size:0.64rem;font-weight:700;background:rgba(0,213,102,0.10);
+                     color:#00D566;border:1px solid rgba(0,213,102,0.22);border-radius:20px;
+                     padding:2px 9px;">▲ {supercycle['bull_count']} bullish</span>
+        <span style="font-size:0.64rem;font-weight:700;background:rgba(255,68,68,0.10);
+                     color:#FF4444;border:1px solid rgba(255,68,68,0.22);border-radius:20px;
+                     padding:2px 9px;">▼ {supercycle['bear_count']} bearish</span>
+        <span style="font-size:0.64rem;font-weight:700;background:rgba(107,127,191,0.10);
+                     color:#6B7FBF;border:1px solid rgba(107,127,191,0.22);border-radius:20px;
+                     padding:2px 9px;">● {supercycle['neutral_count']} neutral</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;">
+        <div style="height:100%;width:{sc_score:.0f}%;border-radius:4px;
+             background:linear-gradient(90deg,{sc_color}80,{sc_color});
+             transition:width 0.8s ease;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:4px;">
+        <span style="font-size:0.60rem;color:#8892AA;">Bear</span>
+        <span style="font-size:0.62rem;font-weight:700;color:{sc_color};">
+          {sc_case} &nbsp;·&nbsp; {sc_conv} conviction
+        </span>
+        <span style="font-size:0.60rem;color:#8892AA;">Bull</span>
+      </div>
+    </div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -212,16 +221,17 @@ for col, (leg_name, leg_sigs) in zip(leg_cols, leg_map.items()):
         leg_color  = "#00D566" if leg_avg >= 65 else ("#FF4444" if leg_avg <= 35 else "#6B7FBF")
         leg_symbol = "▲" if leg_avg >= 65 else ("▼" if leg_avg <= 35 else "●")
 
+        _sig_names = ', '.join(SIGNALS[s]['name'][:16] + '…' for s in leg_sigs if s in SIGNALS)
         st.markdown(f"""
-        <div style="background:#12151E;border-radius:6px;padding:14px;
-                    border-top:3px solid {leg_color};
-                    border-left:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
-                    text-align:center;font-family:Inter,sans-serif;">
-            <div style="font-size:0.82rem;font-weight:700;color:#E8EEFF;">{leg_name}</div>
-            <div style="font-size:2.2rem;font-weight:800;color:{leg_color};">{leg_symbol} {leg_avg:.0f}</div>
-            <div style="font-size:0.68rem;color:#9E9E8E;">
-                {', '.join(SIGNALS[s]['name'][:18]+'…' for s in leg_sigs if s in SIGNALS)}
-            </div>
+        <div class="ua-spotlight ua-kpi-animate"
+             style="--ua-spotlight-accent:{leg_color};text-align:center;padding:18px 14px 16px;">
+          <div style="font-size:0.62rem;font-weight:700;color:#8892AA;text-transform:uppercase;
+                      letter-spacing:0.12em;margin-bottom:8px;">{leg_name}</div>
+          <div style="font-size:2.6rem;font-weight:900;color:{leg_color};line-height:1.0;
+               text-shadow:0 0 24px {leg_color}45;letter-spacing:-1.5px;margin-bottom:6px;">
+            {leg_symbol} {leg_avg:.0f}
+          </div>
+          <div style="font-size:0.60rem;color:#6B7FBF;line-height:1.5;">{_sig_names}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -239,7 +249,7 @@ section = st.segmented_control(
 # TAB: Signal Trends
 # ─────────────────────────────────────────────────────────────────────────────
 if section == "Signal Trends":
-    st.markdown('<div class="section-header">SIGNAL TRENDS BY LEG</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Signal Trends by Leg", dot="#7C3AED"), unsafe_allow_html=True)
     st.caption("Each series normalized to 100 at the start of the selected window. One panel per leg.")
 
     _LEG_PERIOD_OPTS = ["1H", "1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"]
@@ -353,7 +363,7 @@ if section == "Signal Trends":
 # TAB: Ticker Performance
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Ticker Performance":
-    st.markdown('<div class="section-header">TICKER PERFORMANCE BY SUPERCYCLE LEG</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Ticker Performance by Supercycle Leg", dot="#00C8E0"), unsafe_allow_html=True)
     st.caption("How each basket of supercycle-relevant tickers has performed over the last 2 years.")
 
     with st.expander("Why these specific tickers?"):
@@ -407,7 +417,7 @@ elif section == "Ticker Performance":
 # TAB: Copper COT
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Copper COT":
-    st.markdown('<div class="section-header">COPPER COT — COMMERCIAL POSITIONING</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Copper COT — Commercial Positioning", dot="#F59E0B"), unsafe_allow_html=True)
 
     with st.expander("Why copper COT matters for the supercycle"):
         st.markdown("""
@@ -471,7 +481,7 @@ elif section == "Copper COT":
 # TAB: Quantum
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Quantum":
-    st.markdown('<div class="section-header">QUANTUM COMPUTING — arXiv PAPER VELOCITY</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Quantum Computing — arXiv Paper Velocity", dot="#4A1B6B"), unsafe_allow_html=True)
 
     with st.expander("Why arXiv paper velocity is a leading indicator"):
         st.markdown("""
@@ -537,7 +547,7 @@ elif section == "Quantum":
 # TAB: Nuclear Contracts
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Nuclear Contracts":
-    st.markdown('<div class="section-header">DoE NUCLEAR CONTRACT AWARDS</div>', unsafe_allow_html=True)
+    st.markdown(section_label("DoE Nuclear Contract Awards", dot="#00D566"), unsafe_allow_html=True)
 
     with st.expander("Why DoE contract awards are a leading indicator for nuclear stocks"):
         st.markdown("""
@@ -571,14 +581,14 @@ elif section == "Nuclear Contracts":
         vel_recent = vel.get("recent_total", 0)
         vel_prior  = vel.get("prior_total", 0)
         col.markdown(f"""
-        <div style="background:#12151E;border-radius:6px;padding:14px;
-                    border-left:3px solid {vel_color};
-                    border-top:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
-                    margin-bottom:8px;font-family:Inter,sans-serif;">
-            <div style="font-size:0.82rem;font-weight:700;color:#E8EEFF;">{display_name}</div>
-            <div style="font-size:1.4rem;font-weight:700;color:{vel_color};">{vel_pct:+.1f}%</div>
-            <div style="font-size:0.75rem;color:#8892AA;">
-                Recent 6m: ${vel_recent:,.0f}<br>Prior 6m: ${vel_prior:,.0f}
+        <div class="ua-spotlight ua-kpi-animate"
+             style="--ua-spotlight-accent:{vel_color};margin-bottom:8px;padding:16px 14px;">
+            <div style="font-size:0.78rem;font-weight:700;color:#E8EEFF;margin-bottom:6px;">{display_name}</div>
+            <div style="font-size:1.8rem;font-weight:800;color:{vel_color};letter-spacing:-0.5px;
+                 text-shadow:0 0 20px {vel_color}40;line-height:1.1;">{vel_pct:+.1f}%</div>
+            <div style="font-size:0.70rem;color:#8892AA;margin-top:6px;line-height:1.6;">
+                Recent 6m: <b style="color:#B8C0D4;">${vel_recent:,.0f}</b><br>
+                Prior 6m: <b style="color:#B8C0D4;">${vel_prior:,.0f}</b>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -587,7 +597,7 @@ elif section == "Nuclear Contracts":
 # TAB: Confluence
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Confluence":
-    st.markdown('<div class="section-header">FULL SIGNAL CONFLUENCE SUMMARY</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Full Signal Confluence Summary", dot="#00D566"), unsafe_allow_html=True)
 
     _leg_by_sig = {
         "uranium_proxy":     "Nuclear Fuel",
