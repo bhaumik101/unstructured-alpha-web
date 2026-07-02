@@ -14,11 +14,12 @@ from utils.config import CATEGORIES, SIGNALS, TICKERS
 from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
 from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
-from utils.theme import inject_skeleton_css, skeleton_cards, source_badge
+from utils.theme import inject_skeleton_css, skeleton_cards, source_badge, inject_premium_css
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
 render_header("Signal Dashboard")
 render_sidebar_base()
+inject_premium_css()
 render_page_header(
     "Signal Dashboard",
     "38 alternative data signals across macro, commodity, credit, energy, and more.",
@@ -463,31 +464,41 @@ for row_start in range(0, len(visible_signals), COLS):
 
                     _lag_weeks = cfg.get("lag_weeks", 0)
                     _lag_html  = (
-                        f"<br><span style='color:#6B7FBF;font-size:0.72rem;'>"
-                        f"Leads related stocks by ~{_lag_weeks} weeks.</span>"
+                        f"<br><span style='color:#6B7FBF;font-size:0.70rem;'>"
+                        f"~{_lag_weeks}w lead time</span>"
                         if _lag_weeks > 0 else ""
                     )
 
                     _flip_html = (
-                        f'<div style="font-size:0.67rem;color:#6B7FBF;margin-top:5px;'
+                        f'<div style="font-size:0.65rem;color:#6B7FBF;margin-top:5px;'
                         f'border-top:1px solid rgba(255,255,255,0.06);padding-top:4px;">{_flip_note}</div>'
                         if _flip_note else ""
                     )
+                    _src_badge = source_badge(cfg.get("source", ""), cfg.get("series_id", ""))
                     st.markdown(
-                        f'<div style="background:rgba(18,21,30,0.85);border-radius:8px;padding:14px 16px;'
-                        f'border-left:4px solid {border};border:1px solid rgba(255,255,255,0.07);'
-                        f'margin-bottom:10px;font-family:Inter,sans-serif;min-height:140px;">'
-                        f'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">'
-                        f'<div style="font-size:0.78rem;font-weight:700;color:#E8EEFF;line-height:1.3;flex:1;">{_sig_name}</div>'
-                        f'<div style="font-size:1.0rem;font-weight:800;color:{border};'
-                        f'background:{border}18;border-radius:4px;padding:2px 8px;'
-                        f'white-space:nowrap;margin-left:8px;">{sym} {_lbl_text}</div>'
+                        f'<div style="background:rgba(18,21,30,0.88);border-radius:10px;padding:14px 16px;'
+                        f'border-left:3px solid {border};border:1px solid rgba(255,255,255,0.07);'
+                        f'border-left-width:3px;margin-bottom:10px;font-family:Inter,sans-serif;'
+                        f'transition:border-color 0.18s ease,box-shadow 0.18s ease;">'
+                        f'<div style="display:flex;justify-content:space-between;align-items:flex-start;'
+                        f'margin-bottom:8px;">'
+                        f'<div style="font-size:0.80rem;font-weight:700;color:#E8EEFF;line-height:1.3;'
+                        f'flex:1;letter-spacing:-0.1px;">{_sig_name}</div>'
+                        f'<div style="font-size:0.82rem;font-weight:800;color:{border};'
+                        f'background:{border}15;border:1px solid {border}30;border-radius:5px;'
+                        f'padding:2px 8px;white-space:nowrap;margin-left:8px;'
+                        f'letter-spacing:0.02em;">{sym} {_lbl_text}</div>'
                         f'</div>'
-                        f'<div style="font-size:0.78rem;color:#B8C0D4;line-height:1.5;margin-bottom:6px;">'
+                        f'<div style="font-size:0.77rem;color:#B8C0D4;line-height:1.55;margin-bottom:8px;">'
                         f'{_bottom_note}{_lag_html}'
                         f'</div>'
-                        f'<div style="display:flex;justify-content:space-between;align-items:center;">'
-                        f'<div style="font-size:0.68rem;color:#6B7FBF;">{_cat_icon} {_cat_name}{_fatigue_html}</div>'
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+                        f'flex-wrap:wrap;gap:4px;">'
+                        f'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+                        f'<span style="font-size:0.66rem;color:#6B7FBF;">{_cat_icon} {_cat_name}</span>'
+                        f'{_fatigue_html}'
+                        f'{_src_badge}'
+                        f'</div>'
                         f'<div style="font-size:0.68rem;">{_trend_badge}</div>'
                         f'</div>'
                         f'{_flip_html}'

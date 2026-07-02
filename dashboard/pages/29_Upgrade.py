@@ -15,7 +15,7 @@ import os
 
 import streamlit as st
 
-from utils.theme import BG_PAGE, BG_CARD, TEXT_PRIMARY, PURPLE, CYAN, GREEN, AMBER
+from utils.theme import BG_PAGE, BG_CARD, TEXT_PRIMARY, PURPLE, CYAN, GREEN, AMBER, inject_premium_css, inject_skeleton_css
 
 st.set_page_config(
     page_title="Upgrade to Pro — Unstructured Alpha",
@@ -32,6 +32,8 @@ from utils.billing import (
 )
 
 render_header()
+inject_premium_css()
+inject_skeleton_css()
 
 # ── Base URL ──────────────────────────────────────────────────────────────────
 def _base_url() -> str:
@@ -389,23 +391,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Stats strip ───────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="value-strip">
-    <div class="value-item">
+st.markdown(f"""
+<div class="value-strip" style="position:relative;">
+    <div class="value-item ua-kpi-animate">
         <div class="value-num">43</div>
         <div class="value-label">Alternative signals</div>
     </div>
-    <div class="value-item">
-        <div class="value-num">7</div>
+    <div class="value-item ua-kpi-animate">
+        <div class="value-num" style="color:{GREEN};">7</div>
         <div class="value-label">Day free trial</div>
     </div>
-    <div class="value-item">
-        <div class="value-num">$0</div>
+    <div class="value-item ua-kpi-animate">
+        <div class="value-num" style="color:{GREEN};">$0</div>
         <div class="value-label">Due today</div>
     </div>
-    <div class="value-item">
+    <div class="value-item ua-kpi-animate">
         <div class="value-num">∞</div>
         <div class="value-label">Cancel anytime</div>
+    </div>
+</div>
+<div style="display:flex;justify-content:center;gap:16px;margin-top:12px;flex-wrap:wrap;">
+    <div class="ua-guarantee">
+        ✓ 48-hour money-back guarantee
+    </div>
+    <div class="ua-guarantee" style="color:#00C8E0;background:rgba(0,200,224,0.06);
+         border-color:rgba(0,200,224,0.22);">
+        🔒 Payments secured by Stripe
+    </div>
+    <div class="ua-guarantee" style="color:#A78BFA;background:rgba(124,58,237,0.06);
+         border-color:rgba(124,58,237,0.22);">
+        ✦ No long-term commitment
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -595,29 +610,42 @@ if params.get("stripe_cancel"):
 # ── LOSS AVERSION: "What Pro saw this morning" ──────────────────────────────
 st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
 st.markdown(f"""
-<div style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.18);
-            border-radius:14px;padding:24px 28px;font-family:Inter,sans-serif;">
-    <div style="font-size:0.60rem;letter-spacing:0.16em;font-weight:700;color:{PURPLE};margin-bottom:12px;">
-        ⚡ WHAT PRO MEMBERS SAW AT 7 AM TODAY
+<div style="background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.20);
+            border-radius:16px;padding:26px 30px;font-family:Inter,sans-serif;
+            position:relative;overflow:hidden;">
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;
+                background:linear-gradient(90deg,transparent,rgba(124,58,237,0.5),
+                rgba(0,200,224,0.4),transparent);"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <span class="ua-pulse-dot" style="background:{PURPLE};"></span>
+        <span style="font-size:0.60rem;letter-spacing:0.16em;font-weight:700;color:{PURPLE};">
+            WHAT PRO MEMBERS SAW AT 7 AM TODAY
+        </span>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
-        <div style="background:rgba(255,68,68,0.06);border:1px solid rgba(255,68,68,0.18);
-                    border-radius:8px;padding:12px 14px;">
-            <div style="font-size:0.60rem;color:#FF4444;font-weight:700;letter-spacing:0.1em;">BEARISH FLIP</div>
-            <div style="font-size:0.85rem;font-weight:700;color:#E8EEFF;margin:4px 0 2px;">HY Credit Spreads</div>
-            <div style="font-size:0.73rem;color:#8892B0;">Widened 8 bps overnight — score dropped below 40 for first time in 23 days</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px;">
+        <div style="background:rgba(255,68,68,0.07);border:1px solid rgba(255,68,68,0.20);
+                    border-radius:10px;padding:14px 16px;border-left:3px solid #FF4444;">
+            <div style="font-size:0.58rem;color:#FF4444;font-weight:700;letter-spacing:0.12em;
+                        margin-bottom:4px;">📉 BEARISH FLIP</div>
+            <div style="font-size:0.88rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">HY Credit Spreads</div>
+            <div style="font-size:0.74rem;color:#8892AA;line-height:1.5;">Widened 8 bps overnight —
+            score dropped below 40 for first time in 23 days</div>
         </div>
-        <div style="background:rgba(0,213,102,0.05);border:1px solid rgba(0,213,102,0.15);
-                    border-radius:8px;padding:12px 14px;">
-            <div style="font-size:0.60rem;color:#00D566;font-weight:700;letter-spacing:0.1em;">BULLISH SIGNAL</div>
-            <div style="font-size:0.85rem;font-weight:700;color:#E8EEFF;margin:4px 0 2px;">EIA Crude Draw Streak</div>
-            <div style="font-size:0.73rem;color:#8892B0;">7th consecutive weekly draw. XOM, CVX flagged as macro tailwind names.</div>
+        <div style="background:rgba(0,213,102,0.06);border:1px solid rgba(0,213,102,0.18);
+                    border-radius:10px;padding:14px 16px;border-left:3px solid #00D566;">
+            <div style="font-size:0.58rem;color:#00D566;font-weight:700;letter-spacing:0.12em;
+                        margin-bottom:4px;">📈 BULLISH SIGNAL</div>
+            <div style="font-size:0.88rem;font-weight:700;color:#E8EEFF;margin-bottom:4px;">EIA Crude Draw Streak</div>
+            <div style="font-size:0.74rem;color:#8892AA;line-height:1.5;">7th consecutive weekly draw.
+            XOM, CVX flagged as macro tailwind names.</div>
         </div>
     </div>
-    <div style="font-size:0.76rem;color:#6B7FBF;line-height:1.5;">
+    <div style="font-size:0.78rem;color:#6B7FBF;line-height:1.6;border-top:1px solid rgba(255,255,255,0.06);
+                padding-top:14px;">
         Pro members received this at 7 AM ET with signal-by-signal changes, portfolio impact, and
-        the week's top convergence events. <span style="color:{PURPLE};font-weight:700;">You didn't.</span>
-        The trial is free — the brief starts tomorrow morning.
+        the week's top convergence events.
+        <span style="color:{PURPLE};font-weight:700;">You didn't get it today.</span>
+        <span style="color:#E8EEFF;"> The trial is free — the brief starts tomorrow morning.</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -625,45 +653,78 @@ st.markdown(f"""
 # ── Testimonials ──────────────────────────────────────────────────────────────
 st.markdown("<div style='height:36px'></div>", unsafe_allow_html=True)
 st.markdown(f"""
-<div style="font-size:1.15rem;font-weight:800;color:{TEXT_PRIMARY};text-align:center;margin-bottom:20px;">
+<div style="font-size:1.2rem;font-weight:800;color:{TEXT_PRIMARY};text-align:center;
+            margin-bottom:22px;letter-spacing:-0.3px;">
     What Pro members say
 </div>
 <div class="testimonial-grid">
-    <div class="testimonial">
-        <div class="stars">★★★★★</div>
-        <div class="testi-text">
+    <div class="ua-testi">
+        <div class="ua-testi-stars">★★★★★</div>
+        <div class="ua-testi-quote">
             "The congressional trade tracker alone paid for itself in the first week.
             I caught a buying cluster in a defense name 11 days before earnings."
         </div>
-        <div class="testi-author">R.K.</div>
-        <div class="testi-role">Portfolio manager · Chicago</div>
+        <div class="ua-testi-footer">
+            <span style="display:inline-flex;align-items:center;justify-content:center;
+                         width:34px;height:34px;border-radius:50%;background:#1A1E2C;
+                         border:1px solid rgba(255,255,255,0.10);font-size:12px;
+                         font-weight:700;color:#C8D0E4;flex-shrink:0;">RK</span>
+            <div>
+                <div class="ua-testi-name">R.K.</div>
+                <div class="ua-testi-role">Portfolio manager · Chicago</div>
+            </div>
+        </div>
     </div>
-    <div class="testimonial">
-        <div class="stars">★★★★★</div>
-        <div class="testi-text">
+    <div class="ua-testi">
+        <div class="ua-testi-stars">★★★★★</div>
+        <div class="ua-testi-quote">
             "I used to spend 3 hours each morning pulling data from five different places.
             Now it's one tab and 10 minutes. The morning digest is genuinely addictive."
         </div>
-        <div class="testi-author">S.M.</div>
-        <div class="testi-role">Equity analyst · New York</div>
+        <div class="ua-testi-footer">
+            <span style="display:inline-flex;align-items:center;justify-content:center;
+                         width:34px;height:34px;border-radius:50%;background:#1A2030;
+                         border:1px solid rgba(124,58,237,0.25);font-size:12px;
+                         font-weight:700;color:#A78BFA;flex-shrink:0;">SM</span>
+            <div>
+                <div class="ua-testi-name">S.M.</div>
+                <div class="ua-testi-role">Equity analyst · New York</div>
+            </div>
+        </div>
     </div>
-    <div class="testimonial">
-        <div class="stars">★★★★★</div>
-        <div class="testi-text">
+    <div class="ua-testi">
+        <div class="ua-testi-stars">★★★★★</div>
+        <div class="ua-testi-quote">
             "The insider cluster detection flagged 2+ insiders buying the same small-cap
             within 21 days. Price was up 38% in the following month. Uncanny."
         </div>
-        <div class="testi-author">T.W.</div>
-        <div class="testi-role">Retail investor · Austin</div>
+        <div class="ua-testi-footer">
+            <span style="display:inline-flex;align-items:center;justify-content:center;
+                         width:34px;height:34px;border-radius:50%;background:#0A1A10;
+                         border:1px solid rgba(0,213,102,0.22);font-size:12px;
+                         font-weight:700;color:#00D566;flex-shrink:0;">TW</span>
+            <div>
+                <div class="ua-testi-name">T.W.</div>
+                <div class="ua-testi-role">Retail investor · Austin</div>
+            </div>
+        </div>
     </div>
-    <div class="testimonial">
-        <div class="stars">★★★★★</div>
-        <div class="testi-text">
+    <div class="ua-testi">
+        <div class="ua-testi-stars">★★★★★</div>
+        <div class="ua-testi-quote">
             "The Factor Exposure tool gave me a clearer view of what's actually
             driving my portfolio than my Bloomberg terminal does. Genuinely impressive."
         </div>
-        <div class="testi-author">A.P.</div>
-        <div class="testi-role">Quant researcher · London</div>
+        <div class="ua-testi-footer">
+            <span style="display:inline-flex;align-items:center;justify-content:center;
+                         width:34px;height:34px;border-radius:50%;background:#0A1420;
+                         border:1px solid rgba(0,200,224,0.22);font-size:12px;
+                         font-weight:700;color:#00C8E0;flex-shrink:0;">AP</span>
+            <div>
+                <div class="ua-testi-name">A.P.</div>
+                <div class="ua-testi-role">Quant researcher · London</div>
+            </div>
+        </div>
     </div>
 </div>
 """, unsafe_allow_html=True)

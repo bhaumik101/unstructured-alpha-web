@@ -26,8 +26,11 @@ from utils.config import SIGNALS, CATEGORIES
 from utils.narrative import generate_narrative
 from utils.top_tickers import get_top_tickers
 from utils.convergence import get_convergence_events, render_convergence_events
+from utils.theme import inject_premium_css, inject_skeleton_css
 
 render_header("Home")
+inject_premium_css()
+inject_skeleton_css()
 render_sidebar_base()
 
 # ── Load live signal data (shared cache — no extra API cost) ──────────────────
@@ -171,20 +174,24 @@ _top_bear = _hd["bear"][0][0] if _hd["bear"] else None
 
 # ── HERO ──────────────────────────────────────────────────────────────────────
 st.markdown(f"""
-<div style="text-align:center;padding:40px 0 0;font-family:'Inter',sans-serif;">
-    <div style="font-size:0.65rem;letter-spacing:0.22em;color:#00D566;margin-bottom:16px;
-                font-weight:700;">
+<div style="text-align:center;padding:36px 0 0;font-family:'Inter',sans-serif;">
+    <div style="display:inline-flex;align-items:center;gap:6px;
+                font-size:0.62rem;letter-spacing:0.20em;color:#00D566;margin-bottom:18px;
+                font-weight:700;background:rgba(0,213,102,0.07);
+                border:1px solid rgba(0,213,102,0.22);border-radius:20px;
+                padding:4px 14px;">
+        <span class="ua-pulse-dot"></span>
         INSTITUTIONAL-GRADE MACRO INTELLIGENCE · FREE
     </div>
-    <div style="font-size:2.8rem;font-weight:900;color:#E8EEFF;line-height:1.1;
-                max-width:760px;margin:0 auto;letter-spacing:-1.5px;">
+    <div style="font-size:clamp(2.2rem,4.5vw,3.1rem);font-weight:900;color:#E8EEFF;
+                line-height:1.08;max-width:780px;margin:0 auto 16px;letter-spacing:-1.8px;">
         Before the market moves,<br>
-        <span style="background:linear-gradient(135deg,#00D566,#00C8E0);
+        <span style="background:linear-gradient(135deg,#00D566 10%,#00C8E0 60%,#7C3AED 100%);
                      -webkit-background-clip:text;-webkit-text-fill-color:transparent;
                      background-clip:text;">the signals already did.</span>
     </div>
-    <div style="font-size:1.0rem;color:#8892AA;margin:20px auto 0;max-width:560px;
-                line-height:1.7;font-weight:400;">
+    <div style="font-size:1.0rem;color:#8892AA;margin:0 auto 0;max-width:560px;
+                line-height:1.75;font-weight:400;">
         43 macro signals — Fed policy, energy flows, credit spreads, insider buying,
         put/call sentiment — scored in real time and mapped to the stocks you actually hold.
     </div>
@@ -207,42 +214,65 @@ _top_bear_html = (
 )
 
 st.markdown(
-    f'<div style="background:rgba(18,21,30,0.9);border:1px solid rgba(0,213,102,0.18);'
-    f'border-radius:16px;padding:24px 28px 20px;margin:28px auto 0;max-width:860px;'
-    f'font-family:Inter,sans-serif;backdrop-filter:blur(8px);'
-    f'box-shadow:0 0 40px rgba(0,213,102,0.06),0 20px 60px rgba(0,0,0,0.5);">'
-    f'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:20px;">'
-    f'<div style="flex:1;min-width:200px;">'
-    f'<div style="font-size:0.58rem;letter-spacing:0.18em;color:#8892AA;margin-bottom:8px;font-weight:700;">LIVE MACRO READ — RIGHT NOW</div>'
-    f'<div style="font-size:2.2rem;font-weight:800;color:{_bias_color};letter-spacing:-0.5px;">{_h.escape(_bias_label)}</div>'
-    f'<div style="font-size:0.75rem;color:#8892AA;margin-top:6px;">across {_total} tracked signals</div>'
+    f'<div style="background:rgba(18,21,30,0.92);border:1px solid rgba(0,213,102,0.20);'
+    f'border-radius:18px;padding:26px 30px 22px;margin:28px auto 0;max-width:900px;'
+    f'font-family:Inter,sans-serif;backdrop-filter:blur(12px);'
+    f'box-shadow:0 0 60px rgba(0,213,102,0.07),0 24px 64px rgba(0,0,0,0.55);">'
+    # Top separator accent line
+    f'<div style="position:relative;margin-bottom:18px;">'
+    f'<div style="position:absolute;top:-26px;left:-30px;right:-30px;height:1px;'
+    f'background:linear-gradient(90deg,transparent,rgba(0,213,102,0.35) 30%,'
+    f'rgba(0,200,224,0.25) 60%,transparent);"></div>'
     f'</div>'
-    f'<div style="display:flex;gap:32px;flex-wrap:wrap;">'
-    f'<div style="text-align:center;">'
-    f'<div style="font-size:2.4rem;font-weight:800;color:#00D566;letter-spacing:-1px;">{_nb}</div>'
-    f'<div style="font-size:0.60rem;color:#00D566;letter-spacing:0.12em;font-weight:700;">BULLISH</div>'
+    f'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:24px;">'
+    # Left: regime label
+    f'<div style="flex:1;min-width:200px;">'
+    f'<div style="display:flex;align-items:center;gap:6px;font-size:0.58rem;letter-spacing:0.18em;'
+    f'color:#8892AA;margin-bottom:10px;font-weight:700;">'
+    f'<span class="ua-pulse-dot"></span>LIVE MACRO READ</div>'
+    f'<div style="font-size:2.4rem;font-weight:900;color:{_bias_color};letter-spacing:-1px;'
+    f'line-height:1.0;text-shadow:0 0 40px {_bias_color}44;">{_h.escape(_bias_label)}</div>'
+    f'<div style="font-size:0.72rem;color:#6B7FBF;margin-top:8px;">'
+    f'across <b style="color:#8892AA;">{_total}</b> tracked signals · 2h cache</div>'
+    f'</div>'
+    # Right: counter trio
+    f'<div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;">'
+    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate">'
+    f'<div style="font-size:2.8rem;font-weight:900;color:#00D566;letter-spacing:-1.5px;'
+    f'line-height:1.0;text-shadow:0 0 30px rgba(0,213,102,0.4);">{_nb}</div>'
+    f'<div style="font-size:0.58rem;color:#00D566;letter-spacing:0.14em;font-weight:700;'
+    f'margin-top:3px;">BULLISH</div>'
     f'{_top_bull_html}'
     f'</div>'
-    f'<div style="text-align:center;">'
-    f'<div style="font-size:2.4rem;font-weight:800;color:#FF4444;letter-spacing:-1px;">{_nr}</div>'
-    f'<div style="font-size:0.60rem;color:#FF4444;letter-spacing:0.12em;font-weight:700;">BEARISH</div>'
+    f'<div style="width:1px;height:60px;background:rgba(255,255,255,0.06);"></div>'
+    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate">'
+    f'<div style="font-size:2.8rem;font-weight:900;color:#FF4444;letter-spacing:-1.5px;'
+    f'line-height:1.0;text-shadow:0 0 30px rgba(255,68,68,0.35);">{_nr}</div>'
+    f'<div style="font-size:0.58rem;color:#FF4444;letter-spacing:0.14em;font-weight:700;'
+    f'margin-top:3px;">BEARISH</div>'
     f'{_top_bear_html}'
     f'</div>'
-    f'<div style="text-align:center;">'
-    f'<div style="font-size:2.4rem;font-weight:800;color:#6B7FBF;letter-spacing:-1px;">{_nn}</div>'
-    f'<div style="font-size:0.60rem;color:#6B7FBF;letter-spacing:0.12em;font-weight:700;">NEUTRAL</div>'
+    f'<div style="width:1px;height:60px;background:rgba(255,255,255,0.06);"></div>'
+    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate">'
+    f'<div style="font-size:2.8rem;font-weight:900;color:#6B7FBF;letter-spacing:-1.5px;'
+    f'line-height:1.0;">{_nn}</div>'
+    f'<div style="font-size:0.58rem;color:#6B7FBF;letter-spacing:0.14em;font-weight:700;'
+    f'margin-top:3px;">NEUTRAL</div>'
     f'</div>'
     f'</div>'
     f'</div>'
-    f'<div style="margin-top:18px;background:rgba(255,255,255,0.05);border-radius:4px;height:4px;overflow:hidden;display:flex;">'
-    f'<div style="width:{_bar_bull};background:linear-gradient(90deg,#00D566,#00A847);border-radius:4px 0 0 4px;"></div>'
+    # Progress bar
+    f'<div style="margin-top:20px;background:rgba(255,255,255,0.04);border-radius:6px;'
+    f'height:5px;overflow:hidden;display:flex;gap:1px;">'
+    f'<div style="width:{_bar_bull};background:linear-gradient(90deg,#00D566,#00A847);'
+    f'border-radius:6px 0 0 6px;transition:width 1s ease;"></div>'
     f'<div style="width:{_bar_bear};background:#FF4444;"></div>'
-    f'<div style="flex:1;background:rgba(107,127,191,0.3);border-radius:0 4px 4px 0;"></div>'
+    f'<div style="flex:1;background:rgba(107,127,191,0.25);border-radius:0 6px 6px 0;"></div>'
     f'</div>'
-    f'<div style="display:flex;justify-content:space-between;margin-top:6px;">'
-    f'<div style="font-size:0.62rem;color:#8892AA;">▲ Bullish {_bar_bull}</div>'
-    f'<div style="font-size:0.62rem;color:#6B7FBF;">Updated every 2 hours</div>'
-    f'<div style="font-size:0.62rem;color:#8892AA;">Bearish {_bar_bear} ▼</div>'
+    f'<div style="display:flex;justify-content:space-between;margin-top:7px;">'
+    f'<div style="font-size:0.60rem;color:#00D566;font-weight:600;">▲ Bullish {_bar_bull}</div>'
+    f'<div style="font-size:0.60rem;color:#6B7FBF;">Updated every 2 hours</div>'
+    f'<div style="font-size:0.60rem;color:#FF4444;font-weight:600;">Bearish {_bar_bear} ▼</div>'
     f'</div>'
     f'</div>',
     unsafe_allow_html=True,
@@ -556,74 +586,65 @@ except Exception:
 
 # ── 3 CORE FEATURE SPOTLIGHTS ─────────────────────────────────────────────────
 st.markdown("""
-<div style="font-size:1.5rem;font-weight:800;color:#E8EEFF;text-align:center;
-            margin:32px 0 6px;font-family:Inter,sans-serif;letter-spacing:-0.5px;">
-    Three tools that change how you invest
-</div>
-<div style="font-size:0.86rem;color:#8892AA;text-align:center;margin-bottom:24px;
-            font-family:Inter,sans-serif;">
-    Not a screener. Not a news aggregator. Something genuinely different.
+<div style="text-align:center;margin:40px 0 28px;font-family:Inter,sans-serif;">
+    <div style="font-size:1.55rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.5px;
+                margin-bottom:8px;">Three tools that change how you invest</div>
+    <div style="font-size:0.86rem;color:#8892AA;max-width:460px;margin:0 auto;line-height:1.6;">
+        Not a screener. Not a news aggregator. Something genuinely different.
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 _sp1, _sp2, _sp3 = st.columns(3)
 
-_SPOT = """
-<div style="background:rgba(18,21,30,0.8);border:1px solid rgba(255,255,255,0.07);
-            border-top:2px solid {accent};border-radius:12px;
-            padding:22px 20px 18px;font-family:Inter,sans-serif;
-            min-height:240px;transition:all 0.2s ease;">
-    <div style="font-size:0.58rem;letter-spacing:0.14em;color:{accent};margin-bottom:8px;
-                font-weight:700;">{tag}</div>
-    <div style="font-size:1.0rem;font-weight:700;color:#E8EEFF;margin-bottom:10px;
-                line-height:1.3;letter-spacing:-0.2px;">{title}</div>
-    <div style="font-size:0.80rem;color:#B8C0D4;line-height:1.65;margin-bottom:14px;">{body}</div>
-    <div style="font-size:0.72rem;color:{accent};font-weight:600;">{proof}</div>
-</div>
-"""
-
 with _sp1:
-    st.markdown(_SPOT.format(
-        accent="#00D566",
-        tag="DAILY INTELLIGENCE",
-        title="Today's Brief — your 2-minute macro read",
-        body=(
-            "Every morning: which signals flipped overnight, what the macro bias is, "
-            "and what it means for your holdings. Plain English. No jargon. "
-            "Opt in for a 7 AM email digest."
-        ),
-        proof=f"→ Currently: {_bias_label} across {_total} signals",
-    ), unsafe_allow_html=True)
+    st.markdown(f"""
+<div class="ua-spotlight" style="--ua-spotlight-accent:linear-gradient(90deg,#00D566,#00C8E0);">
+    <span class="ua-spotlight-icon">📰</span>
+    <div class="ua-spotlight-tag" style="color:#00D566;">DAILY INTELLIGENCE</div>
+    <div class="ua-spotlight-title">Today's Brief — your 2-minute macro read</div>
+    <div class="ua-spotlight-body">Every morning: which signals flipped overnight, what the
+    macro bias is, and what it means for your holdings. Plain English. No jargon.
+    Opt in for a 7 AM email digest.</div>
+    <div class="ua-spotlight-proof" style="color:#00D566;">
+        → Currently: {_bias_label} across {_total} signals
+    </div>
+</div>
+""", unsafe_allow_html=True)
     if st.button("Read Today's Brief →", use_container_width=True, key="cta_brief"):
         st.switch_page("pages/2_Today_Digest.py")
 
 with _sp2:
-    st.markdown(_SPOT.format(
-        accent="#7C3AED",
-        tag="STOCK-SPECIFIC ANALYSIS",
-        title="Ticker Deep Dive — type any stock, get a macro report",
-        body=(
-            "Confluence Score (0–100), 30/60/90-day probability model, "
-            "signal-by-signal breakdown, earnings markers, insider activity, news. "
-            "Tells you <i>why</i> the macro environment is or isn't set up for this stock."
-        ),
-        proof="→ Tested on 80+ tickers with statistical validation",
-    ), unsafe_allow_html=True)
+    st.markdown("""
+<div class="ua-spotlight" style="--ua-spotlight-accent:linear-gradient(90deg,#7C3AED,#A78BFA);">
+    <span class="ua-spotlight-icon">🔬</span>
+    <div class="ua-spotlight-tag" style="color:#A78BFA;">STOCK-SPECIFIC ANALYSIS</div>
+    <div class="ua-spotlight-title">Ticker Deep Dive — type any stock, get a macro report</div>
+    <div class="ua-spotlight-body">Confluence Score (0–100), 30/60/90-day probability model,
+    signal-by-signal breakdown, earnings markers, insider activity, news. Tells you
+    <em>why</em> the macro environment is or isn't set up for this stock.</div>
+    <div class="ua-spotlight-proof" style="color:#A78BFA;">
+        → Tested on 80+ tickers with statistical validation
+    </div>
+</div>
+""", unsafe_allow_html=True)
     if st.button("Try Ticker Deep Dive →", use_container_width=True, key="cta_dive"):
         st.switch_page("pages/3_Ticker_Deep_Dive.py")
 
 with _sp3:
-    st.markdown(_SPOT.format(
-        accent="#00C8E0",
-        tag="SMART ALERTS",
-        title="Watchlist — know the moment a signal flips",
-        body=(
-            "Track any ticker with custom alert thresholds. Get notified "
-            "when the Confluence Score crosses your level, a signal changes direction, "
-            "or a 52-week high/low is hit. Morning email to opted-in users."
-        ),
-        proof="→ Free · No Bloomberg terminal needed",
-    ), unsafe_allow_html=True)
+    st.markdown("""
+<div class="ua-spotlight" style="--ua-spotlight-accent:linear-gradient(90deg,#00C8E0,#06B6D4);">
+    <span class="ua-spotlight-icon">🔔</span>
+    <div class="ua-spotlight-tag" style="color:#00C8E0;">SMART ALERTS</div>
+    <div class="ua-spotlight-title">Watchlist — know the moment a signal flips</div>
+    <div class="ua-spotlight-body">Track any ticker with custom alert thresholds. Get notified
+    when the Confluence Score crosses your level, a signal changes direction, or a 52-week
+    high/low is hit. Morning email to opted-in users.</div>
+    <div class="ua-spotlight-proof" style="color:#00C8E0;">
+        → Free · No Bloomberg terminal needed
+    </div>
+</div>
+""", unsafe_allow_html=True)
     if st.button("Build Your Watchlist →", use_container_width=True, key="cta_watchlist"):
         st.switch_page("pages/10_Watchlist.py")
 
@@ -845,31 +866,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 _steps = [
-    ("1", "#00D566", "Read Today's Brief",
-     "2-minute macro morning read. Which signals are bullish. Which are bearish. What it means.",
+    ("1", "#00D566", "📰", "Read Today's Brief",
+     "2-minute macro morning read. Which signals are bullish, which are bearish, what it means for your stocks.",
      "pages/2_Today_Digest.py", "Open Today's Brief →", "cta_s1"),
-    ("2", "#F59E0B", "Check the Sector Map",
-     "See which sectors the data currently favors. Find where the macro tailwinds are right now.",
+    ("2", "#F59E0B", "🗺", "Check the Sector Map",
+     "See which sectors the signals currently favor. Find where the macro tailwinds are pointing right now.",
      "pages/12_Sector_Map.py", "Open Sector Map →", "cta_s2"),
-    ("3", "#7C3AED", "Deep Dive a Ticker",
+    ("3", "#7C3AED", "🔬", "Deep Dive a Ticker",
      "Type any stock. Get a Confluence Score, signal breakdown, earnings history, and bull/bear case.",
      "pages/3_Ticker_Deep_Dive.py", "Open Deep Dive →", "cta_s3"),
-    ("4", "#FF4444", "Set Up Your Watchlist",
-     "Save your stocks. Get alerted when signals flip. Optional morning email at 7 AM ET.",
+    ("4", "#00C8E0", "🔔", "Set Up Your Watchlist",
+     "Save your stocks. Get alerted when signals flip. Optional morning digest email at 7 AM ET.",
      "pages/10_Watchlist.py", "Open Watchlist →", "cta_s4"),
 ]
 
 _st_cols = st.columns(4)
-for _col, (_n, _ac, _title, _body, _page, _btn, _key) in zip(_st_cols, _steps):
+for _col, (_n, _ac, _icon, _title, _body, _page, _btn, _key) in zip(_st_cols, _steps):
     with _col:
         st.markdown(f"""
-<div style="background:rgba(18,21,30,0.8);border:1px solid rgba(255,255,255,0.06);
-            border-top:3px solid {_ac};
-            border-radius:10px;padding:18px;font-family:Inter,sans-serif;min-height:170px;
-            margin-bottom:8px;">
-    <div style="font-size:1.8rem;font-weight:900;color:{_ac};margin-bottom:6px;letter-spacing:-1px;">{_n}</div>
-    <div style="font-size:0.86rem;font-weight:700;color:#E8EEFF;margin-bottom:6px;letter-spacing:-0.1px;">{_title}</div>
-    <div style="font-size:0.76rem;color:#B8C0D4;line-height:1.55;">{_body}</div>
+<div class="ua-step" style="--ua-step-accent:{_ac};margin-bottom:8px;min-height:185px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <div class="ua-step-num" style="color:{_ac};">{_n}</div>
+        <div style="font-size:1.5rem;">{_icon}</div>
+    </div>
+    <div class="ua-step-title">{_title}</div>
+    <div class="ua-step-body">{_body}</div>
 </div>
 """, unsafe_allow_html=True)
         if st.button(_btn, use_container_width=True, key=_key):
@@ -879,26 +900,44 @@ st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
 # ── PRO UPGRADE BANNER ────────────────────────────────────────────────────────
 st.markdown("""
-<div style="background:linear-gradient(135deg,rgba(124,58,237,0.12),rgba(0,200,224,0.08));
-            border:1px solid rgba(124,58,237,0.28);border-radius:14px;
-            padding:22px 28px;font-family:Inter,sans-serif;
-            display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
-    <div>
-        <div style="font-size:0.58rem;letter-spacing:0.18em;font-weight:700;color:#7C3AED;margin-bottom:6px;">
-            UNSTRUCTURED ALPHA PRO
+<div class="ua-pro-banner">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+                flex-wrap:wrap;gap:20px;">
+        <div style="flex:1;min-width:280px;">
+            <div style="font-size:0.58rem;letter-spacing:0.18em;font-weight:700;color:#A78BFA;
+                        margin-bottom:8px;">UNSTRUCTURED ALPHA PRO</div>
+            <div style="font-size:1.1rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.3px;
+                        margin-bottom:6px;line-height:1.3;">
+                Everything here. Plus the digest, the backtester,<br>factor exposure, and more.
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
+                <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
+                             background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
+                             border-radius:5px;padding:3px 9px;">📧 Morning Digest</span>
+                <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
+                             background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
+                             border-radius:5px;padding:3px 9px;">📊 Signal Backtester</span>
+                <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
+                             background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
+                             border-radius:5px;padding:3px 9px;">📈 Factor Exposure</span>
+                <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
+                             background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
+                             border-radius:5px;padding:3px 9px;">♾ Unlimited Watchlist</span>
+            </div>
         </div>
-        <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.2px;margin-bottom:4px;">
-            Morning digest email · Signal Backtester · Factor Exposure · Congress Tracker
-        </div>
-        <div style="font-size:0.78rem;color:#8892AA;line-height:1.5;">
-            $20/month · 7-day free trial · Cancel anytime · No commitment
+        <div style="text-align:center;">
+            <div style="font-size:2.2rem;font-weight:900;color:#E8EEFF;letter-spacing:-1px;
+                        line-height:1.0;">$20<span style="font-size:1rem;font-weight:400;
+                        color:#8892AA;">/mo</span></div>
+            <div style="font-size:0.70rem;color:#34D399;font-weight:600;margin-top:3px;">
+                7-day free trial · Cancel anytime</div>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
-_pro_col1, _pro_col2, _pro_col3 = st.columns([2.5, 1, 2.5])
+_pro_col1, _pro_col2, _pro_col3 = st.columns([2.5, 1.2, 2.5])
 with _pro_col2:
-    if st.button("Try Pro Free →", type="primary", use_container_width=True, key="cta_pro_mid"):
+    if st.button("Start Free Trial →", type="primary", use_container_width=True, key="cta_pro_mid"):
         st.switch_page("pages/29_Upgrade.py")
 
 st.divider()

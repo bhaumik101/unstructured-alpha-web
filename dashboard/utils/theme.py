@@ -720,3 +720,336 @@ def skeleton_stat_row(n: int = 4) -> str:
         f'{"".join([card] * n)}'
         f'</div>'
     )
+
+
+# ── Premium Card Helpers ──────────────────────────────────────────────────────
+
+def glass_card(content_html: str, accent: str = "", padding: str = "20px 22px",
+               radius: str = "14px", glow: bool = False) -> str:
+    """
+    Return a glassmorphism card wrapping arbitrary HTML content.
+
+    Args:
+        content_html: Inner HTML to wrap.
+        accent:       Optional hex accent color — adds a 3px left border + tinted bg.
+        padding:      CSS padding string.
+        radius:       Border radius.
+        glow:         If True, adds a soft outer glow matching the accent color.
+    """
+    if accent:
+        hex_c = accent.lstrip("#")
+        r_, g_, b_ = int(hex_c[0:2], 16), int(hex_c[2:4], 16), int(hex_c[4:6], 16)
+        bg_tint  = f"rgba({r_},{g_},{b_},0.05)"
+        border   = f"1px solid rgba({r_},{g_},{b_},0.18)"
+        l_border = f"3px solid {accent}"
+        shadow   = (f"box-shadow:0 0 28px rgba({r_},{g_},{b_},0.12),0 8px 32px rgba(0,0,0,0.35);"
+                    if glow else "box-shadow:0 4px 20px rgba(0,0,0,0.3);")
+    else:
+        bg_tint  = "rgba(18,21,30,0.85)"
+        border   = "1px solid rgba(255,255,255,0.07)"
+        l_border = "none"
+        shadow   = "box-shadow:0 4px 20px rgba(0,0,0,0.3);"
+
+    left_border_css = (f"border-left:{l_border};" if l_border != "none" else "")
+    return (
+        f'<div style="background:{bg_tint};{border and "border:" + border + ";"}'
+        f'{left_border_css}border-radius:{radius};padding:{padding};'
+        f'font-family:Inter,-apple-system,sans-serif;{shadow}'
+        f'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);">'
+        f'{content_html}'
+        f'</div>'
+    )
+
+
+def kpi_metric(label: str, value: str, sub: str = "", color: str = "#E8EEFF",
+               icon: str = "") -> str:
+    """
+    Return HTML for a single KPI metric tile.
+
+    Args:
+        label: Small uppercase label above the value.
+        value: The big number/text displayed prominently.
+        sub:   Optional sub-line below the value.
+        color: Accent color for the value text.
+        icon:  Optional emoji/icon prefix before the value.
+    """
+    icon_html = f'<span style="margin-right:4px;">{icon}</span>' if icon else ""
+    sub_html = (
+        f'<div style="font-size:0.72rem;color:#8892AA;margin-top:3px;'
+        f'font-family:Inter,sans-serif;">{sub}</div>'
+    ) if sub else ""
+    return (
+        f'<div style="font-family:Inter,-apple-system,sans-serif;">'
+        f'<div style="font-size:0.60rem;font-weight:700;letter-spacing:0.12em;'
+        f'text-transform:uppercase;color:#8892AA;margin-bottom:6px;">{label}</div>'
+        f'<div style="font-size:1.85rem;font-weight:800;color:{color};'
+        f'letter-spacing:-0.8px;line-height:1.1;">{icon_html}{value}</div>'
+        f'{sub_html}'
+        f'</div>'
+    )
+
+
+def section_label(text: str, color: str = "#8892AA", dot: str = "") -> str:
+    """
+    Return a small ALL-CAPS section label with optional colored dot prefix.
+    Consistent with the UA design system's micro-typography.
+    """
+    dot_html = (
+        f'<span style="display:inline-block;width:6px;height:6px;border-radius:50%;'
+        f'background:{dot};margin-right:6px;vertical-align:middle;"></span>'
+    ) if dot else ""
+    return (
+        f'<div style="font-size:0.60rem;font-weight:700;letter-spacing:0.14em;'
+        f'text-transform:uppercase;color:{color};margin-bottom:8px;'
+        f'font-family:Inter,sans-serif;">{dot_html}{text}</div>'
+    )
+
+
+def gradient_text(text: str, from_color: str = "#00D566",
+                  to_color: str = "#00C8E0", size: str = "1rem",
+                  weight: str = "800") -> str:
+    """Return HTML for gradient-clipped text (Webkit-based)."""
+    return (
+        f'<span style="font-size:{size};font-weight:{weight};'
+        f'background:linear-gradient(135deg,{from_color},{to_color});'
+        f'-webkit-background-clip:text;-webkit-text-fill-color:transparent;'
+        f'background-clip:text;font-family:Inter,sans-serif;">{text}</span>'
+    )
+
+
+def avatar_initials(name: str, bg: str = "#1A1E2C", size: int = 36) -> str:
+    """
+    Return an HTML circular avatar showing up to 2 initials of `name`.
+    Used in testimonials and user profile chips.
+    """
+    parts   = name.strip().split()
+    letters = (parts[0][0] + (parts[-1][0] if len(parts) > 1 else "")).upper()
+    return (
+        f'<span style="display:inline-flex;align-items:center;justify-content:center;'
+        f'width:{size}px;height:{size}px;border-radius:50%;background:{bg};'
+        f'border:1px solid rgba(255,255,255,0.10);font-size:{max(size//3,10)}px;'
+        f'font-weight:700;color:#C8D0E4;font-family:Inter,sans-serif;'
+        f'flex-shrink:0;">{letters}</span>'
+    )
+
+
+# ── Animated Counter CSS ──────────────────────────────────────────────────────
+_COUNTER_CSS = """
+<style>
+/* ── Animated count-up for KPI strips ──────────────────────────────────────── */
+@keyframes ua_count_up {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.ua-kpi-animate {
+  animation: ua_count_up 0.45s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+.ua-kpi-animate:nth-child(1) { animation-delay: 0.00s; }
+.ua-kpi-animate:nth-child(2) { animation-delay: 0.07s; }
+.ua-kpi-animate:nth-child(3) { animation-delay: 0.14s; }
+.ua-kpi-animate:nth-child(4) { animation-delay: 0.21s; }
+
+/* ── Gradient border card (animated) ────────────────────────────────────────── */
+@keyframes ua_border_spin {
+  0%   { background-position: 0% 50%;   }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%;   }
+}
+.ua-gradient-border {
+  position: relative;
+  border-radius: 14px;
+  padding: 1px;
+  background: linear-gradient(135deg, #00D566, #00C8E0, #7C3AED, #00D566);
+  background-size: 300% 300%;
+  animation: ua_border_spin 4s linear infinite;
+}
+.ua-gradient-border > div {
+  background: #12151E;
+  border-radius: 13px;
+  padding: 20px 22px;
+}
+
+/* ── Pulse dot (live indicator) ──────────────────────────────────────────────── */
+@keyframes ua_pulse {
+  0%, 100% { opacity: 1;   transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.3); }
+}
+.ua-pulse-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #00D566;
+  animation: ua_pulse 1.8s ease-in-out infinite;
+  vertical-align: middle;
+  margin-right: 5px;
+}
+.ua-pulse-dot.bear { background: #FF4444; }
+
+/* ── Feature spotlight card ───────────────────────────────────────────────── */
+.ua-spotlight {
+  background: rgba(18,21,30,0.85);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 24px 20px 20px;
+  font-family: Inter, -apple-system, sans-serif;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+  position: relative;
+  overflow: hidden;
+}
+.ua-spotlight::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: var(--ua-spotlight-accent, linear-gradient(90deg, #00D566, #00C8E0));
+  border-radius: 14px 14px 0 0;
+}
+.ua-spotlight:hover {
+  border-color: rgba(255,255,255,0.15);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+  transform: translateY(-3px);
+}
+.ua-spotlight-icon {
+  font-size: 2rem;
+  margin-bottom: 12px;
+  display: block;
+}
+.ua-spotlight-tag {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.ua-spotlight-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #E8EEFF;
+  margin-bottom: 10px;
+  line-height: 1.35;
+  letter-spacing: -0.15px;
+}
+.ua-spotlight-body {
+  font-size: 0.80rem;
+  color: #B8C0D4;
+  line-height: 1.65;
+  margin-bottom: 14px;
+}
+.ua-spotlight-proof {
+  font-size: 0.70rem;
+  font-weight: 600;
+  padding: 4px 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ── Testimonial card ─────────────────────────────────────────────────────── */
+.ua-testi {
+  background: #12151E;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 20px;
+  font-family: Inter, -apple-system, sans-serif;
+  transition: border-color 0.18s ease;
+}
+.ua-testi:hover { border-color: rgba(255,255,255,0.14); }
+.ua-testi-stars { color: #F59E0B; font-size: 0.82rem; letter-spacing: 2px; margin-bottom: 10px; }
+.ua-testi-quote { font-size: 0.85rem; color: #B8C0D4; line-height: 1.65; font-style: italic; margin-bottom: 14px; }
+.ua-testi-footer { display: flex; align-items: center; gap: 10px; }
+.ua-testi-name   { font-size: 0.78rem; font-weight: 700; color: #E8EEFF; }
+.ua-testi-role   { font-size: 0.70rem; color: #6B7FBF; }
+
+/* ── Step card ────────────────────────────────────────────────────────────── */
+.ua-step {
+  background: rgba(18,21,30,0.85);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 12px;
+  padding: 20px 18px;
+  font-family: Inter, -apple-system, sans-serif;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+.ua-step::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--ua-step-accent, #00D566);
+  border-radius: 0 0 12px 12px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
+}
+.ua-step:hover::after { transform: scaleX(1); }
+.ua-step:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.13); }
+.ua-step-num {
+  font-size: 2.2rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 8px;
+  letter-spacing: -1px;
+}
+.ua-step-title { font-size: 0.88rem; font-weight: 700; color: #E8EEFF; margin-bottom: 6px; }
+.ua-step-body  { font-size: 0.76rem; color: #B8C0D4; line-height: 1.6; }
+
+/* ── Pro upgrade banner ──────────────────────────────────────────────────── */
+.ua-pro-banner {
+  background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(0,200,224,0.06) 100%);
+  border: 1px solid rgba(124,58,237,0.28);
+  border-radius: 16px;
+  padding: 26px 32px;
+  font-family: Inter, -apple-system, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+.ua-pro-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(124,58,237,0.6), rgba(0,200,224,0.4), transparent);
+}
+
+/* ── Guarantee badge ─────────────────────────────────────────────────────── */
+.ua-guarantee {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,213,102,0.06);
+  border: 1px solid rgba(0,213,102,0.22);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.75rem;
+  color: #00D566;
+  font-family: Inter, sans-serif;
+  font-weight: 600;
+}
+
+/* ── Pricing card featured shimmer ──────────────────────────────────────── */
+@keyframes ua_card_shine {
+  0%   { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(300%) rotate(25deg);  }
+}
+.ua-card-shine::after {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 30%; height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.04), transparent);
+  animation: ua_card_shine 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+</style>
+"""
+
+
+def inject_premium_css() -> None:
+    """
+    Inject the premium animation + component CSS into the page.
+    Safe to call multiple times (Streamlit deduplicates identical markdown).
+    Covers: animated KPI counters, gradient border cards, testimonial cards,
+    spotlight feature cards, step cards, Pro banner, guarantee badge,
+    pulse dot, avatar initials.
+    """
+    import streamlit as st
+    st.markdown(_COUNTER_CSS, unsafe_allow_html=True)
