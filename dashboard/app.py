@@ -67,6 +67,7 @@ pg = st.navigation(
             st.Page("pages/22_Regime_Playbook.py",  title="Regime Playbook"),
         ],
         "Research": [
+            st.Page("pages/30_Track_Record_Live.py",    title="Signal Call Log"),
             st.Page("pages/3_Ticker_Deep_Dive.py",     title="Ticker Deep Dive"),
             st.Page("pages/27_Factor_Exposure.py",     title="Factor Exposure"),
             st.Page("pages/24_Basket_Builder.py",       title="Basket Builder"),

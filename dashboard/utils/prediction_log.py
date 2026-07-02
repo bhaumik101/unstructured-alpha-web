@@ -365,6 +365,32 @@ def get_unread_notification_count(user_id: int | None) -> int:
         return 0
 
 
+def get_predictions_feed(
+    limit: int = 100,
+    direction_filter: str = "all",   # "all" | "bull" | "bear"
+    status_filter: str = "all",      # "all" | "pending" | "resolved"
+) -> list[dict]:
+    """
+    Return prediction log rows for the public feed, newest-first.
+    Used by pages/30_Track_Record_Live.py.
+    """
+    try:
+        q = (
+            select(prediction_log)
+            .order_by(prediction_log.c.event_date.desc())
+            .limit(limit)
+        )
+        if direction_filter != "all":
+            q = q.where(prediction_log.c.direction == direction_filter)
+        if status_filter != "all":
+            q = q.where(prediction_log.c.status == status_filter)
+        with db.engine.begin() as conn:
+            rows = conn.execute(q).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
 def get_recent_notifications(limit: int = 20) -> list[dict]:
     """Return the most recent system notifications for the bell feed."""
     try:

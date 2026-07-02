@@ -622,6 +622,49 @@ def compute_signal_correlation_matrix(days_back: int = 90) -> dict:
     }
 
 
+def get_high_confidence_snapshot_calls(
+    min_score: float = 70.0,
+    days_back: int = 180,
+    min_days_ago: int = 35,
+) -> list[dict]:
+    """
+    Pull historical score snapshot rows where the model expressed high
+    confidence — score >= min_score (bullish) or score <= (100 - min_score)
+    (bearish) — and the snapshot is old enough (>= min_days_ago) that a
+    30-day forward window has already expired.
+
+    Returns DB rows only — no price data. The caller (page) is responsible
+    for fetching prices and computing returns, ideally cached via
+    @st.cache_data to avoid repeated yfinance hits.
+
+    These are RETROSPECTIVE lookups, not logged advance predictions.
+    The distinction must be stated clearly in any UI that displays them:
+    we are asking "what did the stock do 30 days after the model gave it a
+    high score?" not "the model predicted this outcome in advance."
+    """
+    today = datetime.now(timezone.utc).date()
+    cutoff_old  = (today - timedelta(days=min_days_ago)).isoformat()
+    cutoff_new  = (today - timedelta(days=days_back)).isoformat()
+    bear_thresh = round(100.0 - min_score, 1)
+
+    try:
+        with db.engine.begin() as conn:
+            rows = conn.execute(
+                select(score_snapshots)
+                .where(score_snapshots.c.snapshot_date <= cutoff_old)
+                .where(score_snapshots.c.snapshot_date >= cutoff_new)
+                .where(
+                    (score_snapshots.c.score >= min_score) |
+                    (score_snapshots.c.score <= bear_thresh)
+                )
+                .order_by(score_snapshots.c.snapshot_date.desc())
+                .limit(200)
+            ).mappings().all()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
+
+
 def compute_sector_percentile(ticker: str, score: float, max_peers: int = 6) -> dict:
     """
     Where `score` (the ticker's CURRENT, just-computed score) ranks
