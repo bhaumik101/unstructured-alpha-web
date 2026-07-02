@@ -27,6 +27,7 @@ from utils.config import TICKERS
 from utils import alerts_db
 from utils.alerts import evaluate_watchlist
 from utils.header import render_header, render_sidebar_base, render_page_header
+from utils.theme import inject_premium_css, inject_skeleton_css, section_label
 from utils.auth_ui import require_login
 from utils.quotes import get_batch_quotes, mini_sparkline
 from utils.auth import set_digest_optin, get_digest_optin
@@ -85,6 +86,8 @@ QUICK_ADD_PRESETS = {
 st.set_page_config(page_title="My Watchlist — UA", layout="wide")
 render_header("My Watchlist")
 render_sidebar_base()
+inject_premium_css()
+inject_skeleton_css()
 
 render_page_header(
     "My Watchlist",
@@ -102,12 +105,8 @@ alerts_db.init_db()
 current_user = require_login()
 user_id = current_user["id"]
 
-st.markdown("# My Watchlist")
-st.caption("Track the tickers you care about. Click any ticker for the full signal breakdown, "
-           "or get notified when its Confluence Score, price, or a differentiator signal shifts.")
-
 # ── Watchlist management ──────────────────────────────────────────────────────
-st.markdown('<div class="section-header">WATCHLIST</div>', unsafe_allow_html=True)
+st.markdown(section_label("Watchlist", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
 
 new_ticker = st.text_input("Add a ticker to watch:", key="new_watch_ticker", max_chars=10).upper().strip()
 
@@ -200,8 +199,8 @@ else:
                         showlegend=False,
                     )
                     st.markdown(
-                        f'<div style="font-size:0.60rem;color:#9E9E8E;margin-top:2px;">'
-                        f'Signal score 30d · latest: <b style="color:{_sh_color}">{_sh_scores[-1]:.0f}/100</b></div>',
+                        f'<div style="font-size:0.60rem;font-weight:600;color:#8892AA;margin-top:4px;letter-spacing:0.06em;text-transform:uppercase;">'
+                        f'Score 30d &nbsp;·&nbsp; <span style="color:{_sh_color};text-shadow:0 0 10px {_sh_color}50;">{_sh_scores[-1]:.0f}/100</span></div>',
                         unsafe_allow_html=True,
                     )
                     st.plotly_chart(_sh_fig, use_container_width=True,
@@ -215,14 +214,19 @@ else:
         with wc2:
             # Regular-session price + daily change
             if price is not None:
-                st.markdown(f"**${price:,.2f}**")
+                _pc = "#00D566" if (chg_pct or 0) > 0 else ("#FF4444" if (chg_pct or 0) < 0 else "#E8EEFF")
+                st.markdown(
+                    f'<div class="ua-kpi-animate" style="font-size:1.35rem;font-weight:900;color:{_pc};'
+                    f'text-shadow:0 0 18px {_pc}35;line-height:1.2;margin-bottom:2px;">${price:,.2f}</div>',
+                    unsafe_allow_html=True,
+                )
             else:
                 st.caption("Price unavailable")
             if chg_pct is not None:
                 _cc = "#00D566" if chg_pct > 0 else ("#FF4444" if chg_pct < 0 else "#6B7FBF")
                 _ca = "▲" if chg_pct > 0 else ("▼" if chg_pct < 0 else "●")
                 st.markdown(
-                    f'<span style="color:{_cc};font-size:0.85rem;">{_ca} {chg_pct:+.2f}%</span>',
+                    f'<span style="color:{_cc};font-size:0.85rem;font-weight:700;">{_ca} {chg_pct:+.2f}%</span>',
                     unsafe_allow_html=True,
                 )
             # Pre/post market prices (only shown when the market is closed
@@ -284,7 +288,7 @@ else:
 st.divider()
 
 # ── Morning Digest Opt-In ─────────────────────────────────────────────────────
-st.markdown('<div class="section-header">EMAIL SETTINGS</div>', unsafe_allow_html=True)
+st.markdown(section_label("Email Settings", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
 try:
     _current_optin = get_digest_optin(user_id)
     _new_optin = st.toggle(
@@ -311,7 +315,7 @@ except Exception as _digest_err:
 st.divider()
 
 # ── Webhook Settings (Pro) ────────────────────────────────────────────────────
-st.markdown('<div class="section-header">WEBHOOK SETTINGS</div>', unsafe_allow_html=True)
+st.markdown(section_label("Webhook Settings", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
 
 _user_tier = get_user_tier(user_id)
 if _user_tier != "pro":
@@ -378,7 +382,7 @@ else:
 st.divider()
 
 # ── Alerts (integrated into this page, not a separate page) ─────────────────
-st.markdown('<div class="section-header">ALERTS FOR YOUR WATCHLIST</div>', unsafe_allow_html=True)
+st.markdown(section_label("Alerts for Your Watchlist", color="#00D566", dot="#00D566"), unsafe_allow_html=True)
 
 with st.expander("How alerts work — and what's not built yet"):
     st.markdown("""

@@ -54,7 +54,7 @@ from utils.analysis import (
 )
 from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
 from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
-from utils.theme import confluence_gauge_svg, style_area_chart, source_badge
+from utils.theme import confluence_gauge_svg, style_area_chart, source_badge, inject_premium_css, inject_skeleton_css, section_label
 from utils.audit_ui import render_evidence_expander
 from utils.lead_time_research import (
     build_insider_intensity_series, build_short_interest_change_series,
@@ -67,6 +67,8 @@ from utils.score_history import record_score_snapshot, get_score_history, comput
 st.set_page_config(page_title="Ticker Deep Dive — UA", layout="wide")
 render_header("Ticker Deep Dive")
 render_sidebar_base()
+inject_premium_css()
+inject_skeleton_css()
 
 render_page_header(
     "Ticker Deep Dive",
@@ -79,10 +81,6 @@ render_page_header(
 # both this page and the alert engine fetch from, so they can't drift apart.
 STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF", "no_data": "#8892AA"}
 STATUS_EMOJI = {"bullish": "▲", "bearish": "▼", "neutral": "●", "no_data": "○"}
-
-# ── Header ────────────────────────────────────────────────────────────────────
-st.markdown("# Ticker Deep Dive")
-st.caption("Full multi-signal bull/bear analysis for any stock. Unique: federal contracts + insider trades + signal convergence.")
 
 with st.expander("How this page works — start here"):
     st.markdown("""
@@ -291,46 +289,38 @@ if section == "Overview":
 
     score_color = "#00D566" if case == "BULL" else ("#FF4444" if case == "BEAR" else "#6B7FBF")
 
-    c_gauge, c_case, c_counts = st.columns([1, 2, 2])
-
-    with c_gauge:
-        st.markdown(confluence_gauge_svg(score_val, case), unsafe_allow_html=True)
-
-    with c_case:
-        st.markdown(f"""
-        <div style="background:rgba(18,21,30,0.85);border-radius:8px;padding:20px;border-left:4px solid {score_color};
-                    border-top:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);
-                    font-family:Inter,sans-serif;">
-            <div style="font-size:0.72rem;color:#8892AA;letter-spacing:0.08em;">SIGNAL CASE</div>
-            <div style="font-size:2.2rem;font-weight:800;color:{score_color};">{case}</div>
-            <div style="font-size:0.95rem;color:#B8C0D4;">Conviction: <b style="color:{score_color};">{conviction}</b></div>
-            <div style="font-size:0.80rem;color:#8892AA;margin-top:6px;">
-                Based on {len(relevant_sig_ids)} independent signals + price momentum{" + federal contract award velocity" if _has_contract_signal else ""}{" + insider buy/sell activity" if _has_insider_signal else ""}{" + short interest trend" if _has_short_interest_signal else ""}{" + 13F institutional positioning" if _has_13f_signal else ""}
-            </div>
+    st.markdown(f"""
+    <div class="ua-gradient-border" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:18px 22px;">
+        <div style="flex-shrink:0;">{confluence_gauge_svg(score_val, case)}</div>
+        <div style="width:1px;height:72px;background:rgba(255,255,255,0.08);flex-shrink:0;"></div>
+        <div style="flex:1;min-width:180px;">
+          <div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Signal Case</div>
+          <div class="ua-kpi-animate" style="font-size:2.2rem;font-weight:900;color:{score_color};
+               text-shadow:0 0 32px {score_color}55,0 0 8px {score_color}35;line-height:1;">{case}</div>
+          <div style="font-size:0.80rem;color:#B8C0D4;margin-top:4px;">Conviction: <b style="color:{score_color};">{conviction}</b></div>
+          <div style="font-size:0.70rem;color:#8892AA;margin-top:6px;line-height:1.5;">
+            {len(relevant_sig_ids)} signals + momentum{" + contracts" if _has_contract_signal else ""}{" + insiders" if _has_insider_signal else ""}{" + short interest" if _has_short_interest_signal else ""}{" + 13F" if _has_13f_signal else ""}
+          </div>
         </div>
-        """, unsafe_allow_html=True)
-
-    with c_counts:
-        st.markdown(f"""
-        <div style="background:rgba(18,21,30,0.85);border-radius:8px;padding:20px;
-                    border:1px solid rgba(255,255,255,0.08);font-family:Inter,sans-serif;">
-            <div style="font-size:0.72rem;color:#8892AA;letter-spacing:0.08em;margin-bottom:10px;">SIGNAL BREAKDOWN</div>
-            <div style="display:flex;gap:16px;align-items:center;">
-                <div style="text-align:center;">
-                    <div style="font-size:2rem;font-weight:700;color:#00D566;">{confluence['bull_count']}</div>
-                    <div style="font-size:0.75rem;color:#8892AA;">▲ Bullish</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:2rem;font-weight:700;color:#FF4444;">{confluence['bear_count']}</div>
-                    <div style="font-size:0.75rem;color:#8892AA;">▼ Bearish</div>
-                </div>
-                <div style="text-align:center;">
-                    <div style="font-size:2rem;font-weight:700;color:#6B7FBF;">{confluence['neutral_count']}</div>
-                    <div style="font-size:0.75rem;color:#8892AA;">● Neutral</div>
-                </div>
-            </div>
+        <div style="width:1px;height:72px;background:rgba(255,255,255,0.08);flex-shrink:0;"></div>
+        <div style="display:flex;gap:20px;align-items:center;flex-shrink:0;">
+          <div class="ua-spotlight ua-kpi-animate" style="--ua-spotlight-accent:#00D566;text-align:center;padding:14px 20px;">
+            <div style="font-size:2rem;font-weight:900;color:#00D566;text-shadow:0 0 24px #00D56645;">{confluence['bull_count']}</div>
+            <div style="font-size:0.66rem;color:#8892AA;text-transform:uppercase;letter-spacing:0.08em;">▲ Bullish</div>
+          </div>
+          <div class="ua-spotlight ua-kpi-animate" style="--ua-spotlight-accent:#FF4444;text-align:center;padding:14px 20px;">
+            <div style="font-size:2rem;font-weight:900;color:#FF4444;text-shadow:0 0 24px #FF444445;">{confluence['bear_count']}</div>
+            <div style="font-size:0.66rem;color:#8892AA;text-transform:uppercase;letter-spacing:0.08em;">▼ Bearish</div>
+          </div>
+          <div class="ua-spotlight ua-kpi-animate" style="--ua-spotlight-accent:#6B7FBF;text-align:center;padding:14px 20px;">
+            <div style="font-size:2rem;font-weight:900;color:#6B7FBF;">{confluence['neutral_count']}</div>
+            <div style="font-size:0.66rem;color:#8892AA;text-transform:uppercase;letter-spacing:0.08em;">● Neutral</div>
+          </div>
         </div>
-        """, unsafe_allow_html=True)
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── Share strip ───────────────────────────────────────────────────────────
     _share_c1, _share_c2, _ = st.columns([1, 1, 3])
@@ -611,7 +601,7 @@ if section == "Overview":
         _pct = _sector_pct["percentile"]
         _pct_color = "#00D566" if _pct >= 65 else ("#FF4444" if _pct <= 35 else "#6B7FBF")
         st.markdown(
-            f'<div style="padding:10px 16px;border-left:4px solid {_pct_color};background:#0B0D12;margin:8px 0;">'
+            f'<div class="ua-spotlight" style="--ua-spotlight-accent:{_pct_color};padding:10px 16px;margin:8px 0;">'
             f'<span style="font-weight:700;color:{_pct_color};">{ticker_input} sits at the '
             f'{_pct:.0f}th percentile among {_sector_pct["n_peers"]} sector peers</span> '
             f'<span style="color:#8892AA;">(score {score_val:.0f} vs. sector peer average '
@@ -1428,7 +1418,7 @@ if section == "Overview":
     # API key required. Placed here (after price/volume/RSI, before prediction
     # model) so a user reading the chart can immediately see WHAT drove recent
     # price moves before looking at the forward model's probabilities.
-    st.markdown('<div class="section-header">CATALYSTS & NEWS</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Catalysts & News", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
 
     _cat_col, _news_col = st.columns([1, 2])
 
@@ -1627,7 +1617,7 @@ if section == "Overview":
     # ── Forward Prediction Model ───────────────────────────────────────────────────
     from utils.analysis import predict_ticker_forward  # noqa: E402 (deferred import keeps page fast)
 
-    st.markdown('<div class="section-header">SIGNAL-BASED PREDICTION MODEL</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Signal-Based Prediction Model", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
     st.caption(
         "Probability estimates derived from macro signal confluence + price momentum. "
         "NOT financial advice. For research & education only."
@@ -1679,16 +1669,16 @@ if section == "Overview":
         h_color = "#00D566" if h["bull_pct"] > 60 else ("#FF4444" if h["bear_pct"] > 60 else "#6B7FBF")
         with hcol:
             st.markdown(f"""
-            <div style="background:rgba(18,21,30,0.85);border-radius:8px;padding:14px 16px;text-align:center;
-                        border-top:3px solid {h_color};border:1px solid rgba(255,255,255,0.08);font-family:Inter,sans-serif;">
-                <div style="font-size:0.68rem;color:#8892AA;letter-spacing:0.06em;">{h['label']} FORECAST</div>
-                <div style="font-size:1.8rem;font-weight:800;color:{h_color};margin:4px 0;">
+            <div class="ua-spotlight ua-kpi-animate" style="--ua-spotlight-accent:{h_color};text-align:center;padding:18px 16px 16px;">
+                <div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">{h['label']} Forecast</div>
+                <div style="font-size:2.6rem;font-weight:900;color:{h_color};
+                     text-shadow:0 0 24px {h_color}45;line-height:1;margin-bottom:4px;">
                     {h['bull_pct']:.0f}%
                 </div>
-                <div style="font-size:0.72rem;color:#8892AA;font-weight:600;">Bull Probability</div>
-                <div style="font-size:0.72rem;color:#6B7FBF;margin-top:6px;">
+                <div style="font-size:0.72rem;color:#8892AA;font-weight:600;margin-bottom:8px;">Bull Probability</div>
+                <div style="font-size:0.68rem;color:#6B7FBF;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;">
                     Price range<br>
-                    <b>${h['price_low']:.2f} — ${h['price_high']:.2f}</b>
+                    <b style="color:#B8C0D4;">${h['price_low']:.2f} — ${h['price_high']:.2f}</b>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -2718,7 +2708,7 @@ elif section == "13F & Federal Contracts":
 elif section == "Deep Correlation Scan":
     # ── Deep Correlation Scan — Lead Time Optimizer ────────────────────────────
     st.divider()
-    st.markdown('<div class="section-header">DEEP CORRELATION SCAN — LEAD TIME OPTIMIZER</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Deep Correlation Scan — Lead Time Optimizer", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
     st.caption(f"Pick one signal above to test in depth against {ticker_input}: the optimal lead time, "
                f"whether the relationship is stable over time, and a visual overlay.")
 

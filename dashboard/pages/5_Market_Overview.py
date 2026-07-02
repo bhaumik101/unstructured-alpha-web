@@ -30,11 +30,13 @@ import yfinance as yf
 
 from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.fetchers import fetch_live_quote
-from utils.theme import source_badge
+from utils.theme import source_badge, inject_premium_css, inject_skeleton_css, section_label
 
 st.set_page_config(page_title="Market Overview — UA", layout="wide")
 render_header("Market Overview")
 render_sidebar_base()
+inject_premium_css()
+inject_skeleton_css()
 
 render_page_header(
     "Market Overview",
@@ -211,7 +213,7 @@ if section == "Markets":
 
 
     # ── Section 1: Major Indices ───────────────────────────────────────────────────
-    st.markdown('<div class="section-header">MAJOR INDICES</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Major Indices", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
 
     INDICES = {
         "S&P 500":          "SPY",
@@ -277,10 +279,7 @@ if section == "Markets":
     st.markdown("")
 
     # ── Section 2: Sector Performance ─────────────────────────────────────────────
-    st.markdown(
-        f'<div class="section-header">SECTOR PERFORMANCE — {period_label(period_sel)}</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(section_label(f"Sector Performance — {period_label(period_sel)}", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
 
     SECTORS = {
         "Technology":     "XLK",
@@ -329,7 +328,7 @@ if section == "Markets":
     left_col, right_col = st.columns(2)
 
     with left_col:
-        st.markdown('<div class="section-header">RATES & FIXED INCOME</div>', unsafe_allow_html=True)
+        st.markdown(section_label("Rates & Fixed Income", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
 
         RATES = {
             "10-Year Treasury":    "^TNX",
@@ -382,16 +381,14 @@ if section == "Markets":
             sc = "#00D566" if spread > 0 else "#FF4444"
             sl = "Normal (positive)" if spread > 0 else "Inverted (recession signal)"
             st.markdown(f"""
-            <div style="background:#12151E;border-radius:6px;padding:12px 16px;
-                        border-left:4px solid {sc};border:1px solid rgba(255,255,255,0.08);
-                        margin-top:10px;font-family:Inter,sans-serif;">
-                <div style="font-size:0.72rem;color:#6B7FBF;letter-spacing:0.06em;">10Y–3M YIELD CURVE SPREAD</div>
-                <div style="font-size:1.6rem;font-weight:700;color:{sc};">{spread:+.2f}%</div>
-                <div style="font-size:0.82rem;color:#8892AA;">{sl}</div>
+            <div class="ua-spotlight ua-kpi-animate" style="--ua-spotlight-accent:{sc};margin-top:10px;padding:14px 18px;">
+                <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">10Y–3M Yield Curve Spread</div>
+                <div style="font-size:2.0rem;font-weight:900;color:{sc};text-shadow:0 0 24px {sc}45;">{spread:+.2f}%</div>
+                <div style="font-size:0.78rem;color:#8892AA;margin-top:2px;">{sl}</div>
             </div>""", unsafe_allow_html=True)
 
     with right_col:
-        st.markdown('<div class="section-header">COMMODITIES & CURRENCIES</div>', unsafe_allow_html=True)
+        st.markdown(section_label("Commodities & Currencies", color="#00D566", dot="#00D566"), unsafe_allow_html=True)
 
         COMMODITIES = {
             "Gold":            "GLD",
@@ -435,10 +432,7 @@ if section == "Markets":
 
     # ── Section 4: Performance Chart ──────────────────────────────────────────────
     st.divider()
-    st.markdown(
-        f'<div class="section-header">PERFORMANCE CHART — {period_label(period_sel)}</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(section_label(f"Performance Chart — {period_label(period_sel)}", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
 
     PERF_TICKERS = {"S&P 500": "SPY", "Nasdaq 100": "QQQ", "Russell 2000": "IWM", "Gold": "GLD"}
     PERF_COLORS  = ["#7C3AED", "#F59E0B", "#00D566", "#FF4444"]
@@ -513,7 +507,7 @@ if section == "Markets":
 
     # ── Section 5: Signal Snapshot ─────────────────────────────────────────────────
     st.divider()
-    st.markdown('<div class="section-header">SIGNAL SNAPSHOT</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Signal Snapshot", color="#00D566", dot="#00D566"), unsafe_allow_html=True)
     st.caption("Key market signals computed from live yfinance data. Full alternative data analysis on Signal Dashboard.")
 
     STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF", "no_data": "#9E9E8E"}
@@ -522,18 +516,20 @@ if section == "Markets":
     def signal_card(label: str, status: str, detail: str, context: str = "") -> str:
         color = STATUS_COLOR.get(status, "#6B7FBF")
         sym   = STATUS_SYM.get(status, "●")
-        ctx_html = (f'<div style="font-size:0.68rem;color:#8892AA;margin-top:2px;">{context}</div>'
+        ctx_html = (f'<div style="font-size:0.66rem;color:#8892AA;margin-top:4px;line-height:1.4;">{context}</div>'
                     if context else "")
-        return f"""
-        <div style="background:#12151E;border-radius:6px;padding:14px 10px;text-align:center;
-                    border:1px solid rgba(255,255,255,0.08);border-top:3px solid {color};font-family:Inter,sans-serif;">
-            <div style="font-size:0.68rem;color:#6B7FBF;text-transform:uppercase;
-                        letter-spacing:0.06em;line-height:1.3;">{label}</div>
-            <div style="font-size:1.5rem;font-weight:700;color:{color};margin:6px 0 2px;">{sym}</div>
-            <div style="font-size:0.82rem;font-weight:600;color:{color};">{status.replace("_"," ").capitalize()}</div>
-            <div style="font-size:0.80rem;color:#B8C0D4;margin-top:4px;font-weight:600;">{detail}</div>
-            {ctx_html}
-        </div>"""
+        return (
+            f'<div class="ua-spotlight ua-kpi-animate" style="--ua-spotlight-accent:{color};'
+            f'text-align:center;padding:16px 10px 14px;">'
+            f'<div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;'
+            f'letter-spacing:0.10em;line-height:1.4;margin-bottom:6px;">{label}</div>'
+            f'<div style="font-size:1.6rem;font-weight:900;color:{color};'
+            f'text-shadow:0 0 20px {color}40;margin-bottom:2px;">{sym}</div>'
+            f'<div style="font-size:0.78rem;font-weight:700;color:{color};margin-bottom:4px;">{status.replace("_"," ").capitalize()}</div>'
+            f'<div style="font-size:0.76rem;color:#B8C0D4;font-weight:600;">{detail}</div>'
+            f'{ctx_html}'
+            f'</div>'
+        )
 
     snap_signals = []
 
@@ -612,13 +608,11 @@ if section == "Markets":
         bc     = "#00D566" if pct >= 60 else ("#FF4444" if pct <= 30 else "#6B7FBF")
         blabel = "Risk-On Environment" if pct >= 60 else ("Risk-Off Environment" if pct <= 30 else "Mixed Signals")
         st.markdown(f"""
-        <div style="margin-top:14px;padding:10px 16px;background:#12151E;border-radius:6px;
-                    border:1px solid rgba(255,255,255,0.08);border-left:4px solid {bc};font-family:Inter,sans-serif;">
-            <span style="font-size:0.72rem;color:#6B7FBF;text-transform:uppercase;letter-spacing:0.06em;">
-                MARKET BREADTH — </span>
-            <span style="font-size:0.85rem;font-weight:700;color:{bc};">{blabel}</span>
-            <span style="font-size:0.80rem;color:#8892AA;margin-left:12px;">
-                {bull_n} Bullish · {neut_n} Neutral · {bear_n} Bearish
+        <div class="ua-spotlight" style="--ua-spotlight-accent:{bc};margin-top:14px;padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <span style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;">Market Breadth</span>
+            <span style="font-size:0.90rem;font-weight:800;color:{bc};text-shadow:0 0 16px {bc}40;">{blabel}</span>
+            <span style="font-size:0.78rem;color:#8892AA;margin-left:4px;">
+                <span style="color:#00D566;">▲ {bull_n}</span> · <span style="color:#6B7FBF;">● {neut_n}</span> · <span style="color:#FF4444;">▼ {bear_n}</span>
             </span>
         </div>""", unsafe_allow_html=True)
 
@@ -701,7 +695,7 @@ elif section == "Macro Indicators":
         len(_macro_fetched),
     )
 
-    st.markdown('<div class="section-header">GROWTH INDICATORS</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Growth Indicators", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
     st.caption("Real published economic data — not live prices. Updates as slowly as the government releases it.")
 
     g1, g2, g3 = st.columns(3)
@@ -748,7 +742,7 @@ elif section == "Macro Indicators":
         else:
             st.info("Durable Goods unavailable. Add FRED API key.")
 
-    st.markdown('<div class="section-header">LABOR MARKET</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Labor Market", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
 
     l1, l2, l3 = st.columns(3)
 
@@ -787,7 +781,7 @@ elif section == "Macro Indicators":
         else:
             st.info("Rail freight data unavailable. Add FRED API key.")
 
-    st.markdown('<div class="section-header">CONSUMER & INFLATION</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Consumer & Inflation", color="#FF4444", dot="#FF4444"), unsafe_allow_html=True)
 
     c1, c2, c3 = st.columns(3)
 
@@ -830,7 +824,7 @@ elif section == "Macro Indicators":
         else:
             st.info("CPI food data unavailable.")
 
-    st.markdown('<div class="section-header">OFFICIAL YIELD CURVE (FRED)</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Official Yield Curve (FRED)", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
     st.caption("FRED's own 10Y-2Y series — complements the live 10Y-3M spread computed from yfinance above.")
 
     yc = _macro_fetched["T10Y2Y"]
@@ -855,7 +849,7 @@ elif section == "Macro Indicators":
         st.info("Yield curve data unavailable. Add FRED API key.")
 
     # ── Economic Calendar ─────────────────────────────────────────────────────────
-    st.markdown('<div class="section-header">KEY ECONOMIC RELEASES — SCHEDULE</div>', unsafe_allow_html=True)
+    st.markdown(section_label("Key Economic Releases — Schedule", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
     st.caption("Approximate release schedule for the major data points tracked by this dashboard.")
 
     CALENDAR = [
