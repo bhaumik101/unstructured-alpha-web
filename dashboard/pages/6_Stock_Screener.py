@@ -24,6 +24,7 @@ from utils.config import SIGNALS, TICKERS
 from utils.fetchers import fetch_live_quote, fetch_signal_series
 from utils.analysis import compute_confluence, score_signal
 from utils.header import render_header, render_sidebar_base, render_page_header, render_synthetic_data_banner
+from utils.theme import source_badge
 from utils.quotes import get_batch_quotes
 from utils.signals_cache import get_all_signal_scores
 
@@ -433,6 +434,11 @@ fig_dist.update_layout(
     font=dict(family="Inter, sans-serif", color="#8892AA"),
 )
 st.plotly_chart(fig_dist, use_container_width=True, config={"displayModeBar": False})
+st.markdown(
+    f"&nbsp; {source_badge('yfinance', 'Live quotes · price history')} "
+    f"&nbsp; {source_badge('ua', 'Confluence Score · UA internal')}",
+    unsafe_allow_html=True,
+)
 
 # ── Main screener table ───────────────────────────────────────────────────────
 screen_df["Signal"] = screen_df["Case"].map(

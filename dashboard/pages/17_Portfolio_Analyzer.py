@@ -27,6 +27,7 @@ import plotly.express as px
 from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker
 from utils.config import TICKERS, SIGNALS
 from utils.db import init_db
+from utils.theme import source_badge
 
 st.set_page_config(page_title="Portfolio Analyzer — UA", layout="wide")
 
@@ -367,6 +368,12 @@ with _ch3:
         font=dict(family="Inter, sans-serif", color="#8892AA"),
     )
     st.plotly_chart(_fig_bubble, use_container_width=True)
+
+st.markdown(
+    f"&nbsp; {source_badge('yfinance', 'Price data · sector classification')} "
+    f"&nbsp; {source_badge('ua', 'Confluence Score · UA internal')}",
+    unsafe_allow_html=True,
+)
 
 # ── Holdings table ────────────────────────────────────────────────────────────
 

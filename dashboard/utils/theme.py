@@ -596,6 +596,110 @@ _SKELETON_CSS = """
 }
 /* Dataframe hover row highlight */
 .dvn-scroller:hover td { cursor: default; }
+
+/* ── Page content fade-in on navigation ──────────────────────────────────── */
+@keyframes ua_page_in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+.main .block-container,
+[data-testid="stMainBlockContainer"] {
+  animation: ua_page_in 0.22s ease forwards;
+}
+
+/* ── Scrollbar styling ───────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: rgba(11,13,18,0.6); }
+::-webkit-scrollbar-thumb {
+  background: rgba(104,113,155,0.35);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(124,58,237,0.5); }
+
+/* ── Input / selectbox focus rings ───────────────────────────────────────── */
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input,
+[data-testid="stTextArea"] textarea {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+[data-testid="stTextInput"] input:focus,
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stTextArea"] textarea:focus {
+  border-color: rgba(124,58,237,0.6) !important;
+  box-shadow: 0 0 0 2px rgba(124,58,237,0.15) !important;
+  outline: none !important;
+}
+
+/* ── Selectbox hover / focus ─────────────────────────────────────────────── */
+[data-testid="stSelectbox"] [data-baseweb="select"] > div {
+  transition: border-color 0.15s ease !important;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] > div:hover {
+  border-color: rgba(124,58,237,0.5) !important;
+}
+
+/* ── Alert / info / success / warning boxes ──────────────────────────────── */
+[data-testid="stAlert"] {
+  border-radius: 10px !important;
+  border-width: 1px !important;
+  font-family: Inter, -apple-system, sans-serif !important;
+}
+[data-testid="stAlert"][data-baseweb="notification"] {
+  background: rgba(18,21,30,0.9) !important;
+}
+/* Info */
+[data-testid="stAlert"].st-ae { border-color: rgba(0,200,224,0.3) !important; }
+/* Success */
+[data-testid="stAlert"].st-af { border-color: rgba(0,213,102,0.3) !important; }
+/* Warning */
+[data-testid="stAlert"].st-ag { border-color: rgba(245,158,11,0.3) !important; }
+/* Error */
+[data-testid="stAlert"].st-ah { border-color: rgba(255,68,68,0.3) !important; }
+
+/* ── Sidebar nav item hover ──────────────────────────────────────────────── */
+[data-testid="stSidebarNav"] a {
+  transition: background-color 0.15s ease, color 0.15s ease,
+              padding-left 0.15s ease !important;
+  border-radius: 6px !important;
+}
+[data-testid="stSidebarNav"] a:hover {
+  background-color: rgba(124,58,237,0.10) !important;
+  padding-left: 14px !important;
+}
+[data-testid="stSidebarNav"] a[aria-selected="true"] {
+  background-color: rgba(124,58,237,0.15) !important;
+  border-left: 2px solid #7C3AED !important;
+}
+
+/* ── Plotly chart container lift on hover ────────────────────────────────── */
+[data-testid="stPlotlyChart"] {
+  transition: box-shadow 0.2s ease !important;
+  border-radius: 10px;
+}
+[data-testid="stPlotlyChart"]:hover {
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4) !important;
+}
+
+/* ── Spinner polish ──────────────────────────────────────────────────────── */
+[data-testid="stSpinner"] > div {
+  border-top-color: #7C3AED !important;
+}
+
+/* ── Divider ─────────────────────────────────────────────────────────────── */
+hr {
+  border-color: rgba(255,255,255,0.06) !important;
+  margin: 16px 0 !important;
+}
+
+/* ── Expander border ─────────────────────────────────────────────────────── */
+[data-testid="stExpander"] {
+  border-color: rgba(255,255,255,0.07) !important;
+  border-radius: 10px !important;
+  transition: border-color 0.15s ease !important;
+}
+[data-testid="stExpander"]:hover {
+  border-color: rgba(124,58,237,0.25) !important;
+}
 </style>
 """
 

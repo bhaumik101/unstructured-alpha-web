@@ -18,7 +18,7 @@ import numpy as np
 
 from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.theme import (style_chart, BG_PAGE, BG_PLOT, TEXT_PRIMARY, TEXT_SECONDARY, BORDER_LIGHT,
-                         inject_skeleton_css, skeleton_chart_block, skeleton_stat_row)
+                         inject_skeleton_css, skeleton_chart_block, skeleton_stat_row, source_badge)
 from utils.signals_cache import get_all_signal_scores
 
 st.set_page_config(page_title="Market Heatmap — UA", layout="wide")
@@ -279,6 +279,11 @@ fig.update_layout(
 
 st.plotly_chart(fig, use_container_width=True,
                 config={"scrollZoom": True, "doubleClick": "reset", "displayModeBar": False})
+st.markdown(
+    f"&nbsp; {source_badge('yfinance', 'Market cap · daily close')} "
+    f"&nbsp; {source_badge('ua', 'Confluence Score · UA internal')}",
+    unsafe_allow_html=True,
+)
 
 # ── Sector score table ─────────────────────────────────────────────────────────
 st.markdown('<div class="section-header">SECTOR CONFLUENCE SCORES</div>', unsafe_allow_html=True)

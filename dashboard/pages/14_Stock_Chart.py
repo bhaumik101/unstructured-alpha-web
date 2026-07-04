@@ -17,6 +17,7 @@ import yfinance as yf
 
 from utils.config import TICKERS
 from utils.header import render_header, render_sidebar_base, render_page_header
+from utils.theme import source_badge
 
 st.set_page_config(page_title="Stock Viewer — UA", layout="wide")
 render_header("Stock Viewer")
@@ -447,6 +448,7 @@ for _r, _lbl in _ylabels.items():
     )
 
 st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+st.markdown(source_badge("yfinance", "Daily OHLCV · Bollinger Bands · RSI · MACD computed"), unsafe_allow_html=True)
 
 # ── Stats strip ───────────────────────────────────────────────────────────────
 def _fv(v) -> str:

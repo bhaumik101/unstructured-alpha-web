@@ -27,6 +27,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.header import render_header, render_sidebar_base, render_page_header
+from utils.theme import source_badge
 
 st.set_page_config(page_title="Sector Map — UA", layout="wide")
 render_header("Sector Map")
@@ -343,6 +344,12 @@ _fig_bar.update_layout(
     showlegend=False,
 )
 st.plotly_chart(_fig_bar, use_container_width=True)
+st.markdown(
+    f"&nbsp; {source_badge('fred', 'Macro signals')} "
+    f"&nbsp; {source_badge('eia', 'Energy signals')} "
+    f"&nbsp; {source_badge('ua', 'Confluence Score · UA internal')}",
+    unsafe_allow_html=True,
+)
 
 st.divider()
 
