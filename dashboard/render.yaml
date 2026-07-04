@@ -50,7 +50,6 @@ services:
   - type: cron
     name: unstructured-alpha-digest
     runtime: python
-    plan: free
     rootDir: dashboard
     schedule: "0 12 * * *"   # 12:00 UTC = 07:00 ET (UTC-5 winter) / 08:00 EDT
     buildCommand: pip install -r requirements.txt
@@ -73,7 +72,6 @@ services:
   - type: cron
     name: unstructured-alpha-trial-reminder
     runtime: python
-    plan: free
     rootDir: dashboard
     schedule: "0 15 * * *"   # 15:00 UTC = 10:00 ET
     buildCommand: pip install -r requirements.txt
@@ -95,7 +93,6 @@ services:
   - type: cron
     name: unstructured-alpha-webhooks
     runtime: python
-    plan: free
     rootDir: dashboard
     schedule: "0 * * * *"   # every hour on the hour
     buildCommand: pip install -r requirements.txt
@@ -116,7 +113,6 @@ services:
   - type: cron
     name: unstructured-alpha-watchlist-alerts
     runtime: python
-    plan: free
     rootDir: dashboard
     schedule: "30 * * * *"   # every hour at :30 (offset from webhook cron)
     buildCommand: pip install -r requirements.txt
@@ -140,7 +136,6 @@ services:
   - type: cron
     name: unstructured-alpha-tweet-flips
     runtime: python
-    plan: free
     rootDir: dashboard
     schedule: "0 13 * * *"   # 13:00 UTC = 09:00 ET
     buildCommand: pip install -r requirements.txt
