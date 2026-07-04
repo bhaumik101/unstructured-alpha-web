@@ -665,6 +665,95 @@ def get_high_confidence_snapshot_calls(
         return []
 
 
+def get_batch_velocity_stats(
+    tickers: list[str],
+    window_days: int = 5,
+    history_days: int = 60,
+) -> dict[str, dict | None]:
+    """
+    Batch version of get_score_velocity_stats — ONE SQL query for all tickers.
+
+    Fetches the last `history_days` of score_snapshots for every ticker in
+    `tickers`, then computes rolling-window velocity stats for each. Returns
+    a dict keyed by ticker; value is the same shape as get_score_velocity_stats()
+    or None if the ticker has insufficient data (< window_days + 3 records).
+
+    Use this whenever you need velocity for 10+ tickers simultaneously:
+    one round-trip is dramatically faster than N individual calls.
+    """
+    if not tickers:
+        return {}
+
+    from datetime import date as _date
+    import numpy as _np
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=history_days)).strftime("%Y-%m-%d")
+
+    try:
+        with db.engine.begin() as conn:
+            rows = conn.execute(
+                select(score_snapshots)
+                .where(score_snapshots.c.ticker.in_(tickers))
+                .where(score_snapshots.c.snapshot_date >= cutoff)
+                .order_by(score_snapshots.c.ticker, score_snapshots.c.snapshot_date)
+            ).mappings().all()
+    except Exception:
+        return {t: None for t in tickers}
+
+    # Group by ticker
+    from collections import defaultdict
+    by_ticker: dict[str, list[tuple]] = defaultdict(list)
+    for r in rows:
+        if r.get("score") is not None:
+            by_ticker[r["ticker"]].append((r["snapshot_date"], float(r["score"])))
+
+    def _velocity(window: list[tuple]) -> float | None:
+        if len(window) < 2:
+            return None
+        t0 = _date.fromisoformat(window[0][0])
+        t1 = _date.fromisoformat(window[-1][0])
+        days_span = max((t1 - t0).days, 1)
+        return (window[-1][1] - window[0][1]) / days_span
+
+    result: dict[str, dict | None] = {}
+    for ticker in tickers:
+        entries = by_ticker.get(ticker, [])
+        if len(entries) < window_days + 3:
+            result[ticker] = None
+            continue
+
+        all_velocities: list[float] = []
+        for i in range(len(entries) - window_days + 1):
+            v = _velocity(entries[i : i + window_days])
+            if v is not None:
+                all_velocities.append(v)
+
+        if len(all_velocities) < 4:
+            result[ticker] = None
+            continue
+
+        current_vel = all_velocities[-1]
+        baseline    = all_velocities[:-1]
+        abs_current = abs(current_vel)
+        abs_baseline = _np.abs(baseline)
+        percentile = float(_np.mean(abs_baseline < abs_current) * 100)
+
+        result[ticker] = {
+            "velocity":    round(current_vel, 2),
+            "percentile":  round(percentile, 1),
+            "n_windows":   len(baseline),
+            "direction":   "up" if current_vel >= 0 else "down",
+            "window_days": window_days,
+        }
+
+    # Tickers with no snapshots at all → None
+    for ticker in tickers:
+        if ticker not in result:
+            result[ticker] = None
+
+    return result
+
+
 def get_score_velocity_stats(ticker: str, window_days: int = 5) -> dict | None:
     """
     Compute the current score velocity (pts/day) over the last `window_days`

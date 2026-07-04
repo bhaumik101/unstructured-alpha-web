@@ -214,6 +214,32 @@ services:
       - key: EIA_API_KEY
         sync: false
 
+  # Machine's Best Ideas tweet cron — runs daily at 14:00 UTC (10:00 AM ET).
+  # Finds tickers with score ≥ 65 + positive velocity, posts top 5 to Twitter.
+  # Separate from signal-flip tweet (13:00 UTC) to avoid resource contention.
+  - type: cron
+    name: unstructured-alpha-tweet-best-ideas
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 14 * * *"   # 14:00 UTC = 10:00 AM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.tweet_best_ideas
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: TWITTER_API_KEY
+        sync: false
+      - key: TWITTER_API_SECRET
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN_SECRET
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
   # Twitter/X signal-flip tweet cron — runs once daily at 13:00 UTC (9:00 AM ET).
   # Computes the current macro signal state, detects flips since yesterday, and
   # tweets a briefing via @UnstructuredAlpha. Requires Twitter API v2 credentials
