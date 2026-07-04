@@ -29,9 +29,9 @@ if str(_here) not in sys.path:
 
 from sqlalchemy import select
 
-from utils.db import engine, users, init_db
+from utils.db import engine, users, watchlist, score_snapshots, init_db
 from utils.score_history import get_signal_flips
-from utils.config import SIGNALS
+from utils.config import SIGNALS, TICKERS
 
 # ── Admin override ────────────────────────────────────────────────────────────
 # Admins always receive the morning digest regardless of their DB subscription
@@ -128,43 +128,127 @@ def _get_score_movers(days_back: int = 7) -> list[dict]:
     return results[:8]
 
 
-def _get_opted_in_emails() -> list[tuple[str, str]]:
+def _get_opted_in_emails() -> list[tuple[str, str, int | None]]:
     """
-    Return [(email, display_name_or_email)] for:
+    Return [(email, display_name_or_email, user_id_or_None)] for:
       - Pro users who have opted in (digest_opted_in=True, subscription_tier='pro')
       - Admin emails from _ADMIN_EMAILS (always included, no DB check required)
     Deduplication is applied so an admin who is also a Pro subscriber only
     receives one copy.
     """
     seen: set[str] = set()
-    result: list[tuple[str, str]] = []
+    result: list[tuple[str, str, int | None]] = []
 
     # 1. Pro opted-in users from DB
     try:
         with engine.begin() as conn:
             rows = conn.execute(
-                select(users.c.email)
+                select(users.c.id, users.c.email)
                 .where(users.c.digest_opted_in == True)   # noqa: E712
                 .where(users.c.email_verified == True)
                 .where(users.c.subscription_tier == "pro")
             ).fetchall()
         for row in rows:
-            email = row[0].strip().lower()
+            email = row[1].strip().lower()
             if email not in seen:
                 seen.add(email)
-                result.append((row[0], row[0]))
+                result.append((row[1], row[1], row[0]))
     except Exception as exc:
         print(f"[digest] DB query for opted-in users failed: {exc}", flush=True)
 
-    # 2. Admin override — always included
+    # 2. Admin override — always included; look up user_id so watchlist works
     for admin_email in _ADMIN_EMAILS:
         normalized = admin_email.strip().lower()
         if normalized not in seen:
             seen.add(normalized)
-            result.append((admin_email, admin_email))
-            print(f"[digest] admin override added: {admin_email!r}", flush=True)
+            admin_uid: int | None = None
+            try:
+                with engine.begin() as conn:
+                    row = conn.execute(
+                        select(users.c.id).where(users.c.email == admin_email)
+                    ).fetchone()
+                    if row:
+                        admin_uid = row[0]
+            except Exception:
+                pass
+            result.append((admin_email, admin_email, admin_uid))
+            print(f"[digest] admin override added: {admin_email!r} user_id={admin_uid}", flush=True)
 
     return result
+
+
+def _get_user_watchlist_tickers(user_id: int) -> list[str]:
+    """Return the user's watchlist tickers (newest-added first, max 3)."""
+    try:
+        with engine.begin() as conn:
+            rows = conn.execute(
+                select(watchlist.c.ticker)
+                .where(watchlist.c.user_id == user_id)
+                .order_by(watchlist.c.added_at.desc())
+                .limit(3)
+            ).fetchall()
+        return [row[0].upper() for row in rows]
+    except Exception:
+        return []
+
+
+def _compute_watchlist_scores(
+    tickers: list[str],
+    all_signal_scores: dict,
+) -> list[dict]:
+    """
+    Quick per-ticker confluence for the digest. Uses already-cached
+    get_all_signal_scores() so no extra API calls are needed.
+    Adds a 7-day score delta from score_snapshots when available.
+
+    Returns list of:
+        {ticker, name, score, case, delta}
+    """
+    from utils.analysis import compute_confluence
+    from datetime import datetime, timedelta, timezone
+
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+    results = []
+
+    for ticker in tickers:
+        meta = TICKERS.get(ticker, {})
+        relevant_sids = set(meta.get("signals", list(SIGNALS.keys())))
+
+        ticker_signals = {
+            sid: sv for sid, sv in all_signal_scores.items()
+            if sid in relevant_sids and not sv.get("error")
+        }
+        if not ticker_signals:
+            continue
+
+        cf    = compute_confluence(ticker_signals)
+        score = cf["overall_score"]
+        case  = cf["case"]
+
+        # 7-day delta from score_snapshots
+        delta: float | None = None
+        try:
+            with engine.begin() as conn:
+                snap_rows = conn.execute(
+                    select(score_snapshots.c.score, score_snapshots.c.snapshot_date)
+                    .where(score_snapshots.c.ticker == ticker)
+                    .where(score_snapshots.c.snapshot_date >= seven_days_ago)
+                    .order_by(score_snapshots.c.snapshot_date)
+                ).fetchall()
+            if len(snap_rows) >= 2:
+                delta = round(score - float(snap_rows[0][0]), 1)
+        except Exception:
+            pass
+
+        results.append({
+            "ticker": ticker,
+            "name":   meta.get("name", ticker),
+            "score":  round(score, 1),
+            "case":   case,
+            "delta":  delta,
+        })
+
+    return results
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -198,7 +282,16 @@ def main() -> None:
     movers = _get_score_movers()
     print(f"[digest] score movers: {len(movers)}", flush=True)
 
-    # 4. Get opted-in users
+    # 4. Load signal scores once — reused for all per-user watchlist lookups
+    from utils.signals_cache import get_all_signal_scores
+    all_signal_scores: dict = {}
+    try:
+        all_signal_scores = get_all_signal_scores()
+        print(f"[digest] signal scores loaded: {len(all_signal_scores)} signals", flush=True)
+    except Exception as exc:
+        print(f"[digest] signal scores cache failed: {exc} — watchlist scores skipped", flush=True)
+
+    # 5. Get opted-in users
     recipients = _get_opted_in_emails()
     print(f"[digest] opted-in recipients: {len(recipients)}", flush=True)
 
@@ -206,11 +299,22 @@ def main() -> None:
         print("[digest] no opted-in users — nothing to send. done.", flush=True)
         return
 
-    # 5. Send
+    # 6. Send — personalised watchlist section per user
     from utils.email import send_digest_email, EmailSendError
 
     sent, failed = 0, 0
-    for email_addr, _ in recipients:
+    for email_addr, _, user_id in recipients:
+        # Per-user watchlist scores (best-effort — never blocks the send)
+        watchlist_items: list[dict] = []
+        if user_id is not None and all_signal_scores:
+            try:
+                tickers = _get_user_watchlist_tickers(user_id)
+                if tickers:
+                    watchlist_items = _compute_watchlist_scores(tickers, all_signal_scores)
+                    print(f"[digest] watchlist for user {user_id}: {tickers} → {len(watchlist_items)} scored", flush=True)
+            except Exception as exc:
+                print(f"[digest] watchlist score failed for user {user_id}: {exc}", flush=True)
+
         try:
             send_digest_email(
                 to_email=email_addr,
@@ -221,6 +325,7 @@ def main() -> None:
                 bear_n=bear_n,
                 neut_n=neut_n,
                 signal_scores=signal_scores,
+                watchlist_items=watchlist_items or None,
             )
             sent += 1
             print(f"[digest] sent to {email_addr!r}", flush=True)

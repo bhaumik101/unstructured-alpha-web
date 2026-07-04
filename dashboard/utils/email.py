@@ -422,6 +422,80 @@ def _build_article_html(
     return article_html, subject
 
 
+def _build_watchlist_html(items: list[dict]) -> str:
+    """
+    Build the personalised "Your Watchlist" section for the morning digest.
+    items: [{ticker, name, score, case, delta}]  — max 3 items expected.
+    """
+    CASE_COLOR = {"BULL": "#00875A", "BEAR": "#C53030", "NEUTRAL": "#5A6472"}
+    CASE_BG    = {"BULL": "#F0FDF4", "BEAR": "#FFF5F5", "NEUTRAL": "#F7F8FA"}
+    CASE_SYM   = {"BULL": "▲", "BEAR": "▼", "NEUTRAL": "●"}
+
+    cards = ""
+    col_width = f"{100 // len(items)}%" if items else "33%"
+    for item in items:
+        case   = item.get("case", "NEUTRAL")
+        color  = CASE_COLOR.get(case, "#5A6472")
+        bg     = CASE_BG.get(case, "#F7F8FA")
+        sym    = CASE_SYM.get(case, "●")
+        score  = item["score"]
+        delta  = item.get("delta")
+        delta_str = (
+            f'<span style="font-size:0.72rem;color:{"#00875A" if delta >= 0 else "#C53030"};'
+            f'font-weight:700;">{("+" if delta >= 0 else "")}{delta:.1f} 7d</span>'
+            if delta is not None else ""
+        )
+        name_short = item["name"][:22] + "…" if len(item["name"]) > 24 else item["name"]
+        cards += f"""
+        <td style="width:{col_width};padding:0 6px;vertical-align:top;">
+          <div style="background:{bg};border:1px solid {color}33;border-radius:6px;
+                      padding:12px 10px;text-align:center;">
+            <div style="font-size:1.1rem;font-weight:800;color:#0f1119;margin-bottom:2px;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+              {item["ticker"]}
+            </div>
+            <div style="font-size:0.65rem;color:#6B7280;margin-bottom:8px;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+                        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+              {name_short}
+            </div>
+            <div style="font-size:1.6rem;font-weight:900;color:{color};line-height:1;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+              {score:.0f}
+            </div>
+            <div style="font-size:0.65rem;color:#6B7280;margin-top:1px;margin-bottom:6px;
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+              / 100
+            </div>
+            <div style="font-size:0.72rem;font-weight:700;color:{color};
+                        font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+              {sym} {case}
+            </div>
+            <div style="margin-top:4px;">{delta_str}</div>
+          </div>
+        </td>"""
+
+    return f"""
+    <div style="background:#F7F8FA;border-top:3px solid #7C3AED;padding:16px 24px 12px;">
+      <div style="font-size:0.60rem;font-weight:700;color:#7C3AED;text-transform:uppercase;
+                  letter-spacing:0.12em;margin-bottom:12px;
+                  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+        📋 Your Watchlist
+      </div>
+      <table style="border-collapse:collapse;width:100%;">
+        <tr>{cards}</tr>
+      </table>
+      <div style="margin-top:10px;text-align:right;">
+        <a href="https://unstructuredalpha.com/Watchlist"
+           style="font-size:0.72rem;color:#7C3AED;text-decoration:none;
+                  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+          Open Watchlist →
+        </a>
+      </div>
+    </div>
+    """
+
+
 def send_digest_email(
     to_email: str,
     signal_flips: list[dict],
@@ -431,17 +505,20 @@ def send_digest_email(
     bear_n: int,
     neut_n: int,
     signal_scores: dict | None = None,
+    watchlist_items: list[dict] | None = None,
 ) -> None:
     """
     Send the morning intelligence digest to a single opted-in user.
     Called by cron/send_digest.py for each opted-in user.
 
-    signal_flips:  list of {signal_id, from_status, to_status, to_score} dicts
-    score_movers:  list of {ticker, from_score, to_score, delta, case} dicts
-    overall_bias:  "Bullish", "Bearish", or "Mixed"
+    signal_flips:    list of {signal_id, from_status, to_status, to_score} dicts
+    score_movers:    list of {ticker, from_score, to_score, delta, case} dicts
+    overall_bias:    "Bullish", "Bearish", or "Mixed"
     bull_n / bear_n / neut_n: current signal counts
-    signal_scores: {sig_id: {name, score, status}} — used for the article section.
-                   Optional for backward compat; article is skipped if None.
+    signal_scores:   {sig_id: {name, score, status}} — used for the article section.
+                     Optional for backward compat; article is skipped if None.
+    watchlist_items: [{ticker, name, score, case, delta}] — personalised section.
+                     None = no watchlist section (user has empty watchlist).
     """
     api_key, from_email = _get_resend_config()
     print(f"[digest] send_digest_email: to={to_email!r} bias={overall_bias}", flush=True)
@@ -450,6 +527,9 @@ def send_digest_email(
 
     from datetime import date
     today_str = date.today().strftime("%B %-d, %Y")
+
+    # ── Personalised watchlist section ────────────────────────────────────
+    watchlist_html = _build_watchlist_html(watchlist_items) if watchlist_items else ""
 
     # ── Seeking Alpha-style macro article ──────────────────────────────────
     if signal_scores:
@@ -616,6 +696,9 @@ def send_digest_email(
             </tr>
         </table>
     </div>
+
+    <!-- Personalised watchlist (only shown when user has watchlist tickers) -->
+    {watchlist_html}
 
     <!-- Article -->
     {article_html}
