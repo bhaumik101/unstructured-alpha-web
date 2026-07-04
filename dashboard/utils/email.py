@@ -422,15 +422,29 @@ def _build_article_html(
     return article_html, subject
 
 
-def _build_watchlist_html(items: list[dict]) -> str:
+def _build_watchlist_html(items: list[dict], narrative: str | None = None) -> str:
     """
     Build the personalised "Your Watchlist" section for the morning digest.
-    items: [{ticker, name, score, case, delta}]  — max 3 items expected.
+    items:     [{ticker, name, score, case, delta}]  — max 3 items expected.
+    narrative: optional AI-generated 2-3 sentence plain-English summary.
     """
     CASE_COLOR = {"BULL": "#00875A", "BEAR": "#C53030", "NEUTRAL": "#5A6472"}
     CASE_BG    = {"BULL": "#F0FDF4", "BEAR": "#FFF5F5", "NEUTRAL": "#F7F8FA"}
     CASE_SYM   = {"BULL": "▲", "BEAR": "▼", "NEUTRAL": "●"}
 
+    # ── AI narrative block ────────────────────────────────────────────────────
+    narrative_html = ""
+    if narrative:
+        narrative_html = f"""
+      <div style="border-left:3px solid #7C3AED;padding:10px 14px;margin-bottom:14px;
+                  background:#F3F0FF;border-radius:0 6px 6px 0;">
+        <p style="margin:0;font-size:0.86rem;color:#1F1235;line-height:1.65;
+                  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
+          {narrative}
+        </p>
+      </div>"""
+
+    # ── Score cards ───────────────────────────────────────────────────────────
     cards = ""
     col_width = f"{100 // len(items)}%" if items else "33%"
     for item in items:
@@ -482,6 +496,7 @@ def _build_watchlist_html(items: list[dict]) -> str:
                   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
         📋 Your Watchlist
       </div>
+      {narrative_html}
       <table style="border-collapse:collapse;width:100%;">
         <tr>{cards}</tr>
       </table>
@@ -506,19 +521,22 @@ def send_digest_email(
     neut_n: int,
     signal_scores: dict | None = None,
     watchlist_items: list[dict] | None = None,
+    watchlist_narrative: str | None = None,
 ) -> None:
     """
     Send the morning intelligence digest to a single opted-in user.
     Called by cron/send_digest.py for each opted-in user.
 
-    signal_flips:    list of {signal_id, from_status, to_status, to_score} dicts
-    score_movers:    list of {ticker, from_score, to_score, delta, case} dicts
-    overall_bias:    "Bullish", "Bearish", or "Mixed"
+    signal_flips:       list of {signal_id, from_status, to_status, to_score} dicts
+    score_movers:       list of {ticker, from_score, to_score, delta, case} dicts
+    overall_bias:       "Bullish", "Bearish", or "Mixed"
     bull_n / bear_n / neut_n: current signal counts
-    signal_scores:   {sig_id: {name, score, status}} — used for the article section.
-                     Optional for backward compat; article is skipped if None.
-    watchlist_items: [{ticker, name, score, case, delta}] — personalised section.
-                     None = no watchlist section (user has empty watchlist).
+    signal_scores:      {sig_id: {name, score, status}} — used for the article section.
+                        Optional for backward compat; article is skipped if None.
+    watchlist_items:    [{ticker, name, score, case, delta}] — personalised section.
+                        None = no watchlist section (user has empty watchlist).
+    watchlist_narrative: AI-generated 2-3 sentence plain-English summary of the user's
+                        watchlist relative to today's macro environment. None = omitted.
     """
     api_key, from_email = _get_resend_config()
     print(f"[digest] send_digest_email: to={to_email!r} bias={overall_bias}", flush=True)
@@ -529,7 +547,10 @@ def send_digest_email(
     today_str = date.today().strftime("%B %-d, %Y")
 
     # ── Personalised watchlist section ────────────────────────────────────
-    watchlist_html = _build_watchlist_html(watchlist_items) if watchlist_items else ""
+    watchlist_html = (
+        _build_watchlist_html(watchlist_items, narrative=watchlist_narrative)
+        if watchlist_items else ""
+    )
 
     # ── Seeking Alpha-style macro article ──────────────────────────────────
     if signal_scores:

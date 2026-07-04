@@ -145,6 +145,116 @@ watchlist = alerts_db.get_watchlist(user_id)
 if not watchlist:
     st.info("Your watchlist is empty. Add a ticker above to start tracking it.")
 else:
+    # ── Portfolio Composite Score ─────────────────────────────────────────────
+    # Weighted-average confluence score across all watchlist tickers, derived
+    # from score_snapshots (already in DB, no live recompute needed). Gives
+    # users a single macro exposure number for their entire portfolio, with
+    # a 30-day sparkline so they can see how their aggregate positioning has
+    # shifted over time.
+    try:
+        import pandas as pd
+        from datetime import datetime, timedelta, timezone
+        from sqlalchemy import select as _sel
+        from utils.db import score_snapshots as _snaps, engine as _eng
+
+        _wl_tickers = [r["ticker"] for r in watchlist]
+        _cutoff = (datetime.now(timezone.utc) - timedelta(days=31)).strftime("%Y-%m-%d")
+
+        with _eng.begin() as _conn:
+            _snap_rows = _conn.execute(
+                _sel(
+                    _snaps.c.ticker,
+                    _snaps.c.score,
+                    _snaps.c.snapshot_date,
+                )
+                .where(_snaps.c.ticker.in_(_wl_tickers))
+                .where(_snaps.c.snapshot_date >= _cutoff)
+                .order_by(_snaps.c.snapshot_date)
+            ).fetchall()
+
+        if _snap_rows:
+            _snap_df = pd.DataFrame(_snap_rows, columns=["ticker", "score", "date"])
+            _snap_df["score"] = _snap_df["score"].astype(float)
+
+            # Daily composite = mean score across all tickers with data that day
+            _daily = (
+                _snap_df.groupby("date")["score"]
+                .mean()
+                .reset_index()
+                .sort_values("date")
+            )
+
+            # Latest composite score
+            _latest_composite = float(_daily["score"].iloc[-1]) if not _daily.empty else None
+
+            # 7-day delta for the composite
+            _7d_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+            _week_rows = _daily[_daily["date"] >= _7d_ago]
+            _composite_delta = (
+                float(_daily["score"].iloc[-1] - _week_rows["score"].iloc[0])
+                if len(_week_rows) >= 2 else None
+            )
+
+            if _latest_composite is not None:
+                _comp_case = "BULL" if _latest_composite >= 65 else ("BEAR" if _latest_composite <= 35 else "NEUTRAL")
+                _comp_color = "#00D566" if _comp_case == "BULL" else ("#FF4D6A" if _comp_case == "BEAR" else "#F59E0B")
+                _comp_label = "Bullish" if _comp_case == "BULL" else ("Bearish" if _comp_case == "BEAR" else "Neutral")
+
+                _delta_str = ""
+                if _composite_delta is not None:
+                    _dc = "#00D566" if _composite_delta >= 0 else "#FF4D6A"
+                    _da = "▲" if _composite_delta >= 0 else "▼"
+                    _delta_str = f'<span style="font-size:0.88rem;color:{_dc};font-weight:700;"> {_da} {abs(_composite_delta):.1f} <span style="font-size:0.72rem;color:#6B7A95;">7d</span></span>'
+
+                st.markdown(f"""
+                <div style="background:rgba(18,21,30,0.8);border:1px solid #1E2535;border-radius:12px;
+                            padding:16px 24px;margin-bottom:20px;display:flex;align-items:center;
+                            gap:24px;flex-wrap:wrap;">
+                  <div>
+                    <div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
+                                text-transform:uppercase;margin-bottom:4px;">Portfolio Macro Score</div>
+                    <div style="display:flex;align-items:baseline;gap:6px;">
+                      <span style="font-size:2.4rem;font-weight:900;color:{_comp_color};
+                                   text-shadow:0 0 32px {_comp_color}40;line-height:1;">{_latest_composite:.0f}</span>
+                      <span style="font-size:1rem;color:#4A5280;">/100</span>
+                      {_delta_str}
+                    </div>
+                    <div style="font-size:0.78rem;color:{_comp_color};margin-top:2px;font-weight:600;">{_comp_label} · {len(_wl_tickers)} ticker avg</div>
+                  </div>
+                  <div style="width:1px;height:56px;background:rgba(255,255,255,0.07);flex-shrink:0;"></div>
+                  <div style="flex:1;min-width:180px;" id="composite-spark"></div>
+                </div>
+                """, unsafe_allow_html=True)
+
+                # Render the sparkline in its own row right below
+                if len(_daily) >= 3:
+                    import plotly.graph_objects as _pgo
+                    _csp_fig = _pgo.Figure(_pgo.Scatter(
+                        x=_daily["date"].tolist(),
+                        y=_daily["score"].tolist(),
+                        mode="lines",
+                        line=dict(color=_comp_color, width=2),
+                        fill="tozeroy",
+                        fillcolor=f"{_comp_color}18",
+                    ))
+                    _csp_fig.update_layout(
+                        margin=dict(l=0, r=0, t=0, b=0), height=70,
+                        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                        xaxis=dict(visible=False),
+                        yaxis=dict(visible=False, range=[0, 100]),
+                        showlegend=False,
+                    )
+                    _csp_cols = st.columns([2, 3, 2])
+                    with _csp_cols[1]:
+                        st.caption("30-day composite score trend")
+                        st.plotly_chart(
+                            _csp_fig, use_container_width=True,
+                            config={"displayModeBar": False},
+                            key="composite_sparkline",
+                        )
+    except Exception:
+        pass  # composite score is best-effort; never block the watchlist render
+
     # Batched, cached (utils/quotes.py, 15 min) -- one fetch per watched
     # ticker, not per page render; the same module Stock Screener uses, so
     # price/% displays can't silently disagree between the two pages.

@@ -128,6 +128,77 @@ def _get_score_movers(days_back: int = 7) -> list[dict]:
     return results[:8]
 
 
+def _generate_watchlist_narrative(
+    items: list[dict],
+    bias: str,
+    flips: list[dict],
+) -> str | None:
+    """
+    Call Claude Haiku to write a 2-3 sentence plain-English summary of the
+    user's watchlist relative to the current macro environment.
+
+    items: [{ticker, name, score, case, delta}]
+    bias:  "Bullish" | "Bearish" | "Mixed"
+    flips: [{signal_name, from_status, to_status}]
+
+    Returns the narrative string, or None on any failure (never raises).
+    The email still sends without it if this fails.
+    """
+    import os
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key or not items:
+        return None
+
+    # Build a compact data summary for the prompt
+    ticker_lines = []
+    for it in items:
+        delta_str = f"{it['delta']:+.1f}pt 7d" if it.get("delta") is not None else "no 7d data"
+        ticker_lines.append(
+            f"  - {it['ticker']} ({it['name']}): score {it['score']:.0f}/100, "
+            f"{it['case']}, {delta_str}"
+        )
+
+    flip_lines = []
+    for f in flips[:3]:
+        flip_lines.append(
+            f"  - {f.get('signal_name', f.get('signal_id', ''))} flipped "
+            f"{f['from_status']} → {f['to_status']}"
+        )
+
+    prompt = (
+        f"Today's macro regime: {bias}.\n"
+        f"The user's watched tickers:\n" + "\n".join(ticker_lines) + "\n"
+    )
+    if flip_lines:
+        prompt += "Overnight signal flips:\n" + "\n".join(flip_lines) + "\n"
+    prompt += (
+        "\nWrite 2-3 sentences addressed directly to the user (start with 'Your') "
+        "summarising what the data above means for their specific holdings today. "
+        "Be specific — reference actual ticker names and scores. "
+        "No hype. No disclaimers. No markdown. Plain prose only."
+    )
+
+    try:
+        import anthropic
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=180,
+            system=(
+                "You are a terse, data-driven equity analyst writing a personalised morning "
+                "briefing. Write in plain English. Cite specific numbers. Never use hype or "
+                "promotional language. Never add disclaimers. No bullet points."
+            ),
+            messages=[{"role": "user", "content": prompt}],
+        )
+        narrative = response.content[0].text.strip()
+        print(f"[digest] narrative generated ({len(narrative)} chars)", flush=True)
+        return narrative
+    except Exception as exc:
+        print(f"[digest] narrative generation failed (non-blocking): {exc}", flush=True)
+        return None
+
+
 def _get_opted_in_emails() -> list[tuple[str, str, int | None]]:
     """
     Return [(email, display_name_or_email, user_id_or_None)] for:
@@ -304,14 +375,19 @@ def main() -> None:
 
     sent, failed = 0, 0
     for email_addr, _, user_id in recipients:
-        # Per-user watchlist scores (best-effort — never blocks the send)
+        # Per-user watchlist scores + AI narrative (best-effort — never blocks the send)
         watchlist_items: list[dict] = []
+        watchlist_narrative: str | None = None
         if user_id is not None and all_signal_scores:
             try:
                 tickers = _get_user_watchlist_tickers(user_id)
                 if tickers:
                     watchlist_items = _compute_watchlist_scores(tickers, all_signal_scores)
                     print(f"[digest] watchlist for user {user_id}: {tickers} → {len(watchlist_items)} scored", flush=True)
+                    if watchlist_items:
+                        watchlist_narrative = _generate_watchlist_narrative(
+                            watchlist_items, bias, flips
+                        )
             except Exception as exc:
                 print(f"[digest] watchlist score failed for user {user_id}: {exc}", flush=True)
 
@@ -326,6 +402,7 @@ def main() -> None:
                 neut_n=neut_n,
                 signal_scores=signal_scores,
                 watchlist_items=watchlist_items or None,
+                watchlist_narrative=watchlist_narrative,
             )
             sent += 1
             print(f"[digest] sent to {email_addr!r}", flush=True)
