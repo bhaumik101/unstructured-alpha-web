@@ -54,6 +54,10 @@ from utils.email import EmailSendError
 _EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _CODE_VALID_MINUTES = 15
 _REMEMBER_ME_DAYS = 30
+_MAX_FAILED_LOGINS = 5      # consecutive wrong passwords before account lockout
+_LOCKOUT_MINUTES = 15       # how long the lockout lasts
+_MAX_OTP_ATTEMPTS = 5       # wrong verification codes before code is invalidated
+_RESET_CODE_VALID_MINUTES = 15  # password reset code TTL
 
 
 def _now_iso() -> str:
@@ -70,6 +74,16 @@ class EmailNotVerifiedError(AuthError):
     account hasn't completed email verification yet -- kept as a distinct
     subclass (not just a differently-worded AuthError) so the UI can route
     to the "enter your code" screen instead of showing a generic error.
+    """
+
+
+class AccountLockedError(AuthError):
+    """
+    Raised by login() when too many consecutive wrong passwords have
+    temporarily locked the account. Kept distinct from AuthError so the UI
+    can display the lockout duration rather than a generic "wrong password"
+    message (and avoid implying the password was incorrect, which would
+    confirm to an attacker that the email is registered).
     """
 
 
@@ -181,32 +195,62 @@ def resend_verification_code(email: str) -> None:
 def verify_email(email: str, code: str) -> dict:
     """Check a verification code and, if valid, mark the account verified.
     Raises AuthError if the account doesn't exist, the code is wrong, or
-    the code has expired."""
+    the code has expired. After _MAX_OTP_ATTEMPTS wrong codes the pending
+    code is invalidated and the user must request a fresh one."""
     email = _validate_email(email)
     code = code.strip()
 
+    # Read pass — separate from the write below so failed-attempt increments
+    # aren't rolled back when we raise AuthError inside the same transaction.
     with db.engine.begin() as conn:
         row = conn.execute(select(users).where(users.c.email == email)).mappings().first()
-        if row is None:
-            raise AuthError("No account found with that email.")
-        if row["email_verified"]:
-            return {"id": row["id"], "email": row["email"]}
 
-        if not row["verification_code_hash"] or not row["verification_code_expires_at"]:
-            raise AuthError("No verification code is pending for this account. Request a new one.")
+    if row is None:
+        raise AuthError("No account found with that email.")
+    if row["email_verified"]:
+        return {"id": row["id"], "email": row["email"]}
 
-        expires_at = datetime.fromisoformat(row["verification_code_expires_at"])
-        if datetime.now(timezone.utc) > expires_at:
-            raise AuthError("That code has expired. Request a new one.")
+    if not row.get("verification_code_hash") or not row.get("verification_code_expires_at"):
+        raise AuthError("No verification code is pending for this account. Request a new one.")
 
-        if _hash_code(code) != row["verification_code_hash"]:
-            raise AuthError("Incorrect code.")
+    expires_at = datetime.fromisoformat(row["verification_code_expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise AuthError("That code has expired. Request a new one.")
 
-        conn.execute(
-            users.update().where(users.c.id == row["id"]).values(
-                email_verified=True, verification_code_hash=None, verification_code_expires_at=None,
-            )
-        )
+    attempt_count = row.get("verification_attempt_count") or 0
+
+    # Already exhausted — invalidate and tell them to start over.
+    if attempt_count >= _MAX_OTP_ATTEMPTS:
+        with db.engine.begin() as conn:
+            conn.execute(users.update().where(users.c.id == row["id"]).values(
+                verification_code_hash=None, verification_code_expires_at=None,
+                verification_attempt_count=0,
+            ))
+        raise AuthError("Too many incorrect attempts. Request a new verification code.")
+
+    if _hash_code(code) != row["verification_code_hash"]:
+        new_count = attempt_count + 1
+        if new_count >= _MAX_OTP_ATTEMPTS:
+            # This attempt exhausts the limit — invalidate the code.
+            with db.engine.begin() as conn:
+                conn.execute(users.update().where(users.c.id == row["id"]).values(
+                    verification_code_hash=None, verification_code_expires_at=None,
+                    verification_attempt_count=0,
+                ))
+            raise AuthError("Too many incorrect attempts. Request a new verification code.")
+        with db.engine.begin() as conn:
+            conn.execute(users.update().where(users.c.id == row["id"]).values(
+                verification_attempt_count=new_count,
+            ))
+        remaining = _MAX_OTP_ATTEMPTS - new_count
+        raise AuthError(f"Incorrect code. {remaining} attempt(s) remaining.")
+
+    # Code is correct — mark verified and reset counter.
+    with db.engine.begin() as conn:
+        conn.execute(users.update().where(users.c.id == row["id"]).values(
+            email_verified=True, verification_code_hash=None,
+            verification_code_expires_at=None, verification_attempt_count=0,
+        ))
 
     # Fire-and-forget welcome email — must NOT raise so a Resend hiccup never
     # prevents the user from logging in after verifying.
@@ -223,24 +267,70 @@ def verify_email(email: str, code: str) -> dict:
 
 def login(email: str, password: str) -> dict:
     """
-    Verify credentials. Raises AuthError if the email isn't registered or
-    the password is wrong; raises EmailNotVerifiedError (a subclass of
-    AuthError) specifically when the password is correct but the account
-    hasn't completed email verification.
+    Verify credentials. Raises:
+      AccountLockedError  — too many failed attempts, account temporarily locked
+      AuthError           — email not registered or wrong password
+      EmailNotVerifiedError — password correct but account not yet verified
+    On success, resets the failed-attempt counter and returns the user dict.
     """
     email = _validate_email(email)
 
+    # Read in its own transaction so the writes below aren't rolled back if
+    # we raise after them (same pattern as verify_email above).
     with db.engine.begin() as conn:
         row = conn.execute(select(users).where(users.c.email == email)).mappings().first()
 
     if row is None:
         raise AuthError("No account found with that email.")
 
+    # Check lockout BEFORE testing the password — avoids telling an attacker
+    # "your password would be wrong" even while locked.
+    locked_until_str = row.get("login_locked_until")
+    if locked_until_str:
+        unlock_time = datetime.fromisoformat(locked_until_str)
+        if datetime.now(timezone.utc) < unlock_time:
+            remaining = max(1, int((unlock_time - datetime.now(timezone.utc)).total_seconds() / 60) + 1)
+            raise AccountLockedError(
+                f"Too many failed attempts. This account is locked for another "
+                f"{remaining} minute(s). Try again later or reset your password."
+            )
+        # Lockout has expired — clear it before proceeding.
+        with db.engine.begin() as conn:
+            conn.execute(users.update().where(users.c.id == row["id"]).values(
+                login_attempt_count=0, login_locked_until=None,
+            ))
+
     if not bcrypt.checkpw(password.encode("utf-8"), row["password_hash"].encode("utf-8")):
-        raise AuthError("Incorrect password.")
+        attempt_count = (row.get("login_attempt_count") or 0) + 1
+        if attempt_count >= _MAX_FAILED_LOGINS:
+            lock_until = (
+                datetime.now(timezone.utc) + timedelta(minutes=_LOCKOUT_MINUTES)
+            ).isoformat()
+            with db.engine.begin() as conn:
+                conn.execute(users.update().where(users.c.id == row["id"]).values(
+                    login_attempt_count=0, login_locked_until=lock_until,
+                ))
+            raise AccountLockedError(
+                f"Too many failed attempts. This account is locked for "
+                f"{_LOCKOUT_MINUTES} minutes. Try again later or reset your password."
+            )
+        with db.engine.begin() as conn:
+            conn.execute(users.update().where(users.c.id == row["id"]).values(
+                login_attempt_count=attempt_count,
+            ))
+        remaining_attempts = _MAX_FAILED_LOGINS - attempt_count
+        raise AuthError(
+            f"Incorrect password. {remaining_attempts} attempt(s) remaining before lockout."
+        )
 
     if not row["email_verified"]:
         raise EmailNotVerifiedError("Please verify your email before logging in.")
+
+    # Successful login — reset the fail counter.
+    with db.engine.begin() as conn:
+        conn.execute(users.update().where(users.c.id == row["id"]).values(
+            login_attempt_count=0, login_locked_until=None,
+        ))
 
     return {"id": row["id"], "email": row["email"]}
 
@@ -297,6 +387,74 @@ def revoke_remember_token(token: str) -> None:
     doesn't invalidate a "remember me" session left active in another."""
     with db.engine.begin() as conn:
         conn.execute(remember_tokens.delete().where(remember_tokens.c.token_hash == _hash_code(token)))
+
+
+def request_password_reset(email: str) -> None:
+    """
+    Generate a 6-digit reset code, store its hash, and email it to the
+    account holder. If no account exists for that email, do nothing silently
+    — callers should always show a generic "if registered, check your email"
+    message so this can't be used to enumerate registered addresses.
+    Raises EmailSendError if Resend rejects the send (the reset code was
+    stored in DB already, so the user can still use it once email is working).
+    """
+    email = _validate_email(email)
+
+    with db.engine.begin() as conn:
+        row = conn.execute(select(users.c.id).where(users.c.email == email)).fetchone()
+        if row is None:
+            return  # silent — don't reveal whether the email is registered
+
+        code = _generate_code()
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(minutes=_RESET_CODE_VALID_MINUTES)
+        ).isoformat()
+        conn.execute(users.update().where(users.c.id == row[0]).values(
+            password_reset_code_hash=_hash_code(code),
+            password_reset_expires_at=expires_at,
+        ))
+
+    email_module.send_password_reset_email(email, code)  # raises EmailSendError on failure
+
+
+def reset_password(email: str, code: str, new_password: str) -> None:
+    """
+    Verify a password reset code and update the account's password hash.
+    Raises AuthError if the account doesn't exist, the code is wrong, or
+    the code has expired. Also clears any login lockout so a forgotten
+    password can't strand a user indefinitely.
+    """
+    email = _validate_email(email)
+    _validate_password(new_password)
+    code = code.strip()
+
+    with db.engine.begin() as conn:
+        row = conn.execute(select(users).where(users.c.email == email)).mappings().first()
+
+    if row is None:
+        raise AuthError("No account found with that email.")
+
+    if not row.get("password_reset_code_hash") or not row.get("password_reset_expires_at"):
+        raise AuthError("No password reset is pending. Request a new reset code.")
+
+    expires_at = datetime.fromisoformat(row["password_reset_expires_at"])
+    if datetime.now(timezone.utc) > expires_at:
+        raise AuthError("That reset code has expired. Request a new one.")
+
+    if _hash_code(code) != row["password_reset_code_hash"]:
+        raise AuthError("Incorrect reset code.")
+
+    new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    with db.engine.begin() as conn:
+        conn.execute(users.update().where(users.c.id == row["id"]).values(
+            password_hash=new_hash,
+            password_reset_code_hash=None,
+            password_reset_expires_at=None,
+            # Clear any lingering lockout — a successful password reset is a
+            # valid recovery path for a locked account.
+            login_attempt_count=0,
+            login_locked_until=None,
+        ))
 
 
 def set_digest_optin(user_id: int, opted_in: bool) -> None:

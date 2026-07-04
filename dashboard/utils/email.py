@@ -1410,3 +1410,87 @@ def send_referral_welcome_email(to_email: str) -> None:
     except requests.RequestException as e:
         print(f"[referral-welcome] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send referral welcome email to {to_email}: {e}") from e
+
+
+def send_password_reset_email(to_email: str, code: str) -> None:
+    """
+    Send a 6-digit password reset code to to_email. Raises EmailSendError
+    if RESEND_API_KEY isn't configured or Resend's API rejects the request.
+    """
+    api_key, from_email = _get_resend_config()
+    print(f"[password-reset] sending to={to_email!r}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0B0D12;">
+<div style="max-width:520px;margin:0 auto;background:#12151E;
+            font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
+
+  <!-- Header -->
+  <div style="background:#0f1119;padding:24px 28px;border-radius:12px 12px 0 0;
+              border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:0.60rem;color:#8892AA;letter-spacing:0.14em;
+                text-transform:uppercase;margin-bottom:4px;">
+      Unstructured Alpha
+    </div>
+    <div style="font-size:1.25rem;font-weight:700;color:#E8EEFF;">
+      Reset your password
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div style="padding:28px 32px;">
+    <p style="font-size:0.92rem;color:#B8C0D4;line-height:1.7;margin:0 0 24px;">
+      Use the code below to reset your Unstructured Alpha password.
+      It expires in <strong style="color:#E8EEFF;">15 minutes</strong>.
+    </p>
+
+    <!-- Code block -->
+    <div style="background:#0f1119;border:1px solid rgba(255,255,255,0.08);
+                border-radius:8px;padding:20px;text-align:center;margin-bottom:24px;">
+      <div style="font-size:0.62rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
+                  text-transform:uppercase;margin-bottom:12px;">
+        Your reset code
+      </div>
+      <div style="font-size:2.4rem;font-weight:800;color:#E8EEFF;letter-spacing:0.25em;
+                  font-variant-numeric:tabular-nums;">
+        {code}
+      </div>
+    </div>
+
+    <p style="font-size:0.82rem;color:#6B7A95;line-height:1.6;margin:0;">
+      If you didn't request a password reset, you can safely ignore this email —
+      your account has not been changed.
+    </p>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#0B0D12;padding:14px 28px;border-radius:0 0 12px 12px;
+              border-top:1px solid rgba(255,255,255,0.06);
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.6;">
+    Unstructured Alpha · unstructuredalpha.com · Not financial advice
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [to_email],
+                "subject": "Your Unstructured Alpha password reset code",
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[password-reset] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[password-reset] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send password reset email to {to_email}: {e}") from e

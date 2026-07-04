@@ -140,6 +140,21 @@ users = Table(
     # utils/referral.get_or_create_referral_code(). Migrated automatically via
     # the generic TEXT path in _migrate_users_table() below.
     Column("referral_code", String(16), unique=True),
+    # Login rate limiting (added 2026-07-04). Tracks consecutive failed password
+    # attempts per account. After _MAX_FAILED_LOGINS failures the account is
+    # temporarily locked for _LOCKOUT_MINUTES minutes. Both columns are reset to
+    # 0/NULL on every successful login so a real user is never permanently locked
+    # out — only a sustained brute-force run is affected. Migrated via the
+    # INTEGER path in _migrate_users_table() below.
+    Column("login_attempt_count", Integer, nullable=False, server_default="0"),
+    Column("login_locked_until", String(64)),   # ISO-8601 UTC, NULL = not locked
+    # OTP attempt counter. After _MAX_OTP_ATTEMPTS wrong codes the pending code
+    # is invalidated and the user must request a fresh one. Reset on success.
+    Column("verification_attempt_count", Integer, nullable=False, server_default="0"),
+    # Password reset (added 2026-07-04). Same hash+expiry pattern as email
+    # verification codes. Both cleared on successful reset.
+    Column("password_reset_code_hash", Text),
+    Column("password_reset_expires_at", String(64)),
 )
 
 watchlist = Table(
@@ -377,6 +392,9 @@ def _migrate_users_table() -> None:
             elif col.name == "subscription_tier":
                 # VARCHAR with default 'free' — existing users are all free tier.
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(16) DEFAULT 'free'"))
+            elif col.name in ("login_attempt_count", "verification_attempt_count"):
+                # INTEGER counters — default 0, no backfill needed.
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} INTEGER DEFAULT 0"))
             else:
                 conn.execute(text(f"ALTER TABLE users ADD COLUMN {col.name} TEXT"))
         if any(c.name == "email_verified" for c in new_cols):

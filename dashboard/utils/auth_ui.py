@@ -39,7 +39,9 @@ from streamlit_cookies_manager import CookieManager
 
 from utils.auth import (
     signup, login, verify_email, resend_verification_code, AuthError, EmailNotVerifiedError,
+    AccountLockedError,
     issue_remember_token, verify_remember_token, revoke_remember_token,
+    request_password_reset, reset_password,
 )
 from utils.email import EmailSendError
 
@@ -185,6 +187,60 @@ def _render_verification_form(cookies: CookieManager, key_prefix: str = "") -> N
             st.rerun()
 
 
+def _render_password_reset_request(key_prefix: str = "") -> None:
+    """Step 1 of password reset — collect the email address and send the code."""
+    st.info("Enter the email address for your account and we'll send a 6-digit reset code.")
+    with st.form(f"{key_prefix}reset_request_form"):
+        email = st.text_input("Email", key=f"{key_prefix}reset_email")
+        submitted = st.form_submit_button("Send reset code", type="primary", use_container_width=True)
+    if submitted:
+        if not email:
+            st.error("Enter your email address.")
+        else:
+            try:
+                request_password_reset(email)
+            except Exception:
+                pass  # silent — never reveal whether the email is registered
+            # Always show the same message to prevent email enumeration.
+            st.session_state["_reset_email"] = email.strip().lower()
+            st.session_state["_reset_step"] = "confirm"
+            st.rerun()
+    if st.button("← Back to login", key=f"{key_prefix}reset_back", use_container_width=True):
+        st.session_state.pop("_reset_step", None)
+        st.session_state.pop("_reset_email", None)
+        st.rerun()
+
+
+def _render_password_reset_confirm(key_prefix: str = "") -> None:
+    """Step 2 of password reset — enter the code and new password."""
+    email = st.session_state.get("_reset_email", "")
+    st.info(
+        f"If **{email}** is registered, a 6-digit code is on its way. "
+        "Enter it below with your new password."
+    )
+    with st.form(f"{key_prefix}reset_confirm_form"):
+        code = st.text_input("Reset code", max_chars=6, key=f"{key_prefix}reset_code")
+        new_pw = st.text_input("New password (min 8 characters)", type="password", key=f"{key_prefix}reset_new_pw")
+        new_pw2 = st.text_input("Confirm new password", type="password", key=f"{key_prefix}reset_new_pw2")
+        submitted = st.form_submit_button("Reset password", type="primary", use_container_width=True)
+    if submitted:
+        if not code or not new_pw:
+            st.error("Enter both the reset code and a new password.")
+        elif new_pw != new_pw2:
+            st.error("Passwords don't match.")
+        else:
+            try:
+                reset_password(email, code, new_pw)
+                st.success("Password updated. You can now log in with your new password.")
+                st.session_state.pop("_reset_step", None)
+                st.session_state.pop("_reset_email", None)
+            except AuthError as e:
+                st.error(str(e))
+    if st.button("← Back", key=f"{key_prefix}reset_confirm_back", use_container_width=True):
+        st.session_state["_reset_step"] = "request"
+        st.rerun()
+
+
 def render_auth_forms(cookies: CookieManager, key_prefix: str = "") -> None:
     """
     Renders the Log In / Create Account tabs (or, mid-verification, the
@@ -197,6 +253,15 @@ def render_auth_forms(cookies: CookieManager, key_prefix: str = "") -> None:
     """
     if "pending_verification_email" in st.session_state:
         _render_verification_form(cookies, key_prefix)
+        return
+
+    # Password reset flow — steps injected into session_state
+    reset_step = st.session_state.get("_reset_step")
+    if reset_step == "request":
+        _render_password_reset_request(key_prefix)
+        return
+    if reset_step == "confirm":
+        _render_password_reset_confirm(key_prefix)
         return
 
     tab_login, tab_signup = st.tabs(["Log In", "Create Account"])
@@ -225,8 +290,17 @@ def render_auth_forms(cookies: CookieManager, key_prefix: str = "") -> None:
                 except EmailNotVerifiedError:
                     st.session_state["pending_verification_email"] = email.strip().lower()
                     st.rerun()
+                except AccountLockedError as e:
+                    st.error(str(e))
                 except AuthError as e:
                     st.error(str(e))
+        if st.button(
+            "Forgot password?",
+            key=f"{key_prefix}forgot_pw",
+            use_container_width=True,
+        ):
+            st.session_state["_reset_step"] = "request"
+            st.rerun()
 
     with tab_signup:
         with st.form(f"{key_prefix}signup_form"):
