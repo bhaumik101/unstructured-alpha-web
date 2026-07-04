@@ -129,6 +129,25 @@ services:
       - key: EIA_API_KEY
         sync: false
 
+  # Nightly prediction auto-resolution cron — runs at 02:00 UTC daily.
+  # Finds pending predictions whose 4w/8w/12w forward windows have expired,
+  # fetches realized prices via yfinance, and marks them correct/incorrect.
+  # This powers the public Track Record leaderboard and per-signal accuracy stats.
+  - type: cron
+    name: unstructured-alpha-resolve-predictions
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 2 * * *"   # 02:00 UTC = 10:00 PM ET (runs overnight, off-peak)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.resolve_predictions
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
   # Twitter/X signal-flip tweet cron — runs once daily at 13:00 UTC (9:00 AM ET).
   # Computes the current macro signal state, detects flips since yesterday, and
   # tweets a briefing via @UnstructuredAlpha. Requires Twitter API v2 credentials

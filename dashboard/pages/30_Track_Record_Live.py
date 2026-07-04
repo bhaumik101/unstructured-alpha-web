@@ -41,6 +41,7 @@ from utils.theme import inject_premium_css, inject_skeleton_css, section_label
 from utils.prediction_log import (
     get_track_record,
     get_predictions_feed,
+    get_signal_accuracy_stats,
     resolve_pending,
 )
 from utils.score_history import get_high_confidence_snapshot_calls
@@ -474,7 +475,86 @@ else:
 
 st.divider()
 
-# ── Section 3: How it works ───────────────────────────────────────────────────
+# ── Section 3: Signal Accuracy Leaderboard ───────────────────────────────────
+st.markdown(section_label("Signal Accuracy Leaderboard", color=PURPLE, dot=PURPLE), unsafe_allow_html=True)
+st.caption(
+    "Which macro signals have the best track record of predicting price direction? "
+    "Aggregated from all resolved predictions where specific signals were recorded at the time of the call."
+)
+
+_sig_stats = get_signal_accuracy_stats()
+
+if not _sig_stats:
+    st.markdown(
+        '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);'
+        'border-radius:10px;padding:24px;text-align:center;color:#8892AA;font-size:0.88rem;">'
+        'Signal-level accuracy data not yet available. As predictions resolve, each signal\'s '
+        'track record will appear here automatically.'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+else:
+    def _acc_bar(val: float | None, width_px: int = 80) -> str:
+        """Tiny horizontal accuracy bar."""
+        if val is None:
+            return '<span style="color:#8892AA;font-size:0.75rem;">—</span>'
+        color  = BULL_COLOR if val >= 55 else (AMBER if val >= 45 else BEAR_COLOR)
+        filled = int(width_px * val / 100)
+        return (
+            f'<span style="font-weight:700;color:{color};font-size:0.82rem;">{val:.0f}%</span>'
+            f'<div style="margin-top:3px;background:rgba(255,255,255,0.08);'
+            f'border-radius:3px;height:4px;width:{width_px}px;">'
+            f'<div style="background:{color};width:{filled}px;height:4px;border-radius:3px;'
+            f'box-shadow:0 0 6px {color}60;"></div></div>'
+        )
+
+    # Table header
+    st.markdown(f"""
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;
+     padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px 8px 0 0;
+     border:1px solid rgba(255,255,255,0.08);border-bottom:none;margin-top:8px;">
+  <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;">Signal</div>
+  <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;text-align:center;">Predictions</div>
+  <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;text-align:center;">4w Acc.</div>
+  <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;text-align:center;">8w Acc.</div>
+  <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;text-align:center;">12w Acc.</div>
+</div>
+""", unsafe_allow_html=True)
+
+    for i, sig in enumerate(_sig_stats):
+        bg = "rgba(255,255,255,0.02)" if i % 2 == 0 else "rgba(255,255,255,0.00)"
+        border_r = "0 0 8px 8px" if i == len(_sig_stats) - 1 else "0"
+        medal = ""
+        if i == 0:
+            medal = " 🥇"
+        elif i == 1:
+            medal = " 🥈"
+        elif i == 2:
+            medal = " 🥉"
+        st.markdown(f"""
+<div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;
+     padding:10px 14px;background:{bg};border-radius:{border_r};
+     border:1px solid rgba(255,255,255,0.06);border-top:none;
+     align-items:center;">
+  <div>
+    <div style="font-size:0.84rem;font-weight:700;color:#E8EEFF;">{sig["signal_name"]}{medal}</div>
+    <div style="font-size:0.64rem;color:#8892AA;margin-top:1px;">{sig["signal_id"]}</div>
+  </div>
+  <div style="text-align:center;font-size:0.88rem;font-weight:700;color:{CYAN};">{sig["predictions"]}</div>
+  <div style="text-align:center;">{_acc_bar(sig["accuracy_4w"])}</div>
+  <div style="text-align:center;">{_acc_bar(sig["accuracy_8w"])}</div>
+  <div style="text-align:center;">{_acc_bar(sig["accuracy_12w"])}</div>
+</div>
+""", unsafe_allow_html=True)
+
+    st.caption(
+        "🟢 ≥55% · 🟡 45–55% · 🔴 <45% · "
+        "Only signals with at least one resolved prediction are shown."
+    )
+
+st.divider()
+
+# ── Section 4: How it works ───────────────────────────────────────────────────
 with st.expander("How predictions are logged — methodology and data coverage"):
     st.markdown("""
 **Prediction Log (Section 1)**

@@ -95,40 +95,42 @@ def get_convergence_events(
             bear_fresh = ticker_bear & recently_flipped_bear
 
             if len(ticker_bull) >= min_signals and bull_fresh:
-                events.append({
-                    "ticker":    ticker,
-                    "name":      meta.get("name", ticker),
-                    "direction": "bullish",
-                    "count":     len(ticker_bull),
-                    "fresh":     len(bull_fresh),
-                    "signals":   [
-                        current_scores[sid].get("name", sid)
-                        for sid in sorted(ticker_bull,
+                _bull_sorted = [
+                    sid for sid in sorted(ticker_bull,
                                           key=lambda s: -current_scores.get(s, {}).get("score", 50))
-                        if sid in current_scores
-                    ][:6],
-                    "sector": meta.get("sector", "Other"),
-                    "score":  round(
+                    if sid in current_scores
+                ][:6]
+                events.append({
+                    "ticker":     ticker,
+                    "name":       meta.get("name", ticker),
+                    "direction":  "bullish",
+                    "count":      len(ticker_bull),
+                    "fresh":      len(bull_fresh),
+                    "signal_ids": _bull_sorted,                                          # raw IDs for DB logging
+                    "signals":    [current_scores[sid].get("name", sid) for sid in _bull_sorted],
+                    "sector":     meta.get("sector", "Other"),
+                    "score":      round(
                         sum(current_scores.get(s, {}).get("score", 50) for s in ticker_bull) /
                         max(1, len(ticker_bull)), 1
                     ),
                 })
 
             if len(ticker_bear) >= min_signals and bear_fresh:
-                events.append({
-                    "ticker":    ticker,
-                    "name":      meta.get("name", ticker),
-                    "direction": "bearish",
-                    "count":     len(ticker_bear),
-                    "fresh":     len(bear_fresh),
-                    "signals":   [
-                        current_scores[sid].get("name", sid)
-                        for sid in sorted(ticker_bear,
+                _bear_sorted = [
+                    sid for sid in sorted(ticker_bear,
                                           key=lambda s: current_scores.get(s, {}).get("score", 100))
-                        if sid in current_scores
-                    ][:6],
-                    "sector": meta.get("sector", "Other"),
-                    "score":  round(
+                    if sid in current_scores
+                ][:6]
+                events.append({
+                    "ticker":     ticker,
+                    "name":       meta.get("name", ticker),
+                    "direction":  "bearish",
+                    "count":      len(ticker_bear),
+                    "fresh":      len(bear_fresh),
+                    "signal_ids": _bear_sorted,                                          # raw IDs for DB logging
+                    "signals":    [current_scores[sid].get("name", sid) for sid in _bear_sorted],
+                    "sector":     meta.get("sector", "Other"),
+                    "score":      round(
                         sum(current_scores.get(s, {}).get("score", 50) for s in ticker_bear) /
                         max(1, len(ticker_bear)), 1
                     ),
@@ -179,6 +181,7 @@ def render_convergence_events(
                 score=_ev.get("score", 50),
                 price=_px,
                 signal_count=_ev.get("count", 0),
+                signals_triggered=_ev.get("signal_ids", []),
             )
     except Exception:
         pass

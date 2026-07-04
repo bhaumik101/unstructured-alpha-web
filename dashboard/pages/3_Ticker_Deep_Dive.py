@@ -253,6 +253,7 @@ try:
             ticker=ticker_input, event_type="score_cross_bull", direction="bull",
             score=_score_val, price=_entry_px,
             signal_count=confluence.get("bull_count", 0),
+            signals_triggered=confluence.get("bull_signals", []),
         )
     elif _case_val == "BEAR" and _score_val <= 35 and _prev_score > 35:
         try:
@@ -265,6 +266,7 @@ try:
             ticker=ticker_input, event_type="score_cross_bear", direction="bear",
             score=_score_val, price=_entry_px,
             signal_count=confluence.get("bear_count", 0),
+            signals_triggered=confluence.get("bear_signals", []),
         )
 
     # Resolve pending predictions (cheap — skips if nothing is due)

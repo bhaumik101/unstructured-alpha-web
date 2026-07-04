@@ -262,6 +262,7 @@ prediction_log = Table(
     Column("correct_4w",  Integer),  # 1 / 0 / NULL
     Column("correct_8w",  Integer),
     Column("correct_12w", Integer),
+    Column("signals_triggered", Text),   # comma-separated signal IDs, e.g. "crude_inventories,gas_storage"
     Column("created_at", String(64), nullable=False),
     UniqueConstraint("ticker", "event_date", "event_type", name="uq_pred_ticker_date_type"),
 )
@@ -360,11 +361,37 @@ def _migrate_users_table() -> None:
         # subscription_tier: existing accounts default 'free' — already handled by column DEFAULT above.
 
 
+def _migrate_prediction_log_table() -> None:
+    """
+    Idempotent ALTER TABLE for any column present in the prediction_log
+    Table definition but missing from the real database.  Same inspect()
+    pattern as _migrate_users_table() above.
+
+    Currently handles:
+      signals_triggered TEXT  — added 2026-07 to enable per-signal accuracy.
+                                Existing rows get NULL (unknown signals).
+    """
+    inspector = inspect(engine)
+    if "prediction_log" not in inspector.get_table_names():
+        return  # brand new database — create_all() already made the table with every column
+
+    existing_cols = {c["name"] for c in inspector.get_columns("prediction_log")}
+    new_cols = [c for c in prediction_log.columns if c.name not in existing_cols]
+    if not new_cols:
+        return
+
+    with engine.begin() as conn:
+        for col in new_cols:
+            # All additive columns are nullable TEXT — no backfill needed.
+            conn.execute(text(f"ALTER TABLE prediction_log ADD COLUMN {col.name} TEXT"))
+
+
 def init_db() -> None:
     """Create every table if it doesn't already exist, then apply any
     pending column migrations. Safe to call on every page load."""
     metadata.create_all(engine)
     _migrate_users_table()
+    _migrate_prediction_log_table()
 
 
 # Probability that any single page load triggers run_periodic_maintenance()

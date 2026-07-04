@@ -36,11 +36,12 @@ from utils.db import prediction_log, system_notifications, upsert_stmt
 
 def log_prediction(
     ticker: str,
-    event_type: str,        # "convergence" | "score_cross_bull" | "score_cross_bear"
-    direction: str,         # "bull" | "bear"
+    event_type: str,              # "convergence" | "score_cross_bull" | "score_cross_bear"
+    direction: str,               # "bull" | "bear"
     score: float,
     price: float | None,
     signal_count: int = 0,
+    signals_triggered: list[str] | None = None,   # e.g. ["crude_inventories", "gas_storage"]
 ) -> bool:
     """
     Log one prediction. Returns True if a new row was inserted, False if
@@ -51,6 +52,7 @@ def log_prediction(
     """
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     now_iso = datetime.now(timezone.utc).isoformat()
+    signals_str = ",".join(signals_triggered) if signals_triggered else None
 
     try:
         stmt = upsert_stmt(prediction_log, ["ticker", "event_date", "event_type"]).values(
@@ -62,6 +64,7 @@ def log_prediction(
             price_at_event=price,
             event_date=today,
             status="pending",
+            signals_triggered=signals_str,
             created_at=now_iso,
         )
         # ON CONFLICT DO NOTHING — don't overwrite an existing prediction
@@ -76,6 +79,7 @@ def log_prediction(
                 price_at_event=price,
                 event_date=today,
                 status="pending",
+                signals_triggered=signals_str,
                 created_at=now_iso,
             ).on_conflict_do_nothing(
                 index_elements=["ticker", "event_date", "event_type"]
@@ -91,6 +95,7 @@ def log_prediction(
                 price_at_event=price,
                 event_date=today,
                 status="pending",
+                signals_triggered=signals_str,
                 created_at=now_iso,
             ).on_conflict_do_nothing(
                 index_elements=["ticker", "event_date", "event_type"]
@@ -389,6 +394,72 @@ def get_predictions_feed(
         return [dict(r) for r in rows]
     except Exception:
         return []
+
+
+def get_signal_accuracy_stats() -> list[dict]:
+    """
+    Break down prediction accuracy by individual signal.
+
+    Only considers rows where signals_triggered is not NULL and status='resolved'.
+    Parses the comma-separated signal IDs, then aggregates correct/total per signal
+    at each horizon (4w / 8w / 12w).
+
+    Returns a list of dicts sorted by 12w accuracy descending:
+        [
+            {
+                "signal_id":    str,
+                "signal_name":  str,         # human-readable name from SIGNALS config
+                "predictions":  int,         # total resolved predictions this signal appeared in
+                "accuracy_4w":  float|None,  # % correct at 4-week horizon
+                "accuracy_8w":  float|None,
+                "accuracy_12w": float|None,
+            },
+            ...
+        ]
+    """
+    from utils.config import SIGNALS
+
+    try:
+        with db.engine.begin() as conn:
+            rows = conn.execute(
+                select(prediction_log)
+                .where(prediction_log.c.status == "resolved")
+                .where(prediction_log.c.signals_triggered.isnot(None))
+            ).mappings().all()
+    except Exception:
+        return []
+
+    # Accumulate per signal: {sig_id: {correct_4w: [], correct_8w: [], correct_12w: []}}
+    buckets: dict[str, dict[str, list[int]]] = {}
+
+    for row in rows:
+        sig_ids = [s.strip() for s in (row["signals_triggered"] or "").split(",") if s.strip()]
+        for sig_id in sig_ids:
+            if sig_id not in buckets:
+                buckets[sig_id] = {"c4": [], "c8": [], "c12": []}
+            if row.get("correct_4w") is not None:
+                buckets[sig_id]["c4"].append(int(row["correct_4w"]))
+            if row.get("correct_8w") is not None:
+                buckets[sig_id]["c8"].append(int(row["correct_8w"]))
+            if row.get("correct_12w") is not None:
+                buckets[sig_id]["c12"].append(int(row["correct_12w"]))
+
+    results = []
+    for sig_id, d in buckets.items():
+        counts = max(len(d["c4"]), len(d["c8"]), len(d["c12"]))
+        acc = lambda lst: round(100 * sum(lst) / len(lst), 1) if lst else None
+        results.append({
+            "signal_id":    sig_id,
+            "signal_name":  SIGNALS.get(sig_id, {}).get("name", sig_id),
+            "predictions":  counts,
+            "accuracy_4w":  acc(d["c4"]),
+            "accuracy_8w":  acc(d["c8"]),
+            "accuracy_12w": acc(d["c12"]),
+        })
+
+    # Sort by 12w accuracy desc, then prediction count desc
+    results.sort(key=lambda r: (-(r["accuracy_12w"] or 0), -r["predictions"]))
+    return results
 
 
 def get_recent_notifications(limit: int = 20) -> list[dict]:
