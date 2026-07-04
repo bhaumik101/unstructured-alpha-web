@@ -262,8 +262,10 @@ def check_and_sync_subscription(user_id: int) -> str:
     _, sub_id = get_stripe_ids(user_id)
 
     if not sub_id:
-        # No subscription on record — definitely free.
-        return "free"
+        # No Stripe subscription on record. Could be an admin-granted Pro
+        # account (no Stripe sub exists) or a checkout where the sub_id
+        # wasn't stored. Trust the DB tier rather than hard-coding "free".
+        return get_user_tier(user_id)
 
     try:
         sub = stripe.Subscription.retrieve(sub_id)

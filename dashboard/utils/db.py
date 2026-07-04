@@ -140,6 +140,10 @@ users = Table(
     # utils/referral.get_or_create_referral_code(). Migrated automatically via
     # the generic TEXT path in _migrate_users_table() below.
     Column("referral_code", String(16), unique=True),
+    # Display name (added 2026-07-04). Optional friendly name shown in the profile
+    # page and the top-right account widget. NULL = user hasn't set one yet;
+    # UI falls back to the email prefix. Migrated via the generic TEXT path.
+    Column("display_name", String(64)),
     # Login rate limiting (added 2026-07-04). Tracks consecutive failed password
     # attempts per account. After _MAX_FAILED_LOGINS failures the account is
     # temporarily locked for _LOCKOUT_MINUTES minutes. Both columns are reset to

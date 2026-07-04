@@ -55,6 +55,7 @@ pg = st.navigation(
         "Watchlist": [
             st.Page("pages/10_Watchlist.py",        title="My Watchlist"),
             st.Page("pages/14_Stock_Chart.py",      title="Stock Viewer"),
+            st.Page("pages/32_Profile.py",          title="My Profile"),
         ],
         "Daily Intel": [
             st.Page("pages/2_Today_Digest.py",       title="Today's Brief"),

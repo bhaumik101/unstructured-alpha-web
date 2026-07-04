@@ -457,6 +457,45 @@ def reset_password(email: str, code: str, new_password: str) -> None:
         ))
 
 
+def change_password(user_id: int, current_password: str, new_password: str) -> None:
+    """
+    Verify current_password and update to new_password for the given user.
+    Raises AuthError on wrong current password, or if new password is too short.
+    Used by the Profile page for in-session password changes (no email code needed).
+    """
+    _validate_password(new_password)
+
+    with db.engine.begin() as conn:
+        row = conn.execute(
+            select(users.c.password_hash).where(users.c.id == user_id)
+        ).fetchone()
+
+    if row is None:
+        raise AuthError("Account not found.")
+    if not bcrypt.checkpw(current_password.encode("utf-8"), row[0].encode("utf-8")):
+        raise AuthError("Current password is incorrect.")
+
+    new_hash = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    with db.engine.begin() as conn:
+        conn.execute(users.update().where(users.c.id == user_id).values(password_hash=new_hash))
+
+
+def get_full_profile(user_id: int) -> dict | None:
+    """Return all profile fields for a user, or None if not found."""
+    with db.engine.begin() as conn:
+        row = conn.execute(select(users).where(users.c.id == user_id)).mappings().first()
+    if row is None:
+        return None
+    return dict(row)
+
+
+def update_display_name(user_id: int, display_name: str) -> None:
+    """Save or clear the display name for a user."""
+    name = display_name.strip()[:64] if display_name else None
+    with db.engine.begin() as conn:
+        conn.execute(users.update().where(users.c.id == user_id).values(display_name=name))
+
+
 def set_digest_optin(user_id: int, opted_in: bool) -> None:
     """Toggle the morning digest opt-in for a user."""
     with db.engine.begin() as conn:
