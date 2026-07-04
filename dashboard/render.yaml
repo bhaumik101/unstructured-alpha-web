@@ -164,6 +164,32 @@ services:
       - key: EIA_API_KEY
         sync: false
 
+  # Score-movement email cron — runs once daily at 15:30 UTC (11:30 AM ET).
+  # For every verified watchlist user, computes current Confluence Score for each
+  # watched ticker and compares against last_score_emailed in alert_state. Any
+  # ticker that moved ±10+ points since the last emailed baseline triggers a
+  # batched notification email. Baseline is updated after each alert so subsequent
+  # checks measure movement from the new level, not the original one. First-run
+  # for a ticker sets the baseline silently with no email.
+  - type: cron
+    name: unstructured-alpha-score-moved
+    runtime: python
+    rootDir: dashboard
+    schedule: "30 15 * * *"   # 15:30 UTC = 11:30 AM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_score_moved
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
   # Twitter/X signal-flip tweet cron — runs once daily at 13:00 UTC (9:00 AM ET).
   # Computes the current macro signal state, detects flips since yesterday, and
   # tweets a briefing via @UnstructuredAlpha. Requires Twitter API v2 credentials

@@ -186,6 +186,14 @@ alert_state = Table(
     Column("last_short_interest_status", String(32)),
     Column("last_13f_status", String(32)),
     Column("last_checked_at", String(64)),
+    # Score baseline for the score-moved email cron (added 2026-07-04).
+    # Tracks the last confluence score AT THE TIME a score-moved email was sent
+    # (or when the ticker was first checked by that cron). Kept separate from
+    # last_score (which the hourly threshold-crossing cron refreshes on every
+    # run) so the daily score-moved cron can see true multi-day deltas rather
+    # than always comparing against a score that was just updated an hour ago.
+    # NULL = ticker has never been checked by the score-moved cron yet.
+    Column("last_score_emailed", Float),
     UniqueConstraint("user_id", "ticker", name="uq_alert_state_user_ticker"),
 )
 
@@ -433,12 +441,38 @@ def _migrate_prediction_log_table() -> None:
             conn.execute(text(f"ALTER TABLE prediction_log ADD COLUMN {col.name} TEXT"))
 
 
+def _migrate_alert_state_table() -> None:
+    """
+    Idempotent ALTER TABLE for any column present in the alert_state Table
+    definition but missing from the real database.
+
+    Currently handles:
+      last_score_emailed FLOAT  — added 2026-07-04 for the score-moved email
+                                  cron. NULL on existing rows (first cron run
+                                  will initialise the baseline without alerting).
+    """
+    inspector = inspect(engine)
+    if "alert_state" not in inspector.get_table_names():
+        return  # brand new database — create_all() already made the table with every column
+
+    existing_cols = {c["name"] for c in inspector.get_columns("alert_state")}
+    new_cols = [c for c in alert_state.columns if c.name not in existing_cols]
+    if not new_cols:
+        return
+
+    with engine.begin() as conn:
+        for col in new_cols:
+            # All additive columns in alert_state are nullable numerics — no backfill.
+            conn.execute(text(f"ALTER TABLE alert_state ADD COLUMN {col.name} FLOAT"))
+
+
 def init_db() -> None:
     """Create every table if it doesn't already exist, then apply any
     pending column migrations. Safe to call on every page load."""
     metadata.create_all(engine)
     _migrate_users_table()
     _migrate_prediction_log_table()
+    _migrate_alert_state_table()
 
 
 # Probability that any single page load triggers run_periodic_maintenance()

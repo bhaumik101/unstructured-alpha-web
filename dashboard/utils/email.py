@@ -1494,3 +1494,169 @@ def send_password_reset_email(to_email: str, code: str) -> None:
     except requests.RequestException as e:
         print(f"[password-reset] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send password reset email to {to_email}: {e}") from e
+
+
+def send_score_moved_email(to_email: str, moved: list[dict]) -> None:
+    """
+    Notify a user that one or more of their watched tickers has seen a
+    meaningful confluence-score shift.
+
+    ``moved`` is a list of dicts, each with:
+        ticker        str   — e.g. "NVDA"
+        old_score     float — last emailed baseline score
+        new_score     float — current score
+        delta         float — new_score - old_score (signed)
+
+    Raises EmailSendError if RESEND_API_KEY is missing or the send fails.
+    """
+    if not moved:
+        return
+
+    api_key, from_email = _get_resend_config()
+    print(
+        f"[score-moved] sending to={to_email!r} tickers={[m['ticker'] for m in moved]}",
+        flush=True,
+    )
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    def _score_color(score: float) -> str:
+        if score >= 65:
+            return "#00D566"
+        if score <= 35:
+            return "#FF4D6A"
+        return "#F59E0B"
+
+    def _delta_arrow(delta: float) -> str:
+        return "▲" if delta > 0 else "▼"
+
+    def _delta_color(delta: float) -> str:
+        return "#00D566" if delta > 0 else "#FF4D6A"
+
+    # Build one row per ticker
+    rows_html = ""
+    for m in moved:
+        ticker    = m["ticker"]
+        old_s     = m["old_score"]
+        new_s     = m["new_score"]
+        delta     = m["delta"]
+        arrow     = _delta_arrow(delta)
+        acol      = _delta_color(delta)
+        ncol      = _score_color(new_s)
+        direction = "bullish" if delta > 0 else "bearish"
+        rows_html += f"""
+    <tr>
+      <td style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);vertical-align:middle;">
+        <div style="font-size:1rem;font-weight:700;color:#E8EEFF;">{ticker}</div>
+        <div style="font-size:0.72rem;color:#8892AA;margin-top:2px;text-transform:capitalize;">{direction}</div>
+      </td>
+      <td style="padding:14px 8px;border-bottom:1px solid rgba(255,255,255,0.06);
+                 text-align:right;vertical-align:middle;">
+        <span style="font-size:0.88rem;color:#6B7A95;">{old_s:.0f}</span>
+      </td>
+      <td style="padding:14px 8px;border-bottom:1px solid rgba(255,255,255,0.06);
+                 text-align:center;vertical-align:middle;">
+        <span style="font-size:1rem;color:{acol};font-weight:700;">{arrow} {abs(delta):.0f}</span>
+      </td>
+      <td style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);
+                 text-align:right;vertical-align:middle;">
+        <span style="font-size:1.1rem;font-weight:800;color:{ncol};">{new_s:.0f}</span>
+      </td>
+    </tr>"""
+
+    count = len(moved)
+    subject_ticker = moved[0]["ticker"] if count == 1 else f"{count} watched tickers"
+    subject = f"Score alert: {subject_ticker} moved significantly"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0B0D12;">
+<div style="max-width:520px;margin:0 auto;background:#12151E;
+            font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
+
+  <!-- Header -->
+  <div style="background:#0f1119;padding:22px 28px 18px;border-radius:12px 12px 0 0;
+              border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div style="font-size:0.60rem;color:#8892AA;letter-spacing:0.14em;
+                text-transform:uppercase;margin-bottom:4px;">
+      Unstructured Alpha · Watchlist
+    </div>
+    <div style="font-size:1.2rem;font-weight:700;color:#E8EEFF;">
+      Confluence Score Movement
+    </div>
+    <div style="font-size:0.82rem;color:#8892AA;margin-top:4px;">
+      {count} ticker{'s' if count != 1 else ''} moved ±10+ points since your last alert
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div style="padding:20px 28px 8px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:left;">Ticker</th>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:right;">Previous</th>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:center;">Change</th>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:right;">Now</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Score legend -->
+  <div style="padding:16px 28px 20px;">
+    <div style="background:#0f1119;border:1px solid rgba(255,255,255,0.06);
+                border-radius:8px;padding:12px 16px;
+                font-size:0.75rem;color:#6B7A95;line-height:1.7;">
+      <span style="color:#00D566;font-weight:700;">≥ 65</span> Bullish &nbsp;·&nbsp;
+      <span style="color:#F59E0B;font-weight:700;">35–65</span> Neutral &nbsp;·&nbsp;
+      <span style="color:#FF4D6A;font-weight:700;">≤ 35</span> Bearish &nbsp;·&nbsp;
+      Score = 0–100
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div style="padding:4px 28px 24px;text-align:center;">
+    <a href="https://unstructuredalpha.com/Watchlist"
+       style="display:inline-block;background:linear-gradient(135deg,#00C8E0,#7C3AED);
+              color:#FFFFFF;padding:12px 32px;border-radius:8px;
+              text-decoration:none;font-size:0.90rem;font-weight:700;">
+      View Watchlist →
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#0B0D12;padding:14px 28px;border-radius:0 0 12px 12px;
+              border-top:1px solid rgba(255,255,255,0.06);
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.6;">
+    Unstructured Alpha · unstructuredalpha.com<br>
+    Not financial advice. Confluence Score is a statistical composite from public data.
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[score-moved] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[score-moved] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send score-moved email to {to_email}: {e}") from e
