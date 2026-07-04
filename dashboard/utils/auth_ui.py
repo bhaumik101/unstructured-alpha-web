@@ -241,7 +241,8 @@ def render_auth_forms(cookies: CookieManager, key_prefix: str = "") -> None:
                 st.error("Passwords don't match.")
             else:
                 try:
-                    signup(email, password)
+                    _ref = st.query_params.get("ref", "")
+                    signup(email, password, ref_code=_ref)
                     st.session_state["pending_verification_email"] = email.strip().lower()
                     st.rerun()
                 except EmailSendError as e:

@@ -135,6 +135,11 @@ users = Table(
     # the user's subscription_tier == "pro". NULL means no webhook configured.
     # Migrated automatically by _migrate_users_table() via the generic TEXT path.
     Column("webhook_url", String(512)),
+    # Referral code (added 2026-07-04). Unique 8-char alphanumeric code used to
+    # build shareable referral links. Generated lazily on first request via
+    # utils/referral.get_or_create_referral_code(). Migrated automatically via
+    # the generic TEXT path in _migrate_users_table() below.
+    Column("referral_code", String(16), unique=True),
 )
 
 watchlist = Table(
@@ -311,6 +316,26 @@ notification_reads = Table(
     Column("notification_id", Integer, ForeignKey("system_notifications.id"), nullable=False),
     Column("read_at", String(64), nullable=False),
     UniqueConstraint("user_id", "notification_id", name="uq_notif_read"),
+)
+
+
+# Referral Program (added 2026-07-04). Tracks referral relationships from
+# signup through conversion to reward. One row per referee email — a user
+# can only be referred once. Status lifecycle: pending → converted → rewarded.
+#   pending   — referee signed up via referral link but hasn't subscribed yet
+#   converted — referee started a paid Pro subscription
+#   rewarded  — referrer received their 1-month free coupon via Stripe
+# Brand-new table, so plain create_all() is sufficient (no ALTER needed).
+referrals = Table(
+    "referrals", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("referrer_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("referee_email", String(255), nullable=False, unique=True),
+    Column("referee_id", Integer, ForeignKey("users.id")),   # filled in on conversion
+    Column("status", String(16), nullable=False, server_default="'pending'"),
+    Column("created_at", String(64), nullable=False),
+    Column("converted_at", String(64)),
+    Column("rewarded_at", String(64)),
 )
 
 

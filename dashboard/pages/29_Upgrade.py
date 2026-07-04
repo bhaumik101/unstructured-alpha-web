@@ -217,6 +217,11 @@ user    = try_restore_session(cookies)
 params = st.query_params
 stripe_session_id = params.get("stripe_session_id", "")
 
+# Referral code from ?ref= param — gives the referred user a 14-day trial
+# instead of the default 7-day trial.
+_ref_code   = params.get("ref", "")
+_trial_days = 14 if _ref_code else 7
+
 if stripe_session_id:
     if not user:
         st.error("Session expired. Please log in again.")
@@ -371,6 +376,71 @@ if user:
                 else:
                     st.warning("Subscription no longer active — downgraded to Free.")
                     st.rerun()
+
+        # ── Referral section (Pro users only) ────────────────────────────────
+        st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+        try:
+            from utils.referral import get_referral_stats
+            _ref_stats = get_referral_stats(user["id"])
+            _ref_link  = _ref_stats["link"]
+            _ref_code_display = _ref_stats["code"]
+            _ref_referred  = _ref_stats["total_referred"]
+            _ref_converted = _ref_stats["total_converted"]
+            _ref_earned    = _ref_stats["months_earned"]
+
+            st.markdown(f"""
+            <div style="background:linear-gradient(135deg,rgba(124,58,237,0.10),rgba(0,200,224,0.05));
+                        border:1px solid rgba(124,58,237,0.28);border-radius:14px;
+                        padding:24px 28px;font-family:Inter,sans-serif;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+                    <span style="font-size:1.4rem;">🔗</span>
+                    <span style="font-size:1.0rem;font-weight:800;color:#E8EEFF;">
+                        Refer a friend — earn a free month
+                    </span>
+                </div>
+                <div style="font-size:0.82rem;color:#8892B0;margin-bottom:16px;line-height:1.6;">
+                    Share your link. When a friend signs up and goes Pro,
+                    <strong style="color:#E8EEFF;">you get one free month</strong> added to your subscription.
+                    They get a <strong style="color:#00D566;">14-day free trial</strong> instead of 7.
+                </div>
+                <div style="background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.08);
+                            border-radius:8px;padding:10px 14px;font-family:monospace;
+                            font-size:0.80rem;color:#A78BFA;word-break:break-all;margin-bottom:12px;">
+                    {_ref_link}
+                </div>
+                <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:4px;">
+                    <div style="text-align:center;">
+                        <div style="font-size:1.4rem;font-weight:900;color:#E8EEFF;">
+                            {_ref_referred}
+                        </div>
+                        <div style="font-size:0.70rem;color:#4A5063;font-weight:600;
+                                    letter-spacing:0.07em;text-transform:uppercase;">Referred</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:1.4rem;font-weight:900;color:#00D566;">
+                            {_ref_converted}
+                        </div>
+                        <div style="font-size:0.70rem;color:#4A5063;font-weight:600;
+                                    letter-spacing:0.07em;text-transform:uppercase;">Converted</div>
+                    </div>
+                    <div style="text-align:center;">
+                        <div style="font-size:1.4rem;font-weight:900;color:#A78BFA;">
+                            {_ref_earned}
+                        </div>
+                        <div style="font-size:0.70rem;color:#4A5063;font-weight:600;
+                                    letter-spacing:0.07em;text-transform:uppercase;">Months earned</div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Copy-link button (uses Streamlit's clipboard mechanism via st.code)
+            st.code(_ref_link, language=None)
+            st.caption("👆 Click the copy icon to copy your referral link.")
+
+        except Exception as _ref_err:
+            pass  # never block the Pro dashboard over a referral lookup error
+
         st.stop()
 
 # ── State 3: Pricing Page ─────────────────────────────────────────────────────
@@ -398,7 +468,7 @@ st.markdown(f"""
         <div class="value-label">Alternative signals</div>
     </div>
     <div class="value-item ua-kpi-animate">
-        <div class="value-num" style="color:{GREEN};">7</div>
+        <div class="value-num" style="color:{GREEN};">{_trial_days}</div>
         <div class="value-label">Day free trial</div>
     </div>
     <div class="value-item ua-kpi-animate">
@@ -530,8 +600,8 @@ with col_pro:
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
 # ── CTA ────────────────────────────────────────────────────────────────────────
-trial_copy = "7-day free trial included — $0 charged today"
-btn_label  = f"🔓  Start Free Trial  →  then {monthly_price}/mo" + (" · $192/yr" if plan == "annual" else "")
+trial_copy = f"{_trial_days}-day free trial included — $0 charged today"
+btn_label  = f"🔓  Start {_trial_days}-Day Free Trial  →  then {monthly_price}/mo" + (" · $192/yr" if plan == "annual" else "")
 
 st.markdown(f"""
 <div class="trial-bar">
@@ -580,6 +650,7 @@ else:
                     success_url=success_url,
                     cancel_url=cancel_url,
                     plan=plan,
+                    trial_days=_trial_days,
                 )
                 st.markdown(
                     f'<meta http-equiv="refresh" content="0; url={checkout_url}">',
@@ -813,7 +884,7 @@ st.markdown("<div style='height:32px'></div>", unsafe_allow_html=True)
 _, col, _ = st.columns([0.5, 1.2, 0.5])
 with col:
     if st.button(
-        f"Start 7-Day Free Trial — {monthly_price}/mo after",
+        f"Start {_trial_days}-Day Free Trial — {monthly_price}/mo after",
         type="primary",
         use_container_width=True,
         key="bottom_cta_btn",
@@ -830,6 +901,7 @@ with col:
                     success_url=success_url,
                     cancel_url=cancel_url,
                     plan=plan,
+                    trial_days=_trial_days,
                 )
                 st.markdown(
                     f'<meta http-equiv="refresh" content="0; url={checkout_url}">',

@@ -107,7 +107,7 @@ def _issue_verification_code(conn, user_id: int, email: str) -> None:
     email_module.send_verification_email(email, code)  # may raise EmailSendError -- caller decides how to handle
 
 
-def signup(email: str, password: str) -> dict:
+def signup(email: str, password: str, ref_code: str = "") -> dict:
     """
     Create a new account and email it a verification code. The account
     exists in the database immediately but login() will raise
@@ -116,6 +116,10 @@ def signup(email: str, password: str) -> dict:
     EmailSendError if Resend isn't configured / rejects the send (the
     account is still created in that case -- resend_verification_code()
     can retry once email sending is fixed, rather than losing the signup).
+
+    ref_code: optional referral code from ?ref= query param. If valid,
+    records the referral relationship so the referrer can earn their reward
+    when this user converts to Pro.
 
     The account-creation transaction and the code-issuing-and-emailing step
     below are DELIBERATELY two separate `with db.engine.begin()` blocks,
@@ -146,6 +150,15 @@ def signup(email: str, password: str) -> dict:
 
     with db.engine.begin() as conn:
         _issue_verification_code(conn, user_id, email)
+
+    # Record referral relationship if a valid ref_code was supplied.
+    # Best-effort — never blocks signup on failure.
+    if ref_code:
+        try:
+            from utils.referral import record_referral_signup
+            record_referral_signup(email, ref_code)
+        except Exception:
+            pass
 
     return {"id": user_id, "email": email}
 

@@ -128,12 +128,14 @@ def create_checkout_session(
     success_url: str,
     cancel_url: str,
     plan: str = "monthly",
+    trial_days: int = 7,
 ) -> str:
     """
     Create a Stripe Checkout Session for the Pro subscription and return the
     hosted checkout URL. The caller redirects the user there.
 
-    plan: "monthly" ($20/mo) or "annual" ($192/yr)
+    plan:       "monthly" ($20/mo) or "annual" ($192/yr)
+    trial_days: free trial length in days (default 7; pass 14 for referred users)
     success_url must contain {CHECKOUT_SESSION_ID} which Stripe substitutes
     with the actual session ID on redirect (used by handle_checkout_success).
     """
@@ -147,7 +149,7 @@ def create_checkout_session(
         metadata={"ua_user_id": str(user_id)},
         subscription_data={
             "metadata": {"ua_user_id": str(user_id)},
-            "trial_period_days": 7,   # 7-day free trial — easy to remove later
+            "trial_period_days": trial_days,
         },
         allow_promotion_codes=True,
         billing_address_collection="auto",
@@ -191,6 +193,21 @@ def handle_checkout_success(session_id: str, user_id: int) -> dict:
 
         sub_id = sub["id"] if sub else ""
         set_user_tier(user_id, "pro", customer_id=customer_id, subscription_id=sub_id)
+
+        # If this user was referred, mark their referral as converted and
+        # trigger the referrer's 1-month-free reward (best-effort).
+        try:
+            from utils.db import engine as _engine, users as _users
+            from sqlalchemy import select as _select
+            with _engine.connect() as _conn:
+                _row = _conn.execute(
+                    _select(_users.c.email).where(_users.c.id == user_id)
+                ).fetchone()
+            if _row:
+                from utils.referral import mark_referral_converted
+                mark_referral_converted(_row[0], referee_user_id=user_id)
+        except Exception as exc:
+            logger.warning("mark_referral_converted failed for user %s: %s", user_id, exc)
 
         # Auto-opt into morning digest and record trial end date.
         # New Pro users get digest by default — they can turn it off in settings.
