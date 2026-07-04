@@ -671,6 +671,38 @@ if section == "Overview":
     else:
         st.caption(f"Sector percentile not yet available for {ticker_input}: {_sector_pct['error']}.")
 
+    # ── Similar Tickers in Sector ─────────────────────────────────────────────────
+    # Reuses peer_scores already fetched by compute_sector_percentile() above --
+    # zero extra DB hits or API calls. Up to 4 peers shown as clickable cards.
+    if _sector_pct.get("error") is None and _sector_pct.get("peer_scores"):
+        st.markdown(
+            section_label("Similar Tickers in This Sector", color="#6B7FBF", dot="#6B7FBF"),
+            unsafe_allow_html=True,
+        )
+        _peers_to_show = _sector_pct["peer_scores"][:4]
+        _pcols = st.columns(len(_peers_to_show))
+        for _pi, _peer in enumerate(_peers_to_show):
+            _pt   = _peer["ticker"]
+            _ps   = _peer["score"]
+            _pa   = _peer["as_of"]
+            _pc   = "#00D566" if _ps >= 65 else ("#FF4444" if _ps <= 35 else "#6B7FBF")
+            _pn   = TICKERS.get(_pt, {}).get("name", _pt)
+            with _pcols[_pi]:
+                st.markdown(
+                    f'<div style="background:rgba(107,127,191,0.08);border:1px solid rgba(107,127,191,0.20);'
+                    f'border-radius:8px;padding:12px 14px;text-align:center;margin-bottom:6px;">'
+                    f'<div style="font-size:1.05rem;font-weight:800;color:#E8EEFF;font-family:Inter,sans-serif;">{_pt}</div>'
+                    f'<div style="font-size:0.72rem;color:#8892AA;margin-bottom:5px;white-space:nowrap;'
+                    f'overflow:hidden;text-overflow:ellipsis;" title="{_pn}">{_pn}</div>'
+                    f'<div style="font-size:1.5rem;font-weight:900;color:{_pc};line-height:1.1;">{_ps:.0f}</div>'
+                    f'<div style="font-size:0.68rem;color:#6B7A95;margin-top:2px;">score · {_pa}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True,
+                )
+                if st.button(f"Explore {_pt} →", key=f"peer_nav_{_pt}", use_container_width=True):
+                    st.session_state.selected_ticker = _pt
+                    st.rerun()
+
     st.divider()
 
     # ── Price Chart ───────────────────────────────────────────────────────────────

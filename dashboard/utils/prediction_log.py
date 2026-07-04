@@ -499,3 +499,53 @@ def mark_all_read(user_id: int) -> None:
                     )
     except Exception:
         pass
+
+
+def get_resolver_health() -> dict:
+    """
+    Diagnostic snapshot for the prediction resolver — used by the Track Record
+    Live page to surface how the nightly cron is performing.
+
+    Returns:
+        {
+            "pending_total":          int,   -- all pending predictions
+            "overdue_pending":        int,   -- pending where event_date ≤ 4 weeks ago
+                                               (should have been resolved already)
+            "last_resolved_date":     str | None,  -- event_date of most recently
+                                                      resolved prediction (best proxy
+                                                      for "when did resolver last run"
+                                                      since there's no resolved_at col)
+            "recently_resolved_7d":   int,   -- resolved rows with event_date in last 7 days
+                                               (quick proxy for resolver activity)
+        }
+
+    Never raises. Returns zero-filled dict on any DB error.
+    """
+    four_weeks_ago = (datetime.now(timezone.utc) - timedelta(weeks=4)).strftime("%Y-%m-%d")
+    seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    try:
+        with db.engine.begin() as conn:
+            rows = conn.execute(select(db.prediction_log)).mappings().all()
+        rows = [dict(r) for r in rows]
+    except Exception:
+        return {"pending_total": 0, "overdue_pending": 0,
+                "last_resolved_date": None, "recently_resolved_7d": 0}
+
+    pending  = [r for r in rows if r["status"] == "pending"]
+    resolved = [r for r in rows if r["status"] == "resolved"]
+
+    overdue = [r for r in pending if r["event_date"] <= four_weeks_ago]
+
+    last_resolved_date = None
+    if resolved:
+        last_resolved_date = max(r["event_date"] for r in resolved)
+
+    recently_resolved = [r for r in resolved if r["event_date"] >= seven_days_ago]
+
+    return {
+        "pending_total":        len(pending),
+        "overdue_pending":      len(overdue),
+        "last_resolved_date":   last_resolved_date,
+        "recently_resolved_7d": len(recently_resolved),
+    }

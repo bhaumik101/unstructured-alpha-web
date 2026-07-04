@@ -1008,6 +1008,78 @@ with _pro_col2:
 
 st.divider()
 
+# ── REFERRAL BANNER ───────────────────────────────────────────────────────────
+# Non-blocking: anonymous visitors skip entirely; errors never surface to user.
+try:
+    from utils.auth_ui import get_cookies, try_restore_session
+    from utils.billing import get_user_tier
+    from utils.referral import get_referral_stats
+
+    _ref_cookies = get_cookies()
+    _ref_user    = try_restore_session(_ref_cookies)
+
+    if _ref_user:
+        _ref_tier  = get_user_tier(_ref_user["id"])
+        _ref_stats = get_referral_stats(_ref_user["id"])
+        _ref_link  = _ref_stats["link"]
+
+        if _ref_tier == "free":
+            # Full referral card for free users — motivate sharing
+            st.markdown("""
+<div style="background:linear-gradient(135deg,rgba(0,213,102,0.08),rgba(0,200,224,0.08));
+            border:1px solid rgba(0,213,102,0.25);border-radius:12px;
+            padding:22px 28px 20px;margin-bottom:6px;">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+    <span style="font-size:1.4rem;">🎁</span>
+    <span style="font-size:1.1rem;font-weight:800;color:#E8EEFF;font-family:Inter,sans-serif;
+                 letter-spacing:-0.3px;">Invite a friend — both of you win</span>
+  </div>
+  <div style="font-size:0.88rem;color:#9DAFC8;font-family:Inter,sans-serif;margin-bottom:14px;
+              line-height:1.55;">
+    Your friend gets a <strong style="color:#34D399;">14-day free trial</strong> (double the normal 7 days).
+    You get <strong style="color:#34D399;">1 free month of Pro</strong> the moment they subscribe — automatically applied to your bill.
+  </div>
+  <div style="font-size:0.78rem;color:#6B7A95;font-family:Inter,sans-serif;margin-bottom:10px;
+              font-weight:600;letter-spacing:0.4px;text-transform:uppercase;">Your referral link</div>
+</div>
+""", unsafe_allow_html=True)
+            st.code(_ref_link, language=None)
+            _rc1, _rc2, _rc3 = st.columns(3)
+            with _rc1:
+                st.metric("Friends referred",  _ref_stats["total_referred"])
+            with _rc2:
+                st.metric("Converted to Pro",  _ref_stats["total_converted"])
+            with _rc3:
+                st.metric("Free months earned", _ref_stats["months_earned"])
+
+        else:
+            # Pro users — compact share strip
+            st.markdown("""
+<div style="background:rgba(0,213,102,0.06);border:1px solid rgba(0,213,102,0.18);
+            border-radius:8px;padding:14px 20px 12px;margin-bottom:6px;">
+  <div style="font-size:0.9rem;font-weight:700;color:#E8EEFF;font-family:Inter,sans-serif;
+              margin-bottom:6px;">🔗 Share Unstructured Alpha</div>
+  <div style="font-size:0.82rem;color:#9DAFC8;font-family:Inter,sans-serif;margin-bottom:10px;">
+    Friends get a 14-day free trial via your link. You earn 1 free month every time one subscribes.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+            st.code(_ref_link, language=None)
+            _rs1, _rs2, _rs3 = st.columns(3)
+            with _rs1:
+                st.metric("Referred",       _ref_stats["total_referred"])
+            with _rs2:
+                st.metric("Converted",      _ref_stats["total_converted"])
+            with _rs3:
+                st.metric("Months earned",  _ref_stats["months_earned"])
+
+        st.divider()
+
+except Exception:
+    # Any failure (DB offline, missing table, import error) is silently swallowed.
+    # The rest of the home page continues rendering normally.
+    pass
+
 # ── ADDITIONAL TOOLS ──────────────────────────────────────────────────────────
 st.markdown("""
 <div style="font-size:0.86rem;font-weight:700;color:#E8EEFF;font-family:Inter,sans-serif;

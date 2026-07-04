@@ -42,6 +42,7 @@ from utils.prediction_log import (
     get_track_record,
     get_predictions_feed,
     get_signal_accuracy_stats,
+    get_resolver_health,
     resolve_pending,
 )
 from utils.score_history import get_high_confidence_snapshot_calls
@@ -589,6 +590,44 @@ Both data sources depend on the app receiving traffic. A ticker that nobody has 
 
 **This is not financial advice.** Past performance is not indicative of future results. The Confluence Score is an aggregation of macro and alternative data signals, not a prediction model trained on forward returns. Always do your own research.
     """)
+
+# ── Resolver health expander ─────────────────────────────────────────────────
+# For transparency: shows whether the nightly resolver cron is actually
+# chipping away at pending predictions, so anyone can verify the pipeline.
+try:
+    _rh = get_resolver_health()
+    _overdue   = _rh["overdue_pending"]
+    _last_date = _rh["last_resolved_date"]
+    _recent7d  = _rh["recently_resolved_7d"]
+    _overdue_label = (
+        "✅ None overdue" if _overdue == 0
+        else f"⚠️ {_overdue} overdue"
+    )
+    _last_label = _last_date if _last_date else "—"
+    with st.expander("Resolver pipeline health"):
+        st.caption(
+            "The nightly cron (`cron/resolve_predictions.py`) runs at 02:00 UTC to fill in "
+            "forward returns for predictions whose 4w/8w/12w windows have expired. "
+            "This page also runs a lightweight on-demand pass (`resolve_pending(max_resolve=10)`) "
+            "each time it loads, as a fallback. The table below shows current pipeline state."
+        )
+        _h1, _h2, _h3 = st.columns(3)
+        with _h1:
+            st.metric("Pending total", _rh["pending_total"])
+        with _h2:
+            st.metric("Overdue (≥4w old, still pending)", _overdue_label)
+        with _h3:
+            st.metric("Resolved in last 7 days", _recent7d)
+        st.caption(
+            f"Most recent resolved prediction event date: **{_last_label}**. "
+            "Note: 'event date' is when the prediction was logged, not when it was resolved — "
+            "there's no separate `resolved_at` timestamp in the current schema. "
+            "Overdue = 0 means the resolver is keeping up; overdue > 0 means some predictions "
+            "passed their 4-week window without being resolved (typically a cron failure or "
+            "a ticker with no yfinance data)."
+        )
+except Exception:
+    pass
 
 # ── CTA for non-subscribers ───────────────────────────────────────────────────
 st.markdown("""

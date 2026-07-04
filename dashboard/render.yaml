@@ -43,6 +43,22 @@ services:
         sync: false
       - key: EIA_API_KEY
         sync: false
+      # Stripe — required for Upgrade page, checkout, billing portal, and referral rewards
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_ANNUAL_PRICE_ID
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      # Referral link base URL — Render sets this automatically to the service's public URL.
+      # If left unset, referral.py falls back to http://localhost:8501 (wrong in production).
+      - key: RENDER_EXTERNAL_URL
+        sync: false
+      # Anthropic — used by utils/fetchers.py for earnings transcript sentiment scoring
+      - key: ANTHROPIC_API_KEY
+        sync: false
 
   # Morning digest cron job — runs at 07:00 ET (12:00 UTC) daily.
   # Scores all signals, detects flips, emails opted-in users.
