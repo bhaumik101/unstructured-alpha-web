@@ -1454,3 +1454,214 @@ def _synthetic_cot(market: str) -> pd.DataFrame:
         "comm_short":    np.maximum(comm_net,  0),
         "open_interest": oi,
     })
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Earnings Transcript Sentiment  (SEC EDGAR 8-K Item 2.02 + Loughran-McDonald)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Loughran-McDonald (2011) financial-domain sentiment word lists.
+# These lists are preferred over VADER/general-purpose lexicons because
+# many words that are negative in everyday English are neutral in a financial
+# context (e.g. "liability", "risk", "capital"), and vice-versa.
+# Source: https://sraf.nd.edu/loughranmcdonald-master-dictionary/
+# This is a representative core subset — sufficient for directional scoring.
+_LM_POSITIVE = frozenset({
+    "achieve", "achieved", "achievement", "achievements", "advance", "advantage",
+    "advantageous", "affirm", "affirmed", "all-time", "attain", "attained",
+    "beneficially", "best", "boost", "breakout", "breakthrough", "broad-based",
+    "build", "built", "capabilities", "capable", "clarity", "confident",
+    "confidence", "consistent", "continued", "deliver", "delivered", "delivering",
+    "dynamic", "earnings", "effective", "effectively", "efficiency", "efficient",
+    "enhance", "enhanced", "enthusiasm", "excellent", "exceptional", "exceed",
+    "exceeded", "exceeds", "exciting", "expand", "expanding", "expansion",
+    "exceptional", "exceptional", "favorable", "favorably", "flexibility",
+    "gain", "gains", "growth", "high", "higher", "highest", "improve",
+    "improved", "improvement", "improvements", "increase", "increased",
+    "increasing", "industry-leading", "innovative", "innovation", "leadership",
+    "leverage", "leveraging", "maximize", "momentum", "new", "optimistic",
+    "organic", "outperform", "outperformed", "outstanding", "positive",
+    "positively", "profit", "profitable", "profitability", "progress",
+    "progressive", "record", "reiterate", "revenue", "robust", "significant",
+    "significantly", "solid", "strength", "strengthen", "strengthened",
+    "strong", "stronger", "strongest", "succeed", "succeeded", "success",
+    "successful", "successfully", "superior", "support", "supported",
+    "sustainable", "upside", "value", "win", "winning",
+})
+
+_LM_NEGATIVE = frozenset({
+    "adversarial", "adversely", "against", "amend", "amended", "below",
+    "breach", "challenged", "challenges", "challenging", "class-action",
+    "complaint", "concerned", "concerns", "constrain", "constrained",
+    "constraint", "constraints", "contraction", "declined", "declining",
+    "decrease", "decreased", "decreasing", "deficit", "delay", "delayed",
+    "deteriorate", "deteriorated", "deteriorating", "difficult", "difficulty",
+    "disappoint", "disappointed", "disappointing", "disappoints", "disruption",
+    "disruptions", "divested", "down", "downgrade", "downward", "elevated",
+    "erosion", "error", "errors", "excess", "fail", "failed", "failing",
+    "failure", "headwind", "headwinds", "impair", "impaired", "impairment",
+    "inadequate", "inflation", "inflationary", "investigation", "lawsuit",
+    "layoff", "layoffs", "less", "liabilities", "liability", "litigation",
+    "loss", "losses", "lower", "lowest", "material", "miss", "missed",
+    "negative", "negatively", "obstacle", "overhang", "penalty", "pressure",
+    "pressures", "probe", "problem", "problems", "reduced", "reduction",
+    "restatement", "restructuring", "risk", "risks", "setback", "shortfall",
+    "slow", "slowed", "slowdown", "softness", "sub-par", "uncertainty",
+    "unfavorable", "unfavorably", "volatile", "volatility", "weakness",
+    "weaknesses", "write-down", "write-off",
+})
+
+
+def _lm_score(text: str) -> dict:
+    """Score text using Loughran-McDonald word lists. Returns pos, neg, total counts."""
+    words = [w.lower().strip(".,;:!?\"'()[]") for w in text.split()]
+    words = [w for w in words if len(w) > 1]
+    total = len(words)
+    if total == 0:
+        return {"positive": 0, "negative": 0, "total_words": 0, "sentiment_score": 0.0}
+    pos = sum(1 for w in words if w in _LM_POSITIVE)
+    neg = sum(1 for w in words if w in _LM_NEGATIVE)
+    sentiment = (pos - neg) / (pos + neg) if (pos + neg) > 0 else 0.0
+    return {"positive": pos, "negative": neg, "total_words": total, "sentiment_score": round(sentiment, 4)}
+
+
+def _strip_html(html: str) -> str:
+    """Strip HTML tags and decode common HTML entities — no lxml/bs4 required."""
+    import re, html as _html_module
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = _html_module.unescape(text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=50)
+def fetch_earnings_transcript_sentiment(ticker: str, n_quarters: int = 8) -> pd.DataFrame:
+    """
+    Fetch and score the sentiment of earnings press releases for *ticker*
+    using SEC EDGAR 8-K filings that contain Item 2.02 (Results of Operations
+    and Financial Condition) — these are the actual earnings releases, not
+    analyst transcripts.
+
+    Sentiment is scored using the Loughran-McDonald (2011) financial lexicon,
+    which is the standard academic word list for financial text and avoids the
+    false-positive problem that VADER has with finance-domain vocabulary (e.g.
+    VADER incorrectly classifies "liability", "risk", and "capital" as
+    negative).
+
+    Returns a DataFrame with columns:
+        date            — filing date (datetime)
+        positive        — raw positive word count
+        negative        — raw negative word count
+        sentiment_score — (pos − neg) / (pos + neg), range −1 to +1
+        total_words     — total tokenised words in filing
+        filing_url      — direct link to the .htm filing on EDGAR
+
+    Returns an empty DataFrame (never synthesises data) if EDGAR is
+    unreachable or the ticker has no qualifying 8-K filings.
+
+    API chain (all public, no key required):
+        1. https://www.sec.gov/files/company_tickers.json  →  CIK lookup
+        2. data.sec.gov/submissions/CIK{10-digit}.json     →  filing list
+        3. www.sec.gov/Archives/edgar/data/{cik}/{accession}/{doc}.htm  →  text
+    """
+    headers = {
+        "User-Agent": "UnstructuredAlpha/1.0 research@unstructuredalpha.com",
+        "Accept-Encoding": "gzip, deflate",
+    }
+    empty = pd.DataFrame(columns=["date", "positive", "negative", "sentiment_score", "total_words", "filing_url"])
+
+    # ── Step 1: CIK lookup ────────────────────────────────────────────────────
+    try:
+        r = requests.get(
+            "https://www.sec.gov/files/company_tickers.json",
+            headers=headers, timeout=15,
+        )
+        r.raise_for_status()
+        tickers_map = r.json()  # {idx: {"cik_str": int, "ticker": str, "title": str}}
+    except Exception:
+        return empty
+
+    ticker_upper = ticker.upper()
+    cik_int = None
+    for entry in tickers_map.values():
+        if entry.get("ticker", "").upper() == ticker_upper:
+            cik_int = entry["cik_str"]
+            break
+    if cik_int is None:
+        return empty
+
+    cik_padded = str(cik_int).zfill(10)
+
+    # ── Step 2: Submissions feed — filter for 8-K with Item 2.02 ─────────────
+    try:
+        sub_r = requests.get(
+            f"https://data.sec.gov/submissions/CIK{cik_padded}.json",
+            headers=headers, timeout=15,
+        )
+        sub_r.raise_for_status()
+        sub_data = sub_r.json()
+    except Exception:
+        return empty
+
+    recent = sub_data.get("filings", {}).get("recent", {})
+    forms      = recent.get("form", [])
+    accessions = recent.get("accessionNumber", [])
+    filing_dates = recent.get("filingDate", [])
+    items_list = recent.get("items", [])
+    primary_docs = recent.get("primaryDocument", [])
+
+    qualifying = []
+    for i, form in enumerate(forms):
+        if form != "8-K":
+            continue
+        item_str = items_list[i] if i < len(items_list) else ""
+        # items field is comma-separated: "2.02,9.01" or just "2.02"
+        if "2.02" not in str(item_str):
+            continue
+        qualifying.append({
+            "date": filing_dates[i] if i < len(filing_dates) else None,
+            "accession": accessions[i] if i < len(accessions) else None,
+            "primary_doc": primary_docs[i] if i < len(primary_docs) else None,
+        })
+        if len(qualifying) >= n_quarters:
+            break
+
+    if not qualifying:
+        return empty
+
+    # ── Step 3: Fetch each filing's primary document and score ───────────────
+    records = []
+    for filing in qualifying:
+        if not filing["accession"] or not filing["date"]:
+            continue
+        acc_nodash = filing["accession"].replace("-", "")
+        doc_name   = filing["primary_doc"] or ""
+        if not doc_name:
+            continue
+
+        filing_url = (
+            f"https://www.sec.gov/Archives/edgar/data/"
+            f"{cik_int}/{acc_nodash}/{doc_name}"
+        )
+        try:
+            doc_r = requests.get(filing_url, headers=headers, timeout=20)
+            doc_r.raise_for_status()
+            raw_text = _strip_html(doc_r.text)
+        except Exception:
+            continue
+
+        scored = _lm_score(raw_text)
+        records.append({
+            "date":            pd.to_datetime(filing["date"]),
+            "positive":        scored["positive"],
+            "negative":        scored["negative"],
+            "sentiment_score": scored["sentiment_score"],
+            "total_words":     scored["total_words"],
+            "filing_url":      filing_url,
+        })
+
+    if not records:
+        return empty
+
+    df = pd.DataFrame(records).sort_values("date").reset_index(drop=True)
+    return df

@@ -276,7 +276,7 @@ st.divider()
 
 section = st.segmented_control(
     "View",
-    ["Overview", "Deep Correlation Scan", "Insider & Short Interest", "13F & Federal Contracts", "Earnings Track Record"],
+    ["Overview", "Deep Correlation Scan", "Insider & Short Interest", "13F & Federal Contracts", "Earnings Track Record", "Earnings Sentiment"],
     default="Overview",
     key="dive_section",
 )
@@ -3274,3 +3274,136 @@ elif section == "Earnings Track Record":
     st.divider()
     if st.button("View full Track Record page →", key="goto_track_record_from_tdd"):
         st.switch_page("pages/13_Track_Record.py")
+
+elif section == "Earnings Sentiment":
+    # ── Earnings Transcript Sentiment (SEC EDGAR 8-K Item 2.02 + LM lexicon) ──
+    import plotly.graph_objects as go
+
+    from utils.fetchers import fetch_earnings_transcript_sentiment
+
+    st.subheader(f"Earnings Sentiment — {ticker}")
+    st.caption(
+        "Sentiment of SEC EDGAR 8-K earnings press releases (Item 2.02) scored "
+        "with the Loughran-McDonald (2011) financial lexicon."
+    )
+
+    with st.spinner("Fetching SEC EDGAR 8-K filings…"):
+        _sent_df = fetch_earnings_transcript_sentiment(ticker, n_quarters=8)
+
+    if _sent_df.empty:
+        st.info(
+            f"No 8-K Item 2.02 filings found for **{ticker}** on SEC EDGAR. "
+            "This is normal for non-US companies, very small-caps, or tickers "
+            "that report on a non-standard schedule."
+        )
+    else:
+        # ── Bar chart ─────────────────────────────────────────────────────────
+        _colors = [
+            "#26a69a" if s >= 0 else "#ef5350"
+            for s in _sent_df["sentiment_score"]
+        ]
+        _labels = [d.strftime("%b %Y") for d in _sent_df["date"]]
+
+        _fig = go.Figure()
+        _fig.add_trace(go.Bar(
+            x=_labels,
+            y=_sent_df["sentiment_score"],
+            marker_color=_colors,
+            text=[f"{s:+.2f}" for s in _sent_df["sentiment_score"]],
+            textposition="outside",
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "Sentiment: %{y:+.3f}<br>"
+                "Positive words: %{customdata[0]}<br>"
+                "Negative words: %{customdata[1]}<br>"
+                "Total words: %{customdata[2]}<extra></extra>"
+            ),
+            customdata=list(zip(
+                _sent_df["positive"],
+                _sent_df["negative"],
+                _sent_df["total_words"],
+            )),
+        ))
+        _fig.add_hline(y=0, line_color="rgba(255,255,255,0.25)", line_width=1)
+
+        _fig.update_layout(
+            height=380,
+            margin=dict(l=20, r=20, t=30, b=20),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(
+                title="Earnings Release",
+                color="#aaaaaa",
+                gridcolor="rgba(255,255,255,0.05)",
+            ),
+            yaxis=dict(
+                title="Sentiment Score (−1 to +1)",
+                color="#aaaaaa",
+                gridcolor="rgba(255,255,255,0.08)",
+                zeroline=False,
+                range=[
+                    min(-0.05, _sent_df["sentiment_score"].min() * 1.25),
+                    max(0.05,  _sent_df["sentiment_score"].max() * 1.25),
+                ],
+            ),
+            showlegend=False,
+            font=dict(family="Inter, sans-serif", color="#cccccc"),
+        )
+        st.plotly_chart(_fig, use_container_width=True)
+
+        # ── Bull / Bear scoring ───────────────────────────────────────────────
+        _latest   = _sent_df["sentiment_score"].iloc[-1]
+        _trailing = _sent_df["sentiment_score"].tail(4).mean()
+        _trend    = _sent_df["sentiment_score"].diff().tail(3).mean()
+
+        if _latest > 0.05 and _trailing > 0:
+            _signal_label = "🟢 Bullish tone"
+            _signal_color = "#26a69a"
+        elif _latest < -0.05 and _trailing < 0:
+            _signal_label = "🔴 Bearish tone"
+            _signal_color = "#ef5350"
+        else:
+            _signal_label = "⚪ Neutral / Mixed"
+            _signal_color = "#aaaaaa"
+
+        _trend_label = (
+            "↑ Improving" if _trend > 0.01
+            else "↓ Deteriorating" if _trend < -0.01
+            else "→ Stable"
+        )
+
+        _c1, _c2, _c3 = st.columns(3)
+        with _c1:
+            st.metric("Latest quarter", f"{_latest:+.3f}")
+        with _c2:
+            st.metric("Trailing 4-qtr avg", f"{_trailing:+.3f}")
+        with _c3:
+            st.metric("Trend (3-qtr Δ avg)", _trend_label)
+
+        st.markdown(
+            f"<div style='margin-top:4px;font-size:1.05rem;font-weight:600;"
+            f"color:{_signal_color}'>{_signal_label}</div>",
+            unsafe_allow_html=True,
+        )
+
+        # ── Source links ──────────────────────────────────────────────────────
+        st.divider()
+        with st.expander("Filing sources (SEC EDGAR 8-K)"):
+            for _, _row in _sent_df.iterrows():
+                st.markdown(
+                    f"[{_row['date'].strftime('%Y-%m-%d')}]({_row['filing_url']}) — "
+                    f"score: {_row['sentiment_score']:+.3f} | "
+                    f"+{_row['positive']} / −{_row['negative']} words "
+                    f"({_row['total_words']:,} total)"
+                )
+
+        # ── Methodology note ──────────────────────────────────────────────────
+        st.caption(
+            "**Methodology:** Loughran & McDonald (2011) financial-domain sentiment "
+            "lexicon applied to the full text of Item 2.02 earnings press releases "
+            "filed with the SEC on Form 8-K. Score = (positive − negative) / "
+            "(positive + negative), range −1 to +1. General-purpose sentiment "
+            "models (e.g. VADER) are avoided because they misclassify common "
+            "financial terms such as 'liability', 'risk', and 'capital' as negative. "
+            "**Source:** SEC EDGAR public HTTPS API — no API key required."
+        )
