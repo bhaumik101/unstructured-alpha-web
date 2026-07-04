@@ -875,8 +875,8 @@ _steps = [
     ("3", "#7C3AED", "🔬", "Deep Dive a Ticker",
      "Type any stock. Get a Confluence Score, signal breakdown, earnings history, and bull/bear case.",
      "pages/3_Ticker_Deep_Dive.py", "Open Deep Dive →", "cta_s3"),
-    ("4", "#00C8E0", "🔔", "Set Up Your Watchlist",
-     "Save your stocks. Get alerted when signals flip. Optional morning digest email at 7 AM ET.",
+    ("4", "#00C8E0", "🔔", "Set Up Alerts",
+     "Save your stocks. Get emailed when signals flip — hourly watchlist alerts, 7 AM digest, or Discord/Slack webhooks.",
      "pages/10_Watchlist.py", "Open Watchlist →", "cta_s4"),
 ]
 
@@ -898,6 +898,63 @@ for _col, (_n, _ac, _icon, _title, _body, _page, _btn, _key) in zip(_st_cols, _s
 
 st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
+# ── ALERTS & AUTOMATION FEATURE SECTION ──────────────────────────────────────
+st.divider()
+
+st.markdown("""
+<div style="text-align:center;margin-bottom:6px;font-family:Inter,sans-serif;">
+    <div style="font-size:0.58rem;letter-spacing:0.18em;font-weight:700;color:#00C8E0;margin-bottom:8px;">
+        NEW — ALERTS &amp; AUTOMATION
+    </div>
+    <div style="font-size:1.15rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.3px;line-height:1.35;">
+        The signals come to you — you don't chase them
+    </div>
+    <div style="font-size:0.82rem;color:#8892AA;margin-top:6px;max-width:560px;margin-left:auto;margin-right:auto;line-height:1.6;">
+        Most investors miss signal flips because they're not checking the dashboard at the right moment.
+        Pro delivers the insight automatically — wherever you work.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height:16px'></div>", unsafe_allow_html=True)
+
+_al1, _al2, _al3, _al4 = st.columns(4)
+
+_alert_cards = [
+    ("#00C8E0", "🐦", "Daily X/Twitter Feed",
+     "Every morning at 9 AM ET, @UnstructuredAlpha tweets which signals flipped overnight and what it means. "
+     "Follow once, stay informed forever."),
+    ("#00D566", "📧", "Watchlist Email Alerts",
+     "When a signal on any of your watchlist tickers crosses a threshold, you get an email — "
+     "automatically, hourly. No logging in required."),
+    ("#F59E0B", "📬", "7 AM Morning Digest",
+     "A Seeking Alpha-style macro briefing lands in your inbox before market open — "
+     "bull/bear signal counts, top movers, the regime in plain English."),
+    ("#A78BFA", "🔗", "Discord / Slack Webhooks",
+     "Send signal alerts directly into your Discord server or Slack workspace. "
+     "Your whole team sees the flip the moment it happens."),
+]
+
+for _col, (_ac, _icon, _title, _body) in zip([_al1, _al2, _al3, _al4], _alert_cards):
+    with _col:
+        st.markdown(f"""
+<div style="background:rgba(18,21,30,0.7);border:1px solid rgba(255,255,255,0.07);
+            border-top:3px solid {_ac};border-radius:10px;padding:16px 14px;
+            font-family:Inter,sans-serif;min-height:180px;">
+    <div style="font-size:1.6rem;margin-bottom:8px;">{_icon}</div>
+    <div style="font-size:0.82rem;font-weight:700;color:#E8EEFF;margin-bottom:6px;">{_title}</div>
+    <div style="font-size:0.75rem;color:#8892AA;line-height:1.6;">{_body}</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height:14px'></div>", unsafe_allow_html=True)
+_ac1, _ac2, _ac3 = st.columns([2, 1.4, 2])
+with _ac2:
+    if st.button("Get All Alerts →", type="primary", use_container_width=True, key="cta_alerts_section"):
+        st.switch_page("pages/29_Upgrade.py")
+
+st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
+
 # ── PRO UPGRADE BANNER ────────────────────────────────────────────────────────
 st.markdown("""
 <div class="ua-pro-banner">
@@ -908,12 +965,21 @@ st.markdown("""
                         margin-bottom:8px;">UNSTRUCTURED ALPHA PRO</div>
             <div style="font-size:1.1rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.3px;
                         margin-bottom:6px;line-height:1.3;">
-                Everything here. Plus the digest, the backtester,<br>factor exposure, and more.
+                All the tools. Plus alerts, automation,<br>and the machine working for you 24/7.
             </div>
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;">
                 <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
                              background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
                              border-radius:5px;padding:3px 9px;">📧 Morning Digest</span>
+                <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
+                             background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
+                             border-radius:5px;padding:3px 9px;">🐦 Daily X/Twitter Signals</span>
+                <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
+                             background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
+                             border-radius:5px;padding:3px 9px;">🔔 Watchlist Email Alerts</span>
+                <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
+                             background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
+                             border-radius:5px;padding:3px 9px;">🔗 Discord/Slack Webhooks</span>
                 <span style="font-size:0.68rem;font-weight:600;color:#A78BFA;
                              background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.28);
                              border-radius:5px;padding:3px 9px;">📊 Signal Backtester</span>
@@ -998,9 +1064,10 @@ with _q2:
     with st.expander("What does it cost?"):
         st.markdown(
             "**Free** to browse signals, Today's Brief, Sector Map, Signal Dashboard, and Deep Dive — "
-            "no account needed. A free account (email only, no card) unlocks the Watchlist and alert tracking. "
-            "**Pro** ($20/mo, 7-day free trial) adds morning email digest, Signal Backtester, "
-            "Factor Exposure, and all future Pro features. No long-term commitment."
+            "no account needed. A free account (email only, no card) unlocks the Watchlist and in-app alerts. "
+            "**Pro** ($20/mo, 7-day free trial) adds: morning email digest at 7 AM ET, hourly watchlist email alerts, "
+            "Discord/Slack webhook delivery, daily signal-flip tweets via @UnstructuredAlpha, "
+            "Signal Backtester, Factor Exposure, and all future Pro features. No long-term commitment."
         )
     with st.expander("Is this financial advice?"):
         st.markdown(
