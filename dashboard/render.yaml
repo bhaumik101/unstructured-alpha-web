@@ -190,6 +190,30 @@ services:
       - key: EIA_API_KEY
         sync: false
 
+  # Score Velocity Alert cron — runs once daily at 16:00 UTC (12:00 PM ET).
+  # For each user's watchlist, computes rolling score velocity from score_snapshots
+  # and emails an alert when a ticker's velocity is in the top 10% of its own history.
+  # De-duplication: last_velocity_alert_at in alert_state prevents re-alerting
+  # the same (user, ticker) pair within 6 days.
+  - type: cron
+    name: unstructured-alpha-velocity-alerts
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 16 * * *"   # 16:00 UTC = 12:00 PM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_velocity_alerts
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
   # Twitter/X signal-flip tweet cron — runs once daily at 13:00 UTC (9:00 AM ET).
   # Computes the current macro signal state, detects flips since yesterday, and
   # tweets a briefing via @UnstructuredAlpha. Requires Twitter API v2 credentials

@@ -194,6 +194,10 @@ alert_state = Table(
     # than always comparing against a score that was just updated an hour ago.
     # NULL = ticker has never been checked by the score-moved cron yet.
     Column("last_score_emailed", Float),
+    # ISO-8601 timestamp of the last velocity-alert email sent for this
+    # (user, ticker) pair. Used by send_velocity_alerts cron to avoid
+    # re-alerting within MIN_DAYS_BETWEEN_ALERTS days. NULL = never alerted.
+    Column("last_velocity_alert_at", String(64)),
     UniqueConstraint("user_id", "ticker", name="uq_alert_state_user_ticker"),
 )
 
@@ -447,9 +451,8 @@ def _migrate_alert_state_table() -> None:
     definition but missing from the real database.
 
     Currently handles:
-      last_score_emailed FLOAT  — added 2026-07-04 for the score-moved email
-                                  cron. NULL on existing rows (first cron run
-                                  will initialise the baseline without alerting).
+      last_score_emailed FLOAT      — added 2026-07-04 for the score-moved cron
+      last_velocity_alert_at TEXT   — added 2026-07-04 for velocity-alert cron
     """
     inspector = inspect(engine)
     if "alert_state" not in inspector.get_table_names():
@@ -462,8 +465,9 @@ def _migrate_alert_state_table() -> None:
 
     with engine.begin() as conn:
         for col in new_cols:
-            # All additive columns in alert_state are nullable numerics — no backfill.
-            conn.execute(text(f"ALTER TABLE alert_state ADD COLUMN {col.name} FLOAT"))
+            # Detect column type: String → TEXT, everything else → FLOAT
+            col_sql_type = "TEXT" if isinstance(col.type, String) else "FLOAT"
+            conn.execute(text(f"ALTER TABLE alert_state ADD COLUMN {col.name} {col_sql_type}"))
 
 
 def init_db() -> None:

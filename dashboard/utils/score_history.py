@@ -665,6 +665,84 @@ def get_high_confidence_snapshot_calls(
         return []
 
 
+def get_score_velocity_stats(ticker: str, window_days: int = 5) -> dict | None:
+    """
+    Compute the current score velocity (pts/day) over the last `window_days`
+    snapshot records, then rank it against all historical rolling windows of
+    the same length for this ticker.
+
+    Returns:
+        {
+            "velocity":    float,   # pts/day (+ = rising, - = falling)
+            "percentile":  float,   # 0–100 where absolute velocity ranks vs history
+            "n_windows":   int,     # number of historical windows used for ranking
+            "direction":   str,     # "up" | "down"
+            "window_days": int,
+        }
+
+    Returns None if the ticker has fewer than `window_days` + 3 recorded
+    snapshots (not enough baseline history to compute a meaningful percentile).
+
+    Notes on design:
+    - Velocity uses the actual calendar-day span between first and last snapshot
+      in the window (so sparse history doesn't inflate the velocity number).
+    - Percentile is on ABSOLUTE velocity: a -3 pt/day crash ranks the same as
+      a +3 pt/day surge — both are unusual. The direction field separates them.
+    - Historical baseline excludes the current window so the percentile is
+      genuinely out-of-sample.
+    """
+    from datetime import date as _date
+
+    history = get_score_history(ticker, days=180)
+    # Need at least window_days for the current snapshot + 3 more for a baseline
+    if len(history) < window_days + 3:
+        return None
+
+    # Keep only rows with a valid score
+    entries = [
+        (h["snapshot_date"], float(h["score"]))
+        for h in history
+        if h.get("score") is not None
+    ]
+    if len(entries) < window_days + 3:
+        return None
+
+    def _velocity(window: list[tuple]) -> float | None:
+        if len(window) < 2:
+            return None
+        t0 = _date.fromisoformat(window[0][0])
+        t1 = _date.fromisoformat(window[-1][0])
+        days_span = max((t1 - t0).days, 1)
+        return (window[-1][1] - window[0][1]) / days_span
+
+    # All rolling windows (stride = 1)
+    all_velocities: list[float] = []
+    for i in range(len(entries) - window_days + 1):
+        v = _velocity(entries[i : i + window_days])
+        if v is not None:
+            all_velocities.append(v)
+
+    if len(all_velocities) < 4:  # need enough history for a meaningful percentile
+        return None
+
+    current_vel = all_velocities[-1]                # most recent window
+    baseline    = all_velocities[:-1]               # exclude current from ranking
+
+    # Percentile by absolute magnitude (unusual speed in either direction)
+    import numpy as _np
+    abs_current = abs(current_vel)
+    abs_baseline = _np.abs(baseline)
+    percentile = float(_np.mean(abs_baseline < abs_current) * 100)
+
+    return {
+        "velocity":    round(current_vel, 2),
+        "percentile":  round(percentile, 1),
+        "n_windows":   len(baseline),
+        "direction":   "up" if current_vel >= 0 else "down",
+        "window_days": window_days,
+    }
+
+
 def compute_sector_percentile(ticker: str, score: float, max_peers: int = 6) -> dict:
     """
     Where `score` (the ticker's CURRENT, just-computed score) ranks

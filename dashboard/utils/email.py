@@ -1681,3 +1681,162 @@ def send_score_moved_email(to_email: str, moved: list[dict]) -> None:
     except requests.RequestException as e:
         print(f"[score-moved] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send score-moved email to {to_email}: {e}") from e
+
+
+def send_velocity_alert_email(to_email: str, alerts: list[dict]) -> None:
+    """
+    Send an email notifying the user that one or more of their watched tickers
+    is exhibiting an unusually high rate of confluence-score change.
+
+    Each alert dict:
+        ticker:        str   — e.g. "NVDA"
+        name:          str   — full company name
+        velocity:      float — pts/day (positive = rising, negative = falling)
+        percentile:    float — 0–100 where this velocity ranks vs history
+        current_score: float — latest recorded score
+        case:          str   — "BULL" | "BEAR" | "NEUTRAL"
+        direction:     str   — "up" | "down"
+    """
+    api_key    = _get_resend_key()
+    from_email = _get_from_email()
+
+    n = len(alerts)
+    if n == 1:
+        subj_ticker = alerts[0]["ticker"]
+        subject = f"⚡ Score Velocity Alert: {subj_ticker} is moving fast"
+    else:
+        subject = f"⚡ Score Velocity Alert: {n} of your tickers are moving fast"
+
+    def _score_pill(score: float, case: str) -> str:
+        color = "#00D566" if case == "BULL" else ("#FF4D6A" if case == "BEAR" else "#F59E0B")
+        return (
+            f'<span style="color:{color};font-weight:800;">{score:.0f}</span>'
+            f'<span style="color:#4A5280;font-size:0.82em;">/100</span>'
+        )
+
+    def _vel_arrow(direction: str) -> str:
+        return "▲" if direction == "up" else "▼"
+
+    def _vel_color(direction: str) -> str:
+        return "#00D566" if direction == "up" else "#FF4D6A"
+
+    rows_html = ""
+    for a in alerts:
+        vel   = a["velocity"]
+        pct   = a["percentile"]
+        vsign = "+" if vel >= 0 else ""
+        vc    = _vel_color(a["direction"])
+        va    = _vel_arrow(a["direction"])
+        top_n = round(100 - pct, 0)
+        rows_html += f"""
+      <tr style="border-bottom:1px solid #1E2535;">
+        <td style="padding:12px 8px 12px 0;vertical-align:middle;">
+          <div style="font-size:0.95rem;font-weight:800;color:#E8EEFF;">{a["ticker"]}</div>
+          <div style="font-size:0.72rem;color:#6B7A95;margin-top:2px;">{a.get("name","")[:32]}</div>
+        </td>
+        <td style="padding:12px 8px;vertical-align:middle;text-align:center;">
+          {_score_pill(a["current_score"], a["case"])}
+        </td>
+        <td style="padding:12px 8px;vertical-align:middle;text-align:center;">
+          <span style="color:{vc};font-weight:700;font-size:0.90rem;">
+            {va} {vsign}{vel:.1f} pts/day
+          </span>
+        </td>
+        <td style="padding:12px 0 12px 8px;vertical-align:middle;text-align:right;">
+          <span style="font-size:0.78rem;color:#F59E0B;font-weight:600;">
+            Top {top_n:.0f}%
+          </span>
+        </td>
+      </tr>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0B0D12;font-family:Inter,system-ui,sans-serif;">
+<div style="max-width:580px;margin:32px auto;background:#12151E;border-radius:12px;
+            border:1px solid #1E2535;overflow:hidden;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1A1E30,#0F1118);
+              padding:24px 28px 20px;border-bottom:1px solid #1E2535;">
+    <div style="font-size:0.60rem;font-weight:700;color:#F59E0B;letter-spacing:0.14em;
+                text-transform:uppercase;margin-bottom:6px;">⚡ Velocity Alert</div>
+    <div style="font-size:1.30rem;font-weight:800;color:#E8EEFF;line-height:1.3;">
+      Score moving at an unusual pace
+    </div>
+    <div style="font-size:0.80rem;color:#6B7A95;margin-top:6px;line-height:1.5;">
+      The machine detected rapid score movement on your watched ticker{"s" if n > 1 else ""}.
+      Rare velocity often precedes continued momentum — or a reversal.
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div style="padding:20px 28px 8px;">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:left;">Ticker</th>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:center;">Score</th>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:center;">Velocity</th>
+          <th style="font-size:0.62rem;font-weight:700;color:#6B7A95;letter-spacing:0.10em;
+                     text-transform:uppercase;padding-bottom:10px;text-align:right;">Rank</th>
+        </tr>
+      </thead>
+      <tbody>{rows_html}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Context note -->
+  <div style="padding:12px 28px 20px;">
+    <div style="background:#0f1119;border:1px solid rgba(245,158,11,0.20);border-left:3px solid #F59E0B;
+                border-radius:6px;padding:12px 16px;
+                font-size:0.75rem;color:#8892AA;line-height:1.7;">
+      <strong style="color:#F59E0B;">What this means:</strong>
+      Velocity = pts/day change in the Confluence Score over the last 5 sessions.
+      "Top N%" = how rarely this ticker moves this fast in either direction.
+      Not financial advice.
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div style="padding:4px 28px 24px;text-align:center;">
+    <a href="https://unstructuredalpha.com/Ticker_Deep_Dive"
+       style="display:inline-block;background:linear-gradient(135deg,#F59E0B,#D97706);
+              color:#0B0D12;padding:12px 32px;border-radius:8px;
+              text-decoration:none;font-size:0.90rem;font-weight:800;">
+      Analyze on Ticker Deep Dive →
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#0B0D12;padding:14px 28px;border-radius:0 0 12px 12px;
+              border-top:1px solid rgba(255,255,255,0.06);
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.6;">
+    Unstructured Alpha · unstructuredalpha.com<br>
+    Velocity alerts fire when score moves faster than 90% of all historical windows.
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to":   [to_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[velocity-alert] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[velocity-alert] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send velocity alert email to {to_email}: {e}") from e

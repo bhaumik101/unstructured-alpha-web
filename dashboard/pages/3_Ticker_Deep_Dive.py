@@ -325,6 +325,40 @@ if section == "Overview":
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Score Velocity Banner ─────────────────────────────────────────────────
+    # Shows when the score is moving at an unusual rate-of-change compared to
+    # this ticker's own history — top 10% velocity triggers the banner.
+    # Derived from score_snapshots so no live recompute; best-effort (try/except).
+    try:
+        from utils.score_history import get_score_velocity_stats as _gsvs
+        _vel_stats = _gsvs(ticker_input)
+        if _vel_stats and _vel_stats["percentile"] >= 85 and _vel_stats["n_windows"] >= 6:
+            _vel = _vel_stats["velocity"]
+            _vd  = _vel_stats["direction"]
+            _vp  = _vel_stats["percentile"]
+            _vc  = "#00D566" if _vd == "up" else "#FF4D6A"
+            _va  = "▲" if _vd == "up" else "▼"
+            _vsign = "+" if _vel >= 0 else ""
+            _top_n = round(100 - _vp, 0)
+            st.markdown(f"""
+            <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.28);
+                        border-left:4px solid #F59E0B;border-radius:8px;
+                        padding:10px 18px;margin-bottom:14px;
+                        display:flex;align-items:center;gap:14px;">
+              <span style="font-size:1.15rem;flex-shrink:0;">⚡</span>
+              <div>
+                <span style="font-size:0.75rem;font-weight:700;color:#F59E0B;
+                             letter-spacing:0.08em;text-transform:uppercase;">Score Velocity Alert</span>
+                <span style="font-size:0.82rem;color:#8892AA;margin-left:10px;">
+                  <span style="color:{_vc};font-weight:700;">{_va} {_vsign}{_vel:.1f} pts/day</span>
+                  &nbsp;over last 5 sessions · faster than {_vp:.0f}% of all historical windows
+                </span>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+    except Exception:
+        pass  # velocity banner is always best-effort; never block the page
+
     # ── AI Signal Explanation (Pro) ───────────────────────────────────────────
     # Haiku-generated 3-4 sentence plain-English explanation of WHY the score
     # is what it is, grounded in the actual signal breakdown. Pro-gated: free
