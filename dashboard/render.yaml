@@ -240,6 +240,34 @@ services:
       - key: EIA_API_KEY
         sync: false
 
+  # Sunday AI Portfolio Brief — runs every Sunday at 15:00 UTC (11:00 AM ET).
+  # Sends personalized weekly brief to every Pro user with digest_opted_in=True.
+  # Sections: watchlist composite score + week delta, top 3 movers, signal flips 7d,
+  # AI "what to watch" paragraph (Haiku), Machine's Best Ideas (top 3, public),
+  # referral CTA. Designed as a retention anchor AND a viral acquisition engine.
+  - type: cron
+    name: unstructured-alpha-weekly-brief
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 15 * * 0"   # 15:00 UTC Sunday = 11:00 AM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_weekly_brief
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+      - key: RENDER_EXTERNAL_URL
+        sync: false
+
   # Twitter/X signal-flip tweet cron — runs once daily at 13:00 UTC (9:00 AM ET).
   # Computes the current macro signal state, detects flips since yesterday, and
   # tweets a briefing via @UnstructuredAlpha. Requires Twitter API v2 credentials

@@ -1840,3 +1840,381 @@ def send_velocity_alert_email(to_email: str, alerts: list[dict]) -> None:
     except requests.RequestException as e:
         print(f"[velocity-alert] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send velocity alert email to {to_email}: {e}") from e
+
+
+# ── Internal helpers for weekly brief ────────────────────────────────────────
+
+def _get_resend_key() -> str:
+    api_key = os.environ.get("RESEND_API_KEY", "")
+    if not api_key:
+        try:
+            api_key = st.secrets.get("RESEND_API_KEY", "")
+        except Exception:
+            api_key = ""
+    return api_key
+
+
+def _get_from_email() -> str:
+    from_email = os.environ.get("RESEND_FROM_EMAIL", "")
+    if not from_email:
+        try:
+            from_email = st.secrets.get("RESEND_FROM_EMAIL", _DEFAULT_FROM)
+        except Exception:
+            from_email = _DEFAULT_FROM
+    return from_email
+
+
+def send_weekly_brief_email(
+    to_email: str,
+    *,
+    # Watchlist composite (week-over-week)
+    composite_score: float | None = None,
+    composite_delta: float | None = None,    # +/- pts week-over-week
+    composite_label: str = "Mixed",          # "Bullish" | "Bearish" | "Mixed"
+    n_tickers: int = 0,
+    # Per-ticker movers on this user's watchlist
+    watchlist_movers: list[dict] | None = None,   # [{ticker, name, score, delta, case}]
+    # Market signal flips this week
+    signal_flips_7d: list[dict] | None = None,    # [{signal_id, name, from_status, to_status}]
+    # Market-wide Best Ideas (public, acquisition hook)
+    best_ideas: list[dict] | None = None,         # [{ticker, name, score, velocity, rank_score}]
+    # AI "what to watch next week" paragraph — Pro only
+    ai_watchout: str | None = None,
+    # Referral CTA
+    referral_link: str | None = None,
+    # Week string, e.g. "Jun 30 – Jul 6"
+    week_str: str | None = None,
+) -> None:
+    """
+    Send the weekly AI Portfolio Brief to a single Pro user.
+    Called by cron/send_weekly_brief.py each Sunday at 15:00 UTC.
+
+    Designed as a *retention anchor* (high-quality weekly read) and
+    *acquisition engine* (referral CTA + shareable Best Ideas content).
+    Never raises on missing optional sections — they're simply omitted.
+    Raises EmailSendError only if RESEND_API_KEY is missing or the API call fails.
+    """
+    api_key    = _get_resend_key()
+    from_email = _get_from_email()
+    print(f"[weekly-brief] sending to={to_email!r}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    from datetime import date
+    today_str = date.today().strftime("%B %-d, %Y")
+    if not week_str:
+        week_str = today_str
+
+    subject = f"📊 Your Weekly Portfolio Brief — {week_str}"
+
+    # ── Composite score section ─────────────────────────────────────────────
+    if composite_score is not None and n_tickers > 0:
+        c_color   = "#00D566" if composite_label == "Bullish" else ("#FF4D6A" if composite_label == "Bearish" else "#F59E0B")
+        c_bg      = "#0D2B1A" if composite_label == "Bullish" else ("#2B0D15" if composite_label == "Bearish" else "#1A1E2B")
+        delta_str = ""
+        if composite_delta is not None:
+            dsign = "+" if composite_delta >= 0 else ""
+            darrow = "▲" if composite_delta >= 0 else "▼"
+            dc = "#00D566" if composite_delta >= 0 else "#FF4D6A"
+            delta_str = (
+                f'<span style="font-size:0.82rem;color:{dc};font-weight:700;margin-left:10px;">'
+                f'{darrow} {dsign}{composite_delta:.1f} pts this week</span>'
+            )
+        composite_html = f"""
+  <!-- Watchlist Composite Score -->
+  <div style="background:{c_bg};border:1px solid {c_color}33;border-radius:10px;
+              padding:20px 24px;margin:20px 24px 0;">
+    <div style="font-size:0.58rem;font-weight:700;color:{c_color};letter-spacing:0.14em;
+                text-transform:uppercase;margin-bottom:8px;">
+      YOUR WATCHLIST · {n_tickers} TICKER{'S' if n_tickers != 1 else ''}
+    </div>
+    <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
+      <div style="font-size:3rem;font-weight:900;color:{c_color};line-height:1;">
+        {composite_score:.0f}
+      </div>
+      <div>
+        <div style="font-size:0.78rem;color:#8892AA;">/100 composite score</div>
+        <div style="font-size:0.88rem;font-weight:700;color:{c_color};margin-top:2px;">
+          {composite_label}
+        </div>
+      </div>
+      {delta_str}
+    </div>
+  </div>"""
+    else:
+        composite_html = ""
+
+    # ── Watchlist movers table ──────────────────────────────────────────────
+    if watchlist_movers:
+        mover_rows = ""
+        for m in watchlist_movers[:3]:
+            sc   = float(m.get("score", 50))
+            d    = float(m.get("delta", 0))
+            case = m.get("case", "NEUT")
+            sc_c = "#00D566" if case == "BULL" else ("#FF4D6A" if case == "BEAR" else "#F59E0B")
+            da   = "▲" if d >= 0 else "▼"
+            dc   = "#00D566" if d >= 0 else "#FF4D6A"
+            dsign = "+" if d >= 0 else ""
+            mover_rows += f"""
+        <tr style="border-bottom:1px solid #1E2535;">
+          <td style="padding:10px 0;vertical-align:middle;">
+            <div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;">{m['ticker']}</div>
+            <div style="font-size:0.72rem;color:#6B7A95;margin-top:2px;">{str(m.get('name',''))[:28]}</div>
+          </td>
+          <td style="padding:10px 8px;text-align:center;vertical-align:middle;">
+            <span style="color:{sc_c};font-weight:800;font-size:0.95rem;">{sc:.0f}</span>
+            <span style="color:#4A5280;font-size:0.75rem;">/100</span>
+          </td>
+          <td style="padding:10px 0;text-align:right;vertical-align:middle;">
+            <span style="color:{dc};font-weight:700;font-size:0.88rem;">{da} {dsign}{d:.1f}</span>
+            <span style="font-size:0.68rem;color:#6B7A95;"> 7d</span>
+          </td>
+        </tr>"""
+        movers_html = f"""
+  <!-- Watchlist Movers -->
+  <div style="margin:16px 24px 0;">
+    <div style="font-size:0.58rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
+                text-transform:uppercase;margin-bottom:10px;">
+      YOUR TOP MOVERS THIS WEEK
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      {mover_rows}
+    </table>
+    <div style="text-align:right;margin-top:6px;">
+      <a href="https://unstructuredalpha.com/Watchlist"
+         style="font-size:0.72rem;color:#7C3AED;text-decoration:none;">
+        Open Watchlist →
+      </a>
+    </div>
+  </div>"""
+    else:
+        movers_html = ""
+
+    # ── Signal flips table ──────────────────────────────────────────────────
+    if signal_flips_7d:
+        flip_rows = ""
+        STATUS_COLOR = {
+            "bullish": "#00D566", "bearish": "#FF4D6A",
+            "neutral": "#F59E0B", "insufficient_data": "#6B7A95",
+        }
+        STATUS_SYM = {
+            "bullish": "▲", "bearish": "▼",
+            "neutral": "●", "insufficient_data": "○",
+        }
+        for f in signal_flips_7d[:5]:
+            fc = STATUS_COLOR.get(f.get("from_status", "neutral"), "#6B7A95")
+            tc = STATUS_COLOR.get(f.get("to_status",   "neutral"), "#6B7A95")
+            fa = STATUS_SYM.get(f.get("from_status",   "neutral"), "●")
+            ta = STATUS_SYM.get(f.get("to_status",     "neutral"), "●")
+            flip_rows += f"""
+          <tr style="border-bottom:1px solid #1E2535;">
+            <td style="padding:9px 0;font-size:0.82rem;color:#B8C0D4;">{f.get('name', f.get('signal_id',''))}</td>
+            <td style="padding:9px 8px;color:{fc};font-size:0.82rem;white-space:nowrap;">{fa} {str(f.get('from_status','')).title()}</td>
+            <td style="padding:9px 4px;color:#4A5280;font-size:0.9rem;">→</td>
+            <td style="padding:9px 0;color:{tc};font-weight:700;font-size:0.82rem;white-space:nowrap;">{ta} {str(f.get('to_status','')).title()}</td>
+          </tr>"""
+        flips_html = f"""
+  <!-- Signal Flips -->
+  <div style="margin:20px 24px 0;">
+    <div style="font-size:0.58rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
+                text-transform:uppercase;margin-bottom:10px;">
+      MACRO SIGNAL FLIPS THIS WEEK
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      {flip_rows}
+    </table>
+    <div style="text-align:right;margin-top:6px;">
+      <a href="https://unstructuredalpha.com/Today%27s_Brief"
+         style="font-size:0.72rem;color:#7C3AED;text-decoration:none;">
+        View full signal state →
+      </a>
+    </div>
+  </div>"""
+    else:
+        flips_html = """
+  <div style="margin:20px 24px 0;padding:14px;background:#0f1119;border-radius:8px;
+              border:1px solid #1E2535;font-size:0.82rem;color:#6B7A95;text-align:center;">
+    No macro signal flips this week — the regime has been stable.
+  </div>"""
+
+    # ── AI watchout section ─────────────────────────────────────────────────
+    if ai_watchout:
+        ai_html = f"""
+  <!-- AI What to Watch -->
+  <div style="margin:20px 24px 0;padding:16px 18px;
+              background:rgba(124,58,237,0.06);
+              border:1px solid rgba(124,58,237,0.18);
+              border-left:3px solid #7C3AED;border-radius:8px;">
+    <div style="font-size:0.58rem;font-weight:700;color:#A78BFA;letter-spacing:0.12em;
+                text-transform:uppercase;margin-bottom:8px;">
+      ✦ AI OUTLOOK · WHAT TO WATCH NEXT WEEK
+    </div>
+    <div style="font-size:0.88rem;color:#B8C0D4;line-height:1.75;">
+      {ai_watchout}
+    </div>
+  </div>"""
+    else:
+        ai_html = ""
+
+    # ── Best Ideas section (market-wide, public content — acquisition hook) ─
+    if best_ideas:
+        idea_rows = ""
+        for i, row in enumerate(best_ideas[:3], 1):
+            vel  = row.get("velocity", 0)
+            vsign = "+" if vel >= 0 else ""
+            idea_rows += f"""
+          <tr>
+            <td style="padding:10px 0;vertical-align:middle;width:24px;">
+              <span style="font-size:0.82rem;color:#F59E0B;font-weight:700;">{i}</span>
+            </td>
+            <td style="padding:10px 8px;vertical-align:middle;">
+              <div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;">{row['ticker']}</div>
+              <div style="font-size:0.70rem;color:#6B7A95;">{str(row.get('name',''))[:24]}</div>
+            </td>
+            <td style="padding:10px 8px;text-align:center;vertical-align:middle;">
+              <span style="color:#00D566;font-weight:800;">{float(row.get('score',0)):.0f}</span>
+              <span style="color:#4A5280;font-size:0.75rem;">/100</span>
+            </td>
+            <td style="padding:10px 0;text-align:right;vertical-align:middle;white-space:nowrap;">
+              <span style="color:#00D566;font-size:0.80rem;font-weight:700;">▲ {vsign}{vel:.1f} pts/d</span>
+            </td>
+          </tr>"""
+        best_ideas_html = f"""
+  <!-- Divider -->
+  <div style="height:1px;background:#1E2535;margin:20px 24px;"></div>
+
+  <!-- Best Ideas -->
+  <div style="margin:0 24px;">
+    <div style="font-size:0.58rem;font-weight:700;color:#F59E0B;letter-spacing:0.12em;
+                text-transform:uppercase;margin-bottom:4px;">
+      🎯 MACHINE'S BEST IDEAS RIGHT NOW
+    </div>
+    <div style="font-size:0.72rem;color:#6B7A95;margin-bottom:12px;">
+      Highest conviction + rising score momentum across all tracked tickers
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      {idea_rows}
+    </table>
+    <div style="margin-top:10px;">
+      <a href="https://unstructuredalpha.com/Best_Ideas"
+         style="display:inline-block;background:rgba(245,158,11,0.10);
+                border:1px solid rgba(245,158,11,0.30);color:#F59E0B;
+                padding:8px 18px;border-radius:6px;text-decoration:none;
+                font-size:0.82rem;font-weight:700;">
+        See full Best Ideas list →
+      </a>
+    </div>
+  </div>"""
+    else:
+        best_ideas_html = ""
+
+    # ── Referral CTA ────────────────────────────────────────────────────────
+    if referral_link:
+        referral_html = f"""
+  <!-- Divider -->
+  <div style="height:1px;background:#1E2535;margin:20px 24px;"></div>
+
+  <!-- Referral CTA -->
+  <div style="margin:0 24px 0;padding:16px 18px;
+              background:rgba(0,213,102,0.04);
+              border:1px solid rgba(0,213,102,0.15);border-radius:8px;">
+    <div style="font-size:0.82rem;font-weight:700;color:#E8EEFF;margin-bottom:6px;">
+      Know someone who'd find this useful?
+    </div>
+    <div style="font-size:0.78rem;color:#8892AA;line-height:1.65;margin-bottom:12px;">
+      Forward this email or share your personal link — they'll get a
+      <strong style="color:#00D566;">14-day free Pro trial</strong>
+      (double the normal 7 days), and you'll earn a free month when they subscribe.
+    </div>
+    <a href="{referral_link}"
+       style="display:inline-block;background:rgba(0,213,102,0.12);
+              border:1px solid rgba(0,213,102,0.30);color:#00D566;
+              padding:8px 18px;border-radius:6px;text-decoration:none;
+              font-size:0.82rem;font-weight:700;word-break:break-all;">
+      {referral_link}
+    </a>
+  </div>"""
+    else:
+        referral_html = ""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0B0D12;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
+<div style="max-width:580px;margin:24px auto;background:#12151E;border-radius:12px;
+            border:1px solid #1E2535;overflow:hidden;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1A1E30 0%,#0B0D12 100%);
+              padding:24px 28px 20px;border-bottom:1px solid #1E2535;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:0.58rem;font-weight:700;color:#7C3AED;letter-spacing:0.14em;
+                    text-transform:uppercase;margin-bottom:6px;">
+          UNSTRUCTURED ALPHA · WEEKLY BRIEF
+        </div>
+        <div style="font-size:1.35rem;font-weight:800;color:#E8EEFF;line-height:1.25;">
+          Portfolio Intelligence Brief
+        </div>
+        <div style="font-size:0.80rem;color:#6B7A95;margin-top:5px;">{week_str}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:0.68rem;color:#4A5280;">28-signal macro engine</div>
+        <div style="font-size:0.68rem;color:#4A5280;">unstructuredalpha.com</div>
+      </div>
+    </div>
+  </div>
+
+  {composite_html}
+  {movers_html}
+
+  <!-- Divider -->
+  <div style="height:1px;background:#1E2535;margin:20px 24px;"></div>
+
+  {flips_html}
+  {ai_html}
+  {best_ideas_html}
+  {referral_html}
+
+  <!-- Main CTA -->
+  <div style="padding:24px 24px;text-align:center;">
+    <a href="https://unstructuredalpha.com/Watchlist"
+       style="display:inline-block;background:linear-gradient(135deg,#7C3AED,#5B21B6);
+              color:#FFFFFF;padding:12px 30px;border-radius:8px;
+              text-decoration:none;font-size:0.92rem;font-weight:700;
+              letter-spacing:0.02em;">
+      Open Dashboard →
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#0B0D12;padding:14px 28px;border-top:1px solid #1E2535;
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.7;">
+    Unstructured Alpha · unstructuredalpha.com · Not financial advice · Data from public sources<br>
+    <a href="https://unstructuredalpha.com/Watchlist"
+       style="color:#6B7A95;text-decoration:none;">Manage email preferences</a>
+    &nbsp;·&nbsp;
+    <a href="https://unstructuredalpha.com/Best_Ideas"
+       style="color:#6B7A95;text-decoration:none;">Best Ideas</a>
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to":   [to_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=20,
+        )
+        print(f"[weekly-brief] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[weekly-brief] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send weekly brief to {to_email}: {e}") from e
