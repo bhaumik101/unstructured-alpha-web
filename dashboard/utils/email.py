@@ -847,6 +847,135 @@ def send_welcome_email(to_email: str) -> None:
         raise EmailSendError(f"Failed to send welcome email to {to_email}: {e}") from e
 
 
+def send_watchlist_alert_email(to_email: str, new_alerts: list[dict]) -> None:
+    """
+    Send a watchlist threshold-crossing alert email to a single user.
+    Called by cron/send_watchlist_alerts.py for every user who has new alerts
+    since the last evaluation.
+
+    new_alerts: list of alert dicts from evaluate_watchlist(), each with at
+    minimum: ticker (str), alert_type (str), direction (str), message (str).
+    """
+    api_key, from_email = _get_resend_config()
+    print(f"[watchlist-alert] sending to={to_email!r} n_alerts={len(new_alerts)}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+    if not new_alerts:
+        return
+
+    from datetime import date
+    today_str = date.today().strftime("%B %-d, %Y")
+
+    DIRECTION_COLOR = {"bullish": "#00D566", "bearish": "#FF4B4B"}
+    DIRECTION_ICON  = {"bullish": "▲", "bearish": "▼"}
+
+    alert_rows = ""
+    for a in new_alerts[:10]:                       # cap at 10 in the email
+        ticker    = a.get("ticker", "???").upper()
+        direction = (a.get("direction") or "neutral").lower()
+        message   = a.get("message", "Threshold crossed.")
+        color     = DIRECTION_COLOR.get(direction, "#8892AA")
+        icon      = DIRECTION_ICON.get(direction, "●")
+        alert_rows += f"""
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;
+                        font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
+              <span style="color:{color};margin-right:6px;">{icon}</span>{ticker}
+            </div>
+            <div style="font-size:0.78rem;color:#8892AA;margin-top:3px;line-height:1.5;
+                        font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
+              {message}
+            </div>
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.05);
+                     text-align:right;vertical-align:top;white-space:nowrap;">
+            <span style="color:{color};font-size:0.78rem;font-weight:700;
+                         font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;
+                         text-transform:uppercase;letter-spacing:0.04em;">
+              {direction.title()}
+            </span>
+          </td>
+        </tr>"""
+
+    n      = len(new_alerts)
+    plural = "s" if n != 1 else ""
+    tickers_short = ", ".join(sorted({a.get("ticker", "???").upper() for a in new_alerts[:4]}))
+    if n > 4:
+        tickers_short += f" +{n - 4} more"
+
+    subject = f"⚡ {n} Watchlist Alert{plural}: {tickers_short}"
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0B0D12;">
+<div style="max-width:560px;margin:0 auto;background:#12151E;
+            font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#7C3AED 0%,#12151E 100%);
+              padding:24px 28px;border-radius:12px 12px 0 0;">
+    <div style="font-size:0.60rem;color:#A78BFA;letter-spacing:0.14em;
+                text-transform:uppercase;margin-bottom:5px;">
+      UNSTRUCTURED ALPHA · WATCHLIST
+    </div>
+    <div style="font-size:1.4rem;font-weight:800;color:#FFFFFF;line-height:1.2;">
+      {n} Watchlist Alert{plural}
+    </div>
+    <div style="font-size:0.82rem;color:#B8C0D4;margin-top:6px;">
+      {today_str} · {tickers_short}
+    </div>
+  </div>
+
+  <!-- Alert table -->
+  <div style="background:#12151E;padding:20px 0 8px;">
+    <table style="border-collapse:collapse;width:100%;">
+      {alert_rows}
+    </table>
+  </div>
+
+  <!-- CTA -->
+  <div style="background:#0f1119;padding:20px 28px;text-align:center;">
+    <a href="https://unstructuredalpha.com/Watchlist"
+       style="display:inline-block;background:linear-gradient(135deg,#7C3AED,#00C8E0);
+              color:#FFFFFF;padding:12px 30px;border-radius:8px;
+              text-decoration:none;font-size:0.9rem;font-weight:700;letter-spacing:0.02em;">
+      Open Watchlist →
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#0B0D12;padding:14px 28px;border-radius:0 0 12px 12px;
+              border-top:1px solid rgba(255,255,255,0.05);
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.6;">
+    Unstructured Alpha · unstructuredalpha.com · Not financial advice<br>
+    <a href="https://unstructuredalpha.com/Watchlist"
+       style="color:#7C3AED;text-decoration:none;">Manage alert settings</a>
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[watchlist-alert] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[watchlist-alert] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send watchlist alert to {to_email}: {e}") from e
+
+
 def send_pro_welcome_email(to_email: str) -> None:
     """
     Send a rich onboarding email immediately after a user upgrades to Pro.

@@ -107,3 +107,56 @@ services:
         sync: false
       - key: EIA_API_KEY
         sync: false
+
+  # Watchlist email alert cron — runs every hour (offset 30 min from webhooks).
+  # For every verified user with at least one watchlist entry, evaluates their
+  # watchlist and emails them about any threshold crossings. Covers users who
+  # have no Discord/Slack webhook configured but still want push notifications.
+  # Duplicate-safe: same alert_state table dedup as fire_webhooks.py.
+  - type: cron
+    name: unstructured-alpha-watchlist-alerts
+    runtime: python
+    plan: free
+    rootDir: dashboard
+    schedule: "30 * * * *"   # every hour at :30 (offset from webhook cron)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_watchlist_alerts
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
+  # Twitter/X signal-flip tweet cron — runs once daily at 13:00 UTC (9:00 AM ET).
+  # Computes the current macro signal state, detects flips since yesterday, and
+  # tweets a briefing via @UnstructuredAlpha. Requires Twitter API v2 credentials
+  # (OAuth 1.0a user context) set as Render env vars — never commit key values.
+  - type: cron
+    name: unstructured-alpha-tweet-flips
+    runtime: python
+    plan: free
+    rootDir: dashboard
+    schedule: "0 13 * * *"   # 13:00 UTC = 09:00 ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.tweet_signal_flips
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+      - key: TWITTER_API_KEY
+        sync: false
+      - key: TWITTER_API_SECRET
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN
+        sync: false
+      - key: TWITTER_ACCESS_TOKEN_SECRET
+        sync: false

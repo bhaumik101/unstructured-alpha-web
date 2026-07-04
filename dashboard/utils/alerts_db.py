@@ -152,6 +152,26 @@ def clear_all_alerts(user_id: int) -> None:
         conn.execute(delete(alerts).where(alerts.c.user_id == user_id))
 
 
+def get_all_watchlist_users() -> list[dict]:
+    """
+    Return [{id, email}] for every verified user who has at least one watchlist
+    entry. Used by cron/send_watchlist_alerts.py to fan out email alerts without
+    coupling the email cron to the webhook-user query in utils/webhook.py.
+
+    Excludes unverified accounts: if email_verified is False, the address has
+    never been confirmed and we should not email it for any purpose.
+    """
+    with db.engine.begin() as conn:
+        rows = conn.execute(
+            select(users.c.id, users.c.email)
+            .where(
+                users.c.id.in_(select(watchlist.c.user_id).distinct())
+            )
+            .where(users.c.email_verified == True)  # noqa: E712
+        ).mappings().all()
+    return [dict(r) for r in rows]
+
+
 def cleanup_old_read_alerts(retention_days: int = 90) -> int:
     """
     Delete alerts that are both read AND older than retention_days.
