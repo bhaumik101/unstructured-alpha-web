@@ -169,6 +169,21 @@ users = Table(
     # re-engagement cron sends to this user. Prevents re-sending within 7 days.
     # NULL = user has never received a re-engagement email.
     Column("last_reengagement_at", String(64)),
+    # Day-3 onboarding email flag (added 2026-07-05). Set to "true" after
+    # cron/send_onboarding_day3.py sends the feature-spotlight email. NULL or ""
+    # = not yet sent. Using TEXT rather than Boolean to stay consistent with
+    # other flag columns and the generic TEXT migration path.
+    Column("day3_email_sent", String(8)),
+    # Public shareable watchlist slug (added 2026-07-05). A 12-char random
+    # alphanumeric string that identifies a user's read-only public watchlist
+    # view at /Share_Watchlist?id=SLUG. Generated lazily on first "Share"
+    # button click via utils/share_watchlist.get_or_create_slug(). NULL means
+    # the user has never activated sharing. Migrated via the generic TEXT path.
+    Column("watchlist_share_slug", String(20), unique=True),
+    # Day-7 retention email flag (added 2026-07-05). Set to "true" after
+    # cron/send_onboarding_day7.py sends the "unlock more signal power" email.
+    # Mirrors the day3_email_sent pattern — TEXT flag, NULL/"" = not yet sent.
+    Column("day7_email_sent", String(8)),
 )
 
 watchlist = Table(

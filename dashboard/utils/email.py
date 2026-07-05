@@ -2397,3 +2397,397 @@ def send_reengagement_email(
     except requests.RequestException as e:
         print(f"[reengagement] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send reengagement email to {to_email}: {e}") from e
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Day-3 Onboarding Email
+# Sent by cron/send_onboarding_day3.py three days after a user verifies their
+# email. Shows the 3 most-used Pro features they may not have discovered yet,
+# with a soft upgrade CTA for free users.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def send_day3_onboarding_email(
+    to_email: str,
+    *,
+    is_pro: bool = False,
+    top_bull_ticker: str | None = None,   # highest-score bullish ticker right now
+    top_bull_score: float | None = None,
+    regime_label: str = "Mixed",
+) -> None:
+    """
+    Day-3 onboarding email — highlights 3 features users commonly miss.
+    Sent 3 days after email verification.
+    """
+    api_key    = _get_resend_key()
+    from_email = _get_from_email()
+
+    subject = "3 features you probably haven't tried yet 🔍"
+
+    # Personalisation snippets
+    _ticker_callout = ""
+    if top_bull_ticker and top_bull_score is not None:
+        _ticker_callout = f"""
+<div style="background:rgba(0,213,102,0.08);border:1px solid rgba(0,213,102,0.20);
+            border-radius:10px;padding:12px 18px;margin:16px 0;">
+  <div style="font-size:0.70rem;font-weight:700;color:#8892AA;text-transform:uppercase;
+              letter-spacing:0.10em;margin-bottom:4px;">Machine's Top Pick Right Now</div>
+  <span style="font-size:1.1rem;font-weight:800;color:#00D566;">{top_bull_ticker}</span>
+  <span style="font-size:0.85rem;color:#00D566;margin-left:8px;">Score: {top_bull_score:.0f}/100</span>
+  <div style="font-size:0.75rem;color:#8892AA;margin-top:4px;">
+    {regime_label} macro regime · Updated hourly
+  </div>
+</div>"""
+
+    _upgrade_cta = "" if is_pro else """
+<div style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.22);
+            border-radius:10px;padding:14px 20px;margin:20px 0;text-align:center;">
+  <div style="font-size:0.88rem;font-weight:700;color:#C5CCDE;margin-bottom:6px;">
+    ⚡ All three features above are free with Pro
+  </div>
+  <div style="font-size:0.78rem;color:#8892AA;margin-bottom:12px;">
+    $20/month · Cancel anytime · 7-day free trial
+  </div>
+  <a href="https://unstructuredalpha.com/Upgrade"
+     style="display:inline-block;background:linear-gradient(135deg,#7C3AED,#5B21B6);
+            color:#fff;padding:10px 28px;border-radius:8px;
+            text-decoration:none;font-size:0.88rem;font-weight:700;">
+    Start Free Trial →
+  </a>
+</div>"""
+
+    html = f"""<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0B0D12;font-family:Inter,Arial,sans-serif;">
+<div style="max-width:600px;margin:0 auto;background:#0F1117;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#12151E,#1A1E2E);padding:24px 28px 20px;
+              border-bottom:1px solid #1E2535;">
+    <div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.14em;
+                text-transform:uppercase;">Unstructured Alpha</div>
+    <div style="font-size:1.4rem;font-weight:900;color:#E8EEFF;margin-top:4px;">
+      You're in — here's what to try next
+    </div>
+    <div style="font-size:0.85rem;color:#8892AA;margin-top:6px;">
+      3 features that most users discover on day 3 or later
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div style="padding:24px 28px;">
+    {_ticker_callout}
+
+    <p style="font-size:0.88rem;color:#C5CCDE;line-height:1.65;margin-bottom:20px;">
+      Most people start on the Signal Dashboard and stop there. That misses the best parts.
+      Here are the three features worth trying today:
+    </p>
+
+    <!-- Feature 1 -->
+    <div style="border:1px solid #1E2535;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
+      <div style="font-size:0.62rem;font-weight:700;color:#00C8E0;text-transform:uppercase;
+                  letter-spacing:0.10em;margin-bottom:6px;">🎯 Best Ideas Page</div>
+      <div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;margin-bottom:6px;">
+        The machine's highest-conviction bullish calls right now
+      </div>
+      <div style="font-size:0.82rem;color:#8892AA;line-height:1.6;">
+        Score ≥ 62 + positive velocity = rising conviction. Updated hourly.
+        Tickers are ranked by score + momentum — not sorted by name like a screener.
+      </div>
+      <a href="https://unstructuredalpha.com/Best_Ideas"
+         style="display:inline-block;margin-top:10px;font-size:0.80rem;font-weight:700;
+                color:#00C8E0;text-decoration:none;">Open Best Ideas →</a>
+    </div>
+
+    <!-- Feature 2 -->
+    <div style="border:1px solid #1E2535;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
+      <div style="font-size:0.62rem;font-weight:700;color:#F59E0B;text-transform:uppercase;
+                  letter-spacing:0.10em;margin-bottom:6px;">📊 Ticker Deep Dive</div>
+      <div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;margin-bottom:6px;">
+        28 signals, each scored for your specific ticker
+      </div>
+      <div style="font-size:0.82rem;color:#8892AA;line-height:1.6;">
+        The AI explanation shows exactly which signals are driving the score — and which
+        would need to flip to change the thesis. Each signal links to its source data.
+      </div>
+      <a href="https://unstructuredalpha.com/Ticker_Deep_Dive"
+         style="display:inline-block;margin-top:10px;font-size:0.80rem;font-weight:700;
+                color:#F59E0B;text-decoration:none;">Open Ticker Deep Dive →</a>
+    </div>
+
+    <!-- Feature 3 -->
+    <div style="border:1px solid #1E2535;border-radius:12px;padding:18px 20px;margin-bottom:14px;">
+      <div style="font-size:0.62rem;font-weight:700;color:#00D566;text-transform:uppercase;
+                  letter-spacing:0.10em;margin-bottom:6px;">⭐ My Watchlist</div>
+      <div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;margin-bottom:6px;">
+        Score alerts + weekly report card for your tickers
+      </div>
+      <div style="font-size:0.82rem;color:#8892AA;line-height:1.6;">
+        Add any ticker to your watchlist and get email alerts when its Confluence Score
+        crosses your thresholds. The new Weekly Score Report Card grades each ticker A–F
+        on 7-day score trajectory.
+      </div>
+      <a href="https://unstructuredalpha.com/My_Watchlist"
+         style="display:inline-block;margin-top:10px;font-size:0.80rem;font-weight:700;
+                color:#00D566;text-decoration:none;">Open My Watchlist →</a>
+    </div>
+
+    {_upgrade_cta}
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#0B0D12;padding:14px 28px;border-top:1px solid #1E2535;
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.7;">
+    Unstructured Alpha · unstructuredalpha.com · Not financial advice<br>
+    <a href="https://unstructuredalpha.com/My_Watchlist"
+       style="color:#6B7A95;text-decoration:none;">Manage email preferences</a>
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to":   [to_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[day3-onboarding] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[day3-onboarding] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send day-3 email to {to_email}: {e}") from e
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Day-7 Retention Email
+# ─────────────────────────────────────────────────────────────────────────────
+
+def send_day7_onboarding_email(
+    to_email: str,
+    *,
+    is_pro: bool = False,
+    regime_label: str = "Mixed",
+    top_tickers: list[dict] | None = None,
+    signal_flip: dict | None = None,
+) -> None:
+    """Send the day-7 "one week in" retention email.
+
+    Parameters
+    ----------
+    to_email:
+        Recipient address.
+    is_pro:
+        True if the user is on a Pro plan — skips the upgrade CTA.
+    regime_label:
+        Current macro regime string: "Bullish", "Bearish", or "Mixed".
+    top_tickers:
+        List of dicts with keys ``ticker``, ``score``, ``status`` —
+        the machine's top picks right now.  Up to 3 are shown.
+    signal_flip:
+        Optional dict with keys ``name``, ``from_status``, ``to_status`` —
+        the most notable signal flip in the past 7 days.
+    """
+    api_key, from_email = _get_email_config()
+
+    _REGIME_COLOR = {"Bullish": "#00D566", "Bearish": "#FF4444", "Mixed": "#F59E0B"}
+    regime_color = _REGIME_COLOR.get(regime_label, "#F59E0B")
+
+    tickers = (top_tickers or [])[:3]
+
+    # ── Ticker rows ──────────────────────────────────────────────────────────
+    def _ticker_row(t: dict) -> str:
+        sc    = t.get("score", 50)
+        tick  = t.get("ticker", "?")
+        stat  = (t.get("status") or "neutral").capitalize()
+        scolor = "#00D566" if stat == "Bullish" else "#FF4444" if stat == "Bearish" else "#F59E0B"
+        sc_int = int(round(sc))
+        return (
+            f'<tr>'
+            f'<td style="padding:8px 14px;font-size:0.88rem;font-weight:700;color:#E8EEFF;">{tick}</td>'
+            f'<td style="padding:8px 14px;">'
+            f'  <span style="background:{scolor}18;border:1px solid {scolor}33;'
+            f'  border-radius:4px;padding:2px 8px;font-size:0.72rem;font-weight:700;color:{scolor};">'
+            f'  {stat}</span>'
+            f'</td>'
+            f'<td style="padding:8px 14px;font-size:0.88rem;font-weight:700;color:{scolor};">'
+            f'  {sc_int}/100'
+            f'</td>'
+            f'</tr>'
+        )
+
+    ticker_rows_html = "".join(_ticker_row(t) for t in tickers) if tickers else (
+        '<tr><td colspan="3" style="padding:10px 14px;color:#8892AA;font-size:0.82rem;">'
+        'Scores refreshing — check the live dashboard for the latest.</td></tr>'
+    )
+
+    # ── Signal flip block ─────────────────────────────────────────────────────
+    if signal_flip:
+        flip_from = (signal_flip.get("from_status") or "neutral").upper()
+        flip_to   = (signal_flip.get("to_status")   or "neutral").upper()
+        flip_name = signal_flip.get("name", "A macro signal")
+        flip_to_color = "#00D566" if "BULL" in flip_to else "#FF4444" if "BEAR" in flip_to else "#F59E0B"
+        flip_html = f"""
+        <div style="background:#0F1118;border-left:3px solid {flip_to_color};
+                    border-radius:8px;padding:12px 16px;margin-bottom:20px;">
+          <div style="font-size:0.68rem;font-weight:700;color:{flip_to_color};
+                      letter-spacing:0.10em;text-transform:uppercase;margin-bottom:4px;">
+            Signal Flip This Week
+          </div>
+          <div style="font-size:0.88rem;color:#B8C0D4;line-height:1.6;">
+            <b style="color:#E8EEFF;">{flip_name}</b>
+            flipped from
+            <span style="font-weight:700;color:#8892AA;">{flip_from}</span>
+            →
+            <span style="font-weight:700;color:{flip_to_color};">{flip_to}</span>
+          </div>
+        </div>"""
+    else:
+        flip_html = ""
+
+    # ── Pro CTA (free only) ───────────────────────────────────────────────────
+    pro_cta = "" if is_pro else """
+        <div style="background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.20);
+                    border-radius:10px;padding:16px 20px;margin:20px 0;">
+          <div style="font-size:0.72rem;font-weight:700;color:#A78BFA;
+                      letter-spacing:0.10em;text-transform:uppercase;margin-bottom:6px;">
+            Upgrade to Pro
+          </div>
+          <div style="font-size:0.85rem;color:#B8C0D4;line-height:1.6;margin-bottom:12px;">
+            You've seen the free tier — Pro unlocks personalized daily email alerts,
+            macro stress testing, webhook notifications, and AI watchlist narratives.
+          </div>
+          <a href="https://unstructuredalpha.com/Upgrade_to_Pro"
+             style="display:inline-block;background:#7C3AED;color:#FFFFFF;
+                    border-radius:6px;padding:9px 20px;font-size:0.82rem;
+                    font-weight:700;text-decoration:none;letter-spacing:0.04em;">
+            Start Free Trial →
+          </a>
+        </div>"""
+
+    subject = "One week in — what the machine is seeing right now 📊"
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>{subject}</title></head>
+<body style="margin:0;padding:0;background:#0B0D12;font-family:'Helvetica Neue',Arial,sans-serif;">
+
+<div style="max-width:580px;margin:0 auto;padding:32px 20px;">
+
+  <!-- Header -->
+  <div style="text-align:center;margin-bottom:28px;">
+    <div style="font-size:1.05rem;font-weight:800;color:#E8EEFF;letter-spacing:0.04em;">
+      Unstructured Alpha
+    </div>
+    <div style="font-size:0.68rem;color:#6B7FBF;letter-spacing:0.10em;
+                text-transform:uppercase;margin-top:2px;">
+      Signal Intelligence Dashboard
+    </div>
+  </div>
+
+  <!-- Headline -->
+  <div style="font-size:1.25rem;font-weight:700;color:#E8EEFF;line-height:1.4;margin-bottom:8px;">
+    You've been here one week.
+  </div>
+  <div style="font-size:0.90rem;color:#8892AA;line-height:1.6;margin-bottom:24px;">
+    Here's a snapshot of what 38 alternative signals are saying right now.
+  </div>
+
+  <!-- Regime pill -->
+  <div style="display:inline-block;background:{regime_color}18;
+              border:1px solid {regime_color}33;border-radius:20px;
+              padding:4px 16px;margin-bottom:20px;">
+    <span style="font-size:0.75rem;font-weight:700;color:{regime_color};letter-spacing:0.08em;
+                 text-transform:uppercase;">
+      Current Macro Regime: {regime_label}
+    </span>
+  </div>
+
+  <!-- Top tickers table -->
+  <div style="background:#12151E;border:1px solid rgba(255,255,255,0.07);
+              border-radius:10px;overflow:hidden;margin-bottom:20px;">
+    <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <span style="font-size:0.65rem;font-weight:700;color:#8892AA;letter-spacing:0.10em;
+                   text-transform:uppercase;">Machine's Top Picks Right Now</span>
+    </div>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead>
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+          <th style="padding:7px 14px;text-align:left;font-size:0.65rem;color:#6B7FBF;
+                     font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Ticker</th>
+          <th style="padding:7px 14px;text-align:left;font-size:0.65rem;color:#6B7FBF;
+                     font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Signal</th>
+          <th style="padding:7px 14px;text-align:left;font-size:0.65rem;color:#6B7FBF;
+                     font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Score</th>
+        </tr>
+      </thead>
+      <tbody>{ticker_rows_html}</tbody>
+    </table>
+  </div>
+
+  {flip_html}
+
+  <!-- Feature reminder -->
+  <div style="background:#12151E;border:1px solid rgba(255,255,255,0.07);
+              border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+    <div style="font-size:0.65rem;font-weight:700;color:#00C8E0;letter-spacing:0.10em;
+                text-transform:uppercase;margin-bottom:8px;">Tip: Signal Backtester</div>
+    <div style="font-size:0.85rem;color:#B8C0D4;line-height:1.6;margin-bottom:10px;">
+      Pick any combination of signals and see how well they predicted 4–12 week forward
+      returns — before you trust them. Most retail platforms hide this test entirely.
+    </div>
+    <a href="https://unstructuredalpha.com/Signal_Backtester"
+       style="font-size:0.82rem;color:#00C8E0;text-decoration:none;font-weight:600;">
+      Open Signal Backtester →
+    </a>
+  </div>
+
+  {pro_cta}
+
+  <!-- CTA -->
+  <div style="text-align:center;margin:24px 0 8px;">
+    <a href="https://unstructuredalpha.com/"
+       style="display:inline-block;background:#00D566;color:#0B0D12;
+              border-radius:6px;padding:11px 28px;font-size:0.88rem;
+              font-weight:800;text-decoration:none;letter-spacing:0.04em;">
+      Open Dashboard →
+    </a>
+  </div>
+
+  <!-- Footer -->
+  <div style="margin-top:32px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06);
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.7;">
+    Unstructured Alpha · unstructuredalpha.com · Not financial advice<br>
+    <a href="https://unstructuredalpha.com/My_Watchlist"
+       style="color:#6B7A95;text-decoration:none;">Manage email preferences</a>
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to":   [to_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[day7-onboarding] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[day7-onboarding] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send day-7 email to {to_email}: {e}") from e

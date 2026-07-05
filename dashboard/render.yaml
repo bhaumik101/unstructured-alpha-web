@@ -268,6 +268,52 @@ services:
       - key: RENDER_EXTERNAL_URL
         sync: false
 
+  # Day-7 retention email cron — runs daily at 15:00 UTC (11:00 AM ET).
+  # Sends "one week in — what the machine is seeing" to users who verified
+  # their email 7–8 days ago. Covers: current regime, top 3 tickers by
+  # Confluence Score, most notable 7-day signal flip, soft Pro CTA for free users.
+  # One-shot per user (guarded by day7_email_sent column on users table).
+  - type: cron
+    name: unstructured-alpha-onboarding-day7
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 15 * * *"   # 15:00 UTC = 11:00 AM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_onboarding_day7
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
+  # Day-3 onboarding email cron — runs daily at 14:00 UTC (10:00 AM ET).
+  # Sends "3 features you probably haven't tried yet" to users who verified
+  # their email 3–4 days ago. One-shot per user (guarded by day3_email_sent).
+  - type: cron
+    name: unstructured-alpha-onboarding-day3
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 14 * * *"   # 14:00 UTC = 10:00 AM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_onboarding_day3
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
   # Re-engagement email cron — runs daily at 17:00 UTC (1:00 PM ET).
   # Targets verified users who haven't logged in for >= 5 days, have a watchlist,
   # and haven't been re-engaged within the past 7 days. Sends a "here's what you

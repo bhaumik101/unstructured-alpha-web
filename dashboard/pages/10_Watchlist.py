@@ -255,6 +255,145 @@ else:
     except Exception:
         pass  # composite score is best-effort; never block the watchlist render
 
+    # ── Weekly Score Report Card ──────────────────────────────────────────────
+    # Grades each watched ticker on its 7-day score performance. Uses
+    # score_snapshots (already in DB) — no live recompute. Displayed as a
+    # compact heat-mapped table so users can see their whole week at a glance.
+    # Placed here, just below the composite score, so users get the
+    # macro-level view → week-level detail → then individual ticker rows below.
+    try:
+        from datetime import datetime as _dt_rc, timedelta as _td_rc, timezone as _tz_rc
+        from sqlalchemy import select as _sel_rc
+        from utils.db import score_snapshots as _snaps_rc, engine as _eng_rc
+
+        _rc_tickers = [r["ticker"] for r in watchlist]
+        _rc_cutoff  = (_dt_rc.now(_tz_rc.utc) - _td_rc(days=8)).strftime("%Y-%m-%d")
+
+        with _eng_rc.begin() as _conn:
+            _rc_rows = _conn.execute(
+                _sel_rc(
+                    _snaps_rc.c.ticker,
+                    _snaps_rc.c.score,
+                    _snaps_rc.c.snapshot_date,
+                )
+                .where(_snaps_rc.c.ticker.in_(_rc_tickers))
+                .where(_snaps_rc.c.snapshot_date >= _rc_cutoff)
+                .order_by(_snaps_rc.c.ticker, _snaps_rc.c.snapshot_date)
+            ).fetchall()
+
+        if _rc_rows:
+            import pandas as _pd_rc
+            _rc_df = _pd_rc.DataFrame(_rc_rows, columns=["ticker", "score", "date"])
+            _rc_df["score"] = _rc_df["score"].astype(float)
+
+            # Build per-ticker stats: current score, 7d-ago score, delta, grade
+            _rc_stats = []
+            for _rc_tk in _rc_tickers:
+                _tk_rows = _rc_df[_rc_df["ticker"] == _rc_tk].sort_values("date")
+                if len(_tk_rows) < 2:
+                    continue
+                _cur  = float(_tk_rows["score"].iloc[-1])
+                _old  = float(_tk_rows["score"].iloc[0])
+                _delta = round(_cur - _old, 1)
+                # Grade: weighted toward current level + direction of change
+                if   _cur >= 70 or (_cur >= 55 and _delta >= 5):  _grade = "A"
+                elif _cur >= 55 or (_cur >= 40 and _delta >= 2):  _grade = "B"
+                elif _cur >= 40 or abs(_delta) < 2:               _grade = "C"
+                elif _cur >= 25 or _delta >= -4:                   _grade = "D"
+                else:                                               _grade = "F"
+                _grade_colors = {"A": "#00D566", "B": "#7BDE6B",
+                                 "C": "#F59E0B", "D": "#FF8C42", "F": "#FF4D6A"}
+                _score_color  = "#00D566" if _cur >= 65 else ("#FF4D6A" if _cur <= 35 else "#F59E0B")
+                _delta_color  = "#00D566" if _delta > 0 else ("#FF4D6A" if _delta < 0 else "#8892AA")
+                _rc_stats.append({
+                    "ticker":      _rc_tk,
+                    "cur":         _cur,
+                    "delta":       _delta,
+                    "grade":       _grade,
+                    "grade_color": _grade_colors[_grade],
+                    "score_color": _score_color,
+                    "delta_color": _delta_color,
+                })
+
+            if _rc_stats:
+                # Best + worst mover for the week header blurb
+                _best  = max(_rc_stats, key=lambda x: x["delta"])
+                _worst = min(_rc_stats, key=lambda x: x["delta"])
+
+                st.markdown(
+                    section_label("Weekly Score Report Card", color="#00C8E0", dot="#00C8E0"),
+                    unsafe_allow_html=True,
+                )
+
+                # Best/worst mover callout row
+                _bw_col1, _bw_col2 = st.columns(2)
+                with _bw_col1:
+                    _bc = _best["delta_color"]
+                    st.markdown(
+                        f'<div style="background:rgba(0,213,102,0.07);border:1px solid rgba(0,213,102,0.18);'
+                        f'border-radius:10px;padding:12px 16px;">'
+                        f'<div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.10em;'
+                        f'text-transform:uppercase;margin-bottom:4px;">📈 Best Mover — 7 Days</div>'
+                        f'<span style="font-size:1.15rem;font-weight:900;color:{_bc};">{_best["ticker"]}</span>'
+                        f'<span style="font-size:0.85rem;color:{_bc};font-weight:700;margin-left:8px;">'
+                        f'▲ +{_best["delta"]:.1f} pts</span>'
+                        f'<div style="font-size:0.75rem;color:#8892AA;margin-top:2px;">'
+                        f'Score now: {_best["cur"]:.0f}/100 &nbsp;·&nbsp; Grade: '
+                        f'<span style="color:{_best["grade_color"]};font-weight:700;">{_best["grade"]}</span></div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+                with _bw_col2:
+                    _wc = _worst["delta_color"]
+                    st.markdown(
+                        f'<div style="background:rgba(255,77,106,0.07);border:1px solid rgba(255,77,106,0.18);'
+                        f'border-radius:10px;padding:12px 16px;">'
+                        f'<div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.10em;'
+                        f'text-transform:uppercase;margin-bottom:4px;">📉 Worst Mover — 7 Days</div>'
+                        f'<span style="font-size:1.15rem;font-weight:900;color:{_wc};">{_worst["ticker"]}</span>'
+                        f'<span style="font-size:0.85rem;color:{_wc};font-weight:700;margin-left:8px;">'
+                        f'▼ {_worst["delta"]:.1f} pts</span>'
+                        f'<div style="font-size:0.75rem;color:#8892AA;margin-top:2px;">'
+                        f'Score now: {_worst["cur"]:.0f}/100 &nbsp;·&nbsp; Grade: '
+                        f'<span style="color:{_worst["grade_color"]};font-weight:700;">{_worst["grade"]}</span></div>'
+                        f'</div>',
+                        unsafe_allow_html=True,
+                    )
+
+                st.markdown("<div style='margin-top:12px;'></div>", unsafe_allow_html=True)
+
+                # Report card grid — one card per ticker
+                _rc_cols_per_row = 4
+                for _i in range(0, len(_rc_stats), _rc_cols_per_row):
+                    _chunk = _rc_stats[_i:_i + _rc_cols_per_row]
+                    _grid_cols = st.columns(len(_chunk))
+                    for _col, _s in zip(_grid_cols, _chunk):
+                        with _col:
+                            _arrow = "▲" if _s["delta"] > 0 else ("▼" if _s["delta"] < 0 else "●")
+                            st.markdown(
+                                f'<div style="background:rgba(18,21,30,0.8);border:1px solid #1E2535;'
+                                f'border-radius:10px;padding:14px 16px;text-align:center;">'
+                                f'<div style="font-size:0.72rem;font-weight:700;color:#C5CCDE;'
+                                f'letter-spacing:0.06em;">{_s["ticker"]}</div>'
+                                f'<div style="font-size:2.0rem;font-weight:900;color:{_s["grade_color"]};'
+                                f'line-height:1.1;margin:4px 0;">{_s["grade"]}</div>'
+                                f'<div style="font-size:1.05rem;font-weight:800;color:{_s["score_color"]};">'
+                                f'{_s["cur"]:.0f}<span style="font-size:0.65rem;color:#4A5280;">/100</span></div>'
+                                f'<div style="font-size:0.78rem;color:{_s["delta_color"]};font-weight:600;margin-top:2px;">'
+                                f'{_arrow} {_s["delta"]:+.1f} <span style="font-size:0.65rem;color:#6B7A95;">7d</span></div>'
+                                f'</div>',
+                                unsafe_allow_html=True,
+                            )
+
+                st.caption(
+                    "Grades based on current score level and 7-day direction. "
+                    "A = high conviction, F = very weak. Coverage limited to tickers with recent Confluence Score history."
+                )
+                st.markdown("<div style='margin-bottom:8px;'></div>", unsafe_allow_html=True)
+
+    except Exception:
+        pass  # report card is best-effort; never block the watchlist render
+
     # Batched, cached (utils/quotes.py, 15 min) -- one fetch per watched
     # ticker, not per page render; the same module Stock Screener uses, so
     # price/% displays can't silently disagree between the two pages.
@@ -394,6 +533,64 @@ else:
             st.info("No new alerts. Either nothing crossed a threshold, or this is the first check "
                     "for one or more tickers (which just establishes a baseline).")
         st.rerun()
+
+st.divider()
+
+# ── Share Watchlist (public read-only link) ────────────────────────────────────
+st.markdown(section_label("Share Your Watchlist", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
+try:
+    from utils.share_watchlist import get_or_create_slug, revoke_slug, build_share_url
+
+    _slug_state_key = f"share_slug_{user_id}"
+    if _slug_state_key not in st.session_state:
+        st.session_state[_slug_state_key] = None  # lazy — don't hit DB until user asks
+
+    _sw_col1, _sw_col2 = st.columns([3, 1])
+    with _sw_col1:
+        if st.session_state[_slug_state_key] is None:
+            st.markdown(
+                '<div style="font-size:0.84rem;color:#8892AA;">'
+                'Generate a read-only public link to your watchlist — '
+                'share it anywhere to show your macro positioning. '
+                'No personal data is exposed (email, alert thresholds, etc.).'
+                '</div>',
+                unsafe_allow_html=True,
+            )
+            if st.button("Generate Share Link", key="gen_share_link", type="primary"):
+                try:
+                    _new_slug = get_or_create_slug(user_id)
+                    st.session_state[_slug_state_key] = _new_slug
+                    st.rerun()
+                except Exception as _se:
+                    st.error(f"Could not generate link: {_se}")
+        else:
+            _share_url = build_share_url(st.session_state[_slug_state_key])
+            st.markdown(
+                f'<div style="background:rgba(124,58,237,0.07);border:1px solid rgba(124,58,237,0.20);'
+                f'border-radius:10px;padding:14px 18px;">'
+                f'<div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.10em;'
+                f'text-transform:uppercase;margin-bottom:6px;">Your share link</div>'
+                f'<code style="font-size:0.80rem;color:#00C8E0;word-break:break-all;">{_share_url}</code>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.caption("Anyone with this link can view your watchlist scores (read-only). Copy and share freely.")
+
+    with _sw_col2:
+        if st.session_state[_slug_state_key] is not None:
+            st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
+            if st.button("Reset Link", key="revoke_share_link",
+                          help="Invalidates the current link and creates a new one"):
+                try:
+                    _new_slug = revoke_slug(user_id)
+                    st.session_state[_slug_state_key] = _new_slug
+                    st.success("Share link reset. Old link is now invalid.")
+                    st.rerun()
+                except Exception as _re:
+                    st.error(f"Could not reset: {_re}")
+
+except Exception as _share_err:
+    st.caption(f"Share feature unavailable: {_share_err}")
 
 st.divider()
 

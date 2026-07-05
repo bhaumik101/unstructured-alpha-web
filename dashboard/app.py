@@ -54,6 +54,8 @@ pg = st.navigation(
         ],
         "Watchlist": [
             st.Page("pages/10_Watchlist.py",        title="My Watchlist"),
+            st.Page("pages/35_Share_Watchlist.py",  title="Shared Watchlist"),
+            st.Page("pages/36_Stress_Tester.py",    title="⚡ Stress Tester"),
             st.Page("pages/14_Stock_Chart.py",      title="Stock Viewer"),
             st.Page("pages/32_Profile.py",          title="My Profile"),
         ],
@@ -94,6 +96,7 @@ pg = st.navigation(
             st.Page("pages/28_Export.py",           title="Export Report"),
             st.Page("pages/8_About.py",             title="About"),
             st.Page("pages/9_AI_Assistant.py",      title="AI Assistant"),
+            st.Page("pages/37_Legal.py",            title="Privacy & Terms"),
         ],
     },
     position="sidebar",
