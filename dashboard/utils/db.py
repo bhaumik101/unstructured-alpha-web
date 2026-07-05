@@ -159,6 +159,16 @@ users = Table(
     # verification codes. Both cleared on successful reset.
     Column("password_reset_code_hash", Text),
     Column("password_reset_expires_at", String(64)),
+    # Last login timestamp (added 2026-07-05). ISO-8601 UTC string set on every
+    # successful login() call in utils/auth.py. Used by cron/send_reengagement.py
+    # to identify users who haven't been active in the last N days.
+    # NULL = user has never logged in after initial email verification (or column
+    # was added after their last login — both treated as inactive by the cron).
+    Column("last_login_at", String(64)),
+    # Last re-engagement email timestamp (added 2026-07-05). Set after the
+    # re-engagement cron sends to this user. Prevents re-sending within 7 days.
+    # NULL = user has never received a re-engagement email.
+    Column("last_reengagement_at", String(64)),
 )
 
 watchlist = Table(

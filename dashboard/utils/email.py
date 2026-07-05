@@ -2218,3 +2218,182 @@ def send_weekly_brief_email(
     except requests.RequestException as e:
         print(f"[weekly-brief] send FAILED to={to_email!r}: {e}", flush=True)
         raise EmailSendError(f"Failed to send weekly brief to {to_email}: {e}") from e
+
+
+def send_reengagement_email(
+    to_email: str,
+    *,
+    days_away: int,
+    # Top movers on the user's watchlist since they last logged in
+    movers: list[dict] | None = None,   # [{ticker, name, score, delta, case}]
+    # Signal flips since they last logged in
+    signal_flips: list[dict] | None = None,  # [{name, from_status, to_status}]
+    # Overall macro regime
+    regime_label: str = "Mixed",
+) -> None:
+    """
+    Re-engagement email for users who haven't logged in for >= INACTIVE_DAYS.
+    Called by cron/send_reengagement.py.
+
+    Tone: friendly, not pushy. "Here's what changed while you were away."
+    CTA: come back and check your watchlist.
+
+    Raises EmailSendError if RESEND_API_KEY is missing or the API call fails.
+    """
+    api_key    = _get_resend_key()
+    from_email = _get_from_email()
+    print(f"[reengagement] sending to={to_email!r} days_away={days_away}", flush=True)
+    if not api_key:
+        raise EmailSendError("No RESEND_API_KEY configured.")
+
+    from datetime import date
+    today_str = date.today().strftime("%B %-d, %Y")
+
+    subject = f"👋 {days_away} days of macro moves — your watchlist has updates"
+
+    # ── Movers section ──────────────────────────────────────────────────────
+    if movers:
+        mover_rows = ""
+        for m in movers[:4]:
+            sc   = float(m.get("score", 50))
+            d    = float(m.get("delta", 0))
+            case = m.get("case", "NEUT")
+            sc_c = "#00D566" if case == "BULL" else ("#FF4D6A" if case == "BEAR" else "#F59E0B")
+            da   = "▲" if d >= 0 else "▼"
+            dc   = "#00D566" if d >= 0 else "#FF4D6A"
+            dsign = "+" if d >= 0 else ""
+            mover_rows += f"""
+        <tr style="border-bottom:1px solid #1E2535;">
+          <td style="padding:10px 0;vertical-align:middle;">
+            <div style="font-size:0.92rem;font-weight:700;color:#E8EEFF;">{m['ticker']}</div>
+            <div style="font-size:0.72rem;color:#6B7A95;">{str(m.get('name',''))[:28]}</div>
+          </td>
+          <td style="padding:10px 8px;text-align:center;vertical-align:middle;white-space:nowrap;">
+            <span style="color:{sc_c};font-weight:800;">{sc:.0f}</span>
+            <span style="color:#4A5280;font-size:0.72rem;">/100</span>
+          </td>
+          <td style="padding:10px 0;text-align:right;vertical-align:middle;white-space:nowrap;">
+            <span style="color:{dc};font-weight:700;">{da} {dsign}{d:.1f}</span>
+            <span style="font-size:0.68rem;color:#6B7A95;"> since you left</span>
+          </td>
+        </tr>"""
+        movers_html = f"""
+  <div style="margin:16px 0 0;">
+    <div style="font-size:0.58rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
+                text-transform:uppercase;margin-bottom:10px;">YOUR WATCHLIST MOVERS</div>
+    <table style="width:100%;border-collapse:collapse;">{mover_rows}
+    </table>
+  </div>"""
+    else:
+        movers_html = """
+  <div style="margin:16px 0 0;padding:12px;background:#0f1119;border-radius:6px;
+              font-size:0.82rem;color:#6B7A95;">
+    Add tickers to your watchlist to see score changes here.
+  </div>"""
+
+    # ── Signal flips section ────────────────────────────────────────────────
+    if signal_flips:
+        STATUS_COLOR = {
+            "bullish": "#00D566", "bearish": "#FF4D6A",
+            "neutral": "#F59E0B", "insufficient_data": "#6B7A95",
+        }
+        STATUS_SYM = {
+            "bullish": "▲", "bearish": "▼", "neutral": "●", "insufficient_data": "○",
+        }
+        flip_rows = ""
+        for f in signal_flips[:4]:
+            fc = STATUS_COLOR.get(f.get("from_status", "neutral"), "#6B7A95")
+            tc = STATUS_COLOR.get(f.get("to_status",   "neutral"), "#6B7A95")
+            fa = STATUS_SYM.get(f.get("from_status",   "neutral"), "●")
+            ta = STATUS_SYM.get(f.get("to_status",     "neutral"), "●")
+            flip_rows += f"""
+          <tr style="border-bottom:1px solid #1E2535;">
+            <td style="padding:8px 0;font-size:0.82rem;color:#B8C0D4;">{f.get('name','')}</td>
+            <td style="padding:8px 6px;color:{fc};font-size:0.80rem;white-space:nowrap;">{fa} {str(f.get('from_status','')).title()}</td>
+            <td style="padding:8px 4px;color:#4A5280;">→</td>
+            <td style="padding:8px 0;color:{tc};font-weight:700;font-size:0.80rem;white-space:nowrap;">{ta} {str(f.get('to_status','')).title()}</td>
+          </tr>"""
+        flips_html = f"""
+  <div style="margin:20px 0 0;">
+    <div style="font-size:0.58rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
+                text-transform:uppercase;margin-bottom:10px;">MACRO SIGNAL FLIPS WHILE YOU WERE AWAY</div>
+    <table style="width:100%;border-collapse:collapse;">{flip_rows}
+    </table>
+  </div>"""
+    else:
+        flips_html = ""
+
+    # ── Regime badge ────────────────────────────────────────────────────────
+    r_color = "#00D566" if regime_label == "Bullish" else ("#FF4D6A" if regime_label == "Bearish" else "#F59E0B")
+
+    html = f"""<!DOCTYPE html>
+<html>
+<body style="margin:0;padding:0;background:#0B0D12;font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
+<div style="max-width:560px;margin:24px auto;background:#12151E;border-radius:12px;
+            border:1px solid #1E2535;overflow:hidden;">
+
+  <!-- Header -->
+  <div style="background:linear-gradient(135deg,#1A1E30 0%,#0B0D12 100%);
+              padding:24px 28px 20px;border-bottom:1px solid #1E2535;">
+    <div style="font-size:0.58rem;font-weight:700;color:#7C3AED;letter-spacing:0.14em;
+                text-transform:uppercase;margin-bottom:6px;">UNSTRUCTURED ALPHA</div>
+    <div style="font-size:1.25rem;font-weight:800;color:#E8EEFF;line-height:1.25;">
+      A few things moved while you were away
+    </div>
+    <div style="font-size:0.80rem;color:#6B7A95;margin-top:5px;">
+      {days_away} days · {today_str} ·
+      <span style="color:{r_color};font-weight:700;">Macro: {regime_label}</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div style="padding:20px 28px 8px;">
+    {movers_html}
+    {flips_html}
+  </div>
+
+  <!-- CTA -->
+  <div style="padding:20px 28px 24px;text-align:center;">
+    <a href="https://unstructuredalpha.com/Watchlist"
+       style="display:inline-block;background:linear-gradient(135deg,#7C3AED,#5B21B6);
+              color:#FFFFFF;padding:12px 32px;border-radius:8px;
+              text-decoration:none;font-size:0.92rem;font-weight:700;">
+      Check Your Watchlist →
+    </a>
+    <div style="margin-top:10px;font-size:0.72rem;color:#4A5280;">
+      Or go to
+      <a href="https://unstructuredalpha.com/Today%27s_Brief"
+         style="color:#7C3AED;text-decoration:none;">Today's Brief</a>
+      for the full macro picture.
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div style="background:#0B0D12;padding:14px 28px;border-top:1px solid #1E2535;
+              font-size:0.68rem;color:#4A5280;text-align:center;line-height:1.7;">
+    Unstructured Alpha · unstructuredalpha.com · Not financial advice<br>
+    <a href="https://unstructuredalpha.com/Watchlist"
+       style="color:#6B7A95;text-decoration:none;">Manage email preferences</a>
+  </div>
+
+</div>
+</body>
+</html>"""
+
+    try:
+        resp = requests.post(
+            _RESEND_API_URL,
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={
+                "from": from_email,
+                "to":   [to_email],
+                "subject": subject,
+                "html": html,
+            },
+            timeout=15,
+        )
+        print(f"[reengagement] Resend responded: status={resp.status_code}", flush=True)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        print(f"[reengagement] send FAILED to={to_email!r}: {e}", flush=True)
+        raise EmailSendError(f"Failed to send reengagement email to {to_email}: {e}") from e

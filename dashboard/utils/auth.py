@@ -326,10 +326,11 @@ def login(email: str, password: str) -> dict:
     if not row["email_verified"]:
         raise EmailNotVerifiedError("Please verify your email before logging in.")
 
-    # Successful login — reset the fail counter.
+    # Successful login — reset the fail counter and record the login time.
     with db.engine.begin() as conn:
         conn.execute(users.update().where(users.c.id == row["id"]).values(
             login_attempt_count=0, login_locked_until=None,
+            last_login_at=_now_iso(),
         ))
 
     return {"id": row["id"], "email": row["email"]}
@@ -377,6 +378,24 @@ def verify_remember_token(token: str) -> dict | None:
         return None
     if datetime.now(timezone.utc) > datetime.fromisoformat(row["expires_at"]):
         return None
+
+    # Stamp last_login_at so this cookie-restore counts as activity.
+    # Only write if the stored value is more than 6 hours old — avoids a
+    # DB write on every page reload in the same Streamlit session.
+    try:
+        with db.engine.begin() as conn:
+            existing = conn.execute(
+                select(users.c.last_login_at).where(users.c.id == row["user_id"])
+            ).scalar()
+            cutoff = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
+            if existing is None or existing < cutoff:
+                conn.execute(
+                    users.update()
+                    .where(users.c.id == row["user_id"])
+                    .values(last_login_at=_now_iso())
+                )
+    except Exception:
+        pass  # never block session restore for a timestamp write failure
 
     return {"id": row["user_id"], "email": row["email"]}
 

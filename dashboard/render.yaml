@@ -268,6 +268,31 @@ services:
       - key: RENDER_EXTERNAL_URL
         sync: false
 
+  # Re-engagement email cron — runs daily at 17:00 UTC (1:00 PM ET).
+  # Targets verified users who haven't logged in for >= 5 days, have a watchlist,
+  # and haven't been re-engaged within the past 7 days. Sends a "here's what you
+  # missed" email with their top watchlist movers + macro signal flips since they
+  # were last active. Only sends if there's something substantive to show (>=1 mover
+  # or flip). Updates last_reengagement_at after every successful send.
+  - type: cron
+    name: unstructured-alpha-reengagement
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 17 * * *"   # 17:00 UTC = 1:00 PM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_reengagement
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
   # Twitter/X signal-flip tweet cron — runs once daily at 13:00 UTC (9:00 AM ET).
   # Computes the current macro signal state, detects flips since yesterday, and
   # tweets a briefing via @UnstructuredAlpha. Requires Twitter API v2 credentials
