@@ -10,7 +10,34 @@ from utils.config import TICKERS
 # ── Modern Dark Design System CSS ────────────────────────────────────────────
 _CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap');
+
+/* ── Design tokens ───────────────────────────────────────────────────────── */
+:root {
+    --ua-bg:         #0B0D12;
+    --ua-bg-card:    #12151E;
+    --ua-bg-raised:  #1A1E2C;
+    --ua-green:      #00D566;
+    --ua-cyan:       #00C8E0;
+    --ua-purple:     #7C3AED;
+    --ua-red:        #FF4444;
+    --ua-amber:      #F59E0B;
+    --ua-text-hi:    #E8EEFF;
+    --ua-text-mid:   #B8C0D4;
+    --ua-text-lo:    #8892AA;
+    --ua-text-cap:   #6B7FBF;
+    --ua-border:     rgba(255,255,255,0.07);
+    --ua-border-lo:  rgba(255,255,255,0.04);
+    --ua-grid:       rgba(255,255,255,0.04);
+    --ua-radius:     12px;
+    --ua-radius-sm:  8px;
+    --ua-radius-lg:  16px;
+    --ua-shadow:     0 8px 32px rgba(0,0,0,0.55);
+    --ua-shadow-lg:  0 16px 64px rgba(0,0,0,0.65);
+    --ua-glow-green: 0 0 28px rgba(0,213,102,0.18);
+    --ua-glow-red:   0 0 28px rgba(255,68,68,0.18);
+    --ua-glow-cyan:  0 0 28px rgba(0,200,224,0.14);
+}
 
 /* ── Base typography ─────────────────────────────────────────────────────── */
 html, body, [class*="css"] {
@@ -27,10 +54,25 @@ html, body, [class*="css"] {
 ::-webkit-scrollbar-thumb        { background: rgba(0,213,102,0.22); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover  { background: rgba(0,213,102,0.45); }
 
-/* ── Page background ─────────────────────────────────────────────────────── */
-.main                 { background-color: #0B0D12 !important; }
-.block-container      { background-color: #0B0D12 !important; padding-top: 0.75rem !important; }
-[data-testid="stAppViewContainer"] { background-color: #0B0D12 !important; }
+/* ── Page background — gradient mesh ─────────────────────────────────────── */
+.main {
+    background-color: #0B0D12 !important;
+    background-image:
+        radial-gradient(ellipse 80% 40% at 20% -5%,  rgba(0,213,102,0.055) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 35% at 80% 5%,   rgba(124,58,237,0.045) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 30% at 50% 100%, rgba(0,200,224,0.035) 0%, transparent 50%) !important;
+}
+.block-container {
+    background-color: transparent !important;
+    padding-top: 0.75rem !important;
+}
+[data-testid="stAppViewContainer"] {
+    background-color: #0B0D12 !important;
+    background-image:
+        radial-gradient(ellipse 80% 40% at 20% -5%,  rgba(0,213,102,0.055) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 35% at 80% 5%,   rgba(124,58,237,0.045) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 30% at 50% 100%, rgba(0,200,224,0.035) 0%, transparent 50%) !important;
+}
 
 /* ── Sidebar ─────────────────────────────────────────────────────────────── */
 section[data-testid="stSidebar"] {
@@ -467,20 +509,277 @@ code, pre {
 .ua-chip.neut  { color: #6B7FBF; background: rgba(107,127,191,0.08); }
 .ua-chip.pro   { color: #7C3AED; background: rgba(124,58,237,0.10); }
 
+/* ── Modern keyframes ────────────────────────────────────────────────────── */
+@keyframes ua_pulse_ring {
+    0%   { box-shadow: 0 0 0 0   rgba(0,213,102,0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(0,213,102,0);    }
+    100% { box-shadow: 0 0 0 0   rgba(0,213,102,0);    }
+}
+@keyframes ua_live_dot {
+    0%, 100% { opacity: 1;   transform: scale(1);   }
+    50%       { opacity: 0.4; transform: scale(1.35); }
+}
+@keyframes ua_gradient_x {
+    0%, 100% { background-position: 0%   50%; }
+    50%       { background-position: 100% 50%; }
+}
+@keyframes ua_slide_up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes ua_pop_in {
+    0%   { opacity: 0; transform: scale(0.92); }
+    60%  { transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1);    }
+}
+@keyframes ua_glow_pulse_green {
+    0%, 100% { box-shadow: 0 0 0 0 transparent; }
+    50%       { box-shadow: var(--ua-glow-green); }
+}
+@keyframes ua_glow_pulse_red {
+    0%, 100% { box-shadow: 0 0 0 0 transparent; }
+    50%       { box-shadow: var(--ua-glow-red); }
+}
+@keyframes ua_border_spin {
+    0%   { background-position: 0%   50%; }
+    100% { background-position: 200% 50%; }
+}
+@keyframes ua_number_in {
+    from { opacity: 0; transform: translateY(8px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* ── Live dot — universal ────────────────────────────────────────────────── */
+.ua-pulse-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--ua-green);
+    animation: ua_live_dot 1.8s ease-in-out infinite;
+    vertical-align: middle;
+    margin-right: 5px;
+}
+.ua-pulse-dot.bear { background: var(--ua-red); }
+.ua-pulse-dot.amber { background: var(--ua-amber); }
+
+/* Pulsing ring variant (for score numbers etc.) */
+.ua-pulse-ring {
+    animation: ua_pulse_ring 2.2s cubic-bezier(0.455,0.03,0.515,0.955) infinite;
+}
+
+/* ── Glassmorphism card ───────────────────────────────────────────────────── */
+.ua-glass {
+    background: rgba(18,21,30,0.75);
+    backdrop-filter: blur(18px) saturate(160%);
+    -webkit-backdrop-filter: blur(18px) saturate(160%);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--ua-radius);
+    box-shadow: var(--ua-shadow);
+}
+.ua-glass:hover {
+    border-color: rgba(255,255,255,0.14);
+    box-shadow: var(--ua-shadow-lg);
+}
+
+/* ── Animated gradient border card ──────────────────────────────────────── */
+.ua-gradient-border {
+    position: relative;
+    background: var(--ua-bg-card);
+    border-radius: var(--ua-radius);
+    padding: 1px;           /* the 1px exposes the pseudo element underneath */
+}
+.ua-gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #00D566, #00C8E0, #7C3AED, #00D566);
+    background-size: 300% 300%;
+    animation: ua_border_spin 4s linear infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.6;
+}
+
+/* ── Bull/Bear glow cards ────────────────────────────────────────────────── */
+.ua-card-bull {
+    background: rgba(0,213,102,0.04);
+    border: 1px solid rgba(0,213,102,0.18);
+    border-radius: var(--ua-radius);
+    animation: ua_glow_pulse_green 3.5s ease-in-out infinite;
+}
+.ua-card-bear {
+    background: rgba(255,68,68,0.04);
+    border: 1px solid rgba(255,68,68,0.18);
+    border-radius: var(--ua-radius);
+    animation: ua_glow_pulse_red 3.5s ease-in-out infinite;
+}
+
+/* ── Animated gradient text ─────────────────────────────────────────────── */
+.ua-gradient-text {
+    background: linear-gradient(135deg, #00D566 0%, #00C8E0 50%, #7C3AED 100%);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: ua_gradient_x 5s ease infinite;
+}
+
+/* ── Slide-up stagger animations ─────────────────────────────────────────── */
+.ua-slide-up         { animation: ua_slide_up 0.4s cubic-bezier(0.4,0,0.2,1) both; }
+.ua-slide-up-d1      { animation: ua_slide_up 0.4s 0.05s cubic-bezier(0.4,0,0.2,1) both; }
+.ua-slide-up-d2      { animation: ua_slide_up 0.4s 0.10s cubic-bezier(0.4,0,0.2,1) both; }
+.ua-slide-up-d3      { animation: ua_slide_up 0.4s 0.15s cubic-bezier(0.4,0,0.2,1) both; }
+.ua-slide-up-d4      { animation: ua_slide_up 0.4s 0.20s cubic-bezier(0.4,0,0.2,1) both; }
+
+/* Pop in (numbers, scores) */
+.ua-pop-in           { animation: ua_pop_in 0.45s cubic-bezier(0.4,0,0.2,1) both; }
+.ua-number-in        { animation: ua_number_in 0.5s 0.1s cubic-bezier(0.4,0,0.2,1) both; }
+
+/* ── Score badge — circular ───────────────────────────────────────────────── */
+.ua-score-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    position: relative;
+    font-family: 'Inter', sans-serif;
+}
+.ua-score-badge.bull {
+    background: rgba(0,213,102,0.12);
+    color: #00D566;
+    box-shadow: 0 0 0 2px rgba(0,213,102,0.3), inset 0 0 12px rgba(0,213,102,0.08);
+}
+.ua-score-badge.bear {
+    background: rgba(255,68,68,0.12);
+    color: #FF4444;
+    box-shadow: 0 0 0 2px rgba(255,68,68,0.3), inset 0 0 12px rgba(255,68,68,0.08);
+}
+.ua-score-badge.neut {
+    background: rgba(107,127,191,0.10);
+    color: #8892AA;
+    box-shadow: 0 0 0 2px rgba(107,127,191,0.2);
+}
+
+/* ── Live section label ──────────────────────────────────────────────────── */
+.ua-live-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.60rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ua-green);
+    background: rgba(0,213,102,0.07);
+    border: 1px solid rgba(0,213,102,0.20);
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Bento grid ──────────────────────────────────────────────────────────── */
+.ua-bento {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+}
+.ua-bento-wide  { grid-column: span 2; }
+.ua-bento-tall  { grid-row: span 2; }
+
+/* ── Status pill ─────────────────────────────────────────────────────────── */
+.ua-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    font-family: 'Inter', sans-serif;
+    white-space: nowrap;
+}
+.ua-pill.bull { background: rgba(0,213,102,0.10); color: #00D566; border: 1px solid rgba(0,213,102,0.25); }
+.ua-pill.bear { background: rgba(255,68,68,0.10);  color: #FF4444; border: 1px solid rgba(255,68,68,0.25); }
+.ua-pill.neut { background: rgba(107,127,191,0.08); color: #8892AA; border: 1px solid rgba(107,127,191,0.20); }
+.ua-pill.pro  { background: rgba(124,58,237,0.10);  color: #A78BFA; border: 1px solid rgba(124,58,237,0.25); }
+
+/* ── Data table — zebra striped ──────────────────────────────────────────── */
+.ua-zebra tr:nth-child(even) td { background: rgba(255,255,255,0.015) !important; }
+
+/* ── Streamlit dataframe — dark overrides ─────────────────────────────────── */
+[data-testid="stDataFrame"] iframe { border-radius: 10px !important; }
+.dvn-scroller { background: var(--ua-bg-card) !important; }
+.dvn-scroller::-webkit-scrollbar       { width: 4px; height: 4px; }
+.dvn-scroller::-webkit-scrollbar-thumb { background: rgba(0,213,102,0.22); border-radius: 2px; }
+
+/* ── Better primary button gradient ─────────────────────────────────────── */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(135deg, #00D566 0%, #00B857 40%, #00A847 100%) !important;
+    color: #001A0D !important;
+    border: none !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.01em !important;
+    box-shadow: 0 2px 14px rgba(0,213,102,0.28), 0 1px 3px rgba(0,0,0,0.3) !important;
+    transition: all 0.18s cubic-bezier(0.4,0,0.2,1) !important;
+}
+.stButton > button[kind="primary"]:hover {
+    box-shadow: 0 4px 22px rgba(0,213,102,0.42), 0 2px 6px rgba(0,0,0,0.4) !important;
+    filter: brightness(1.06) !important;
+    transform: translateY(-1px) !important;
+}
+.stButton > button[kind="primary"]:active {
+    transform: translateY(0) !important;
+    filter: brightness(0.97) !important;
+}
+
+/* ── Slider track — thicker, more visible ─────────────────────────────────── */
+.stSlider [data-baseweb="slider"] {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+}
+.stSlider [data-baseweb="slider"] [role="progressbar"] {
+    height: 4px !important;
+    background: linear-gradient(90deg, var(--ua-green), var(--ua-cyan)) !important;
+}
+.stSlider [data-baseweb="thumb"] {
+    width: 18px !important; height: 18px !important;
+    background: var(--ua-green) !important;
+    border: 2px solid var(--ua-bg) !important;
+    box-shadow: 0 0 0 2px var(--ua-green), 0 0 10px rgba(0,213,102,0.4) !important;
+}
+
+/* ── Section divider accent ──────────────────────────────────────────────── */
+.ua-section-rule {
+    height: 1px;
+    margin: 22px 0 18px;
+    background: linear-gradient(90deg,
+        rgba(0,213,102,0.25) 0%,
+        rgba(0,200,224,0.15) 35%,
+        rgba(124,58,237,0.12) 65%,
+        transparent 100%);
+    border: none;
+}
+
 /* ── Mobile responsiveness ───────────────────────────────────────────────── */
-/* Streamlit renders columns as flex on desktop; these overrides stack them
-   gracefully on narrow viewports (phones / portrait tablets). */
 @media (max-width: 768px) {
-    /* Stack 4-col grids to 2 columns */
     [data-testid="stHorizontalBlock"] > [data-testid="stVerticalBlock"] {
         min-width: 45% !important;
     }
-    /* Shrink hero headline on mobile */
     .hero-title { font-size: 1.9rem !important; }
-    /* Reduce block-container padding on mobile */
     .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-    /* Hide the live ticker strip on very narrow screens to prevent jank */
     .ticker-strip-outer { display: none !important; }
+    .ua-bento { grid-template-columns: 1fr !important; }
+    .ua-bento-wide { grid-column: span 1 !important; }
 }
 </style>
 """
@@ -865,38 +1164,54 @@ def _render_live_ticker_strip() -> None:
 def render_page_header(title: str, subtitle: str = "",
                        icon: str = "", live_stat: str = "") -> None:
     """
-    Bold gradient page title with subtitle and optional live right-side stat.
-    Call after render_header() at the top of each page.
+    Modern page title with gradient text, animated underline accent, and
+    optional live right-side stat chip.
 
     Args:
-        title:     Page title — displayed with bold gradient text.
+        title:     Page title — displayed with gradient text + animated accent.
         subtitle:  One-line description of what the page does.
         icon:      Optional emoji/icon prefix for the title (e.g. "📊").
         live_stat: Optional right-aligned stat string (e.g. "38 signals active").
     """
-    icon_html = f'<span style="margin-right:8px;">{icon}</span>' if icon else ""
+    icon_html = (
+        f'<span style="margin-right:9px;font-size:1.55rem;vertical-align:middle;'
+        f'line-height:1;">{icon}</span>'
+    ) if icon else ""
+
     stat_html = (
-        f'<div style="text-align:right;font-size:0.72rem;color:#6B7FBF;font-weight:600;'
-        f'letter-spacing:0.06em;">{live_stat}</div>'
+        f'<div style="display:inline-flex;align-items:center;gap:6px;'
+        f'background:rgba(0,213,102,0.07);border:1px solid rgba(0,213,102,0.18);'
+        f'border-radius:20px;padding:4px 12px;font-size:0.68rem;font-weight:700;'
+        f'color:#00D566;letter-spacing:0.06em;white-space:nowrap;font-family:Inter,sans-serif;">'
+        f'<span class="ua-pulse-dot" style="margin-right:2px;"></span>{live_stat}</div>'
     ) if live_stat else ""
+
     sub_html = (
-        f'<div style="font-size:0.85rem;color:#8892AA;margin-top:3px;line-height:1.4;'
-        f'font-weight:400;">{subtitle}</div>'
+        f'<div style="font-size:0.86rem;color:#8892AA;margin-top:5px;line-height:1.5;'
+        f'font-weight:400;font-family:Inter,sans-serif;max-width:640px;">{subtitle}</div>'
     ) if subtitle else ""
 
     st.markdown(f"""
-<div style="display:flex;align-items:flex-start;justify-content:space-between;
-            margin:10px 0 18px;padding-bottom:14px;
-            border-bottom:1px solid rgba(255,255,255,0.06);">
+<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+            margin:8px 0 20px;padding-bottom:16px;position:relative;
+            border-bottom:1px solid rgba(255,255,255,0.05);"
+     class="ua-slide-up">
+    <!-- Animated gradient accent line -->
+    <div style="position:absolute;bottom:-1px;left:0;width:200px;height:2px;
+                background:linear-gradient(90deg,#00D566,#00C8E0,#7C3AED);
+                background-size:300% 100%;
+                animation:ua_gradient_x 5s ease infinite;
+                border-radius:1px;"></div>
     <div>
-        <div style="font-size:1.85rem;font-weight:800;letter-spacing:-0.6px;line-height:1.15;
-                    font-family:Inter,sans-serif;">
-            {icon_html}<span style="background:linear-gradient(135deg,#E8EEFF 0%,#B8C0D4 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">{title}</span>
+        <div style="font-size:1.9rem;font-weight:800;letter-spacing:-0.7px;line-height:1.1;
+                    font-family:Inter,sans-serif;display:flex;align-items:center;flex-wrap:wrap;">
+            {icon_html}<span style="background:linear-gradient(135deg,#E8EEFF 0%,#C8D0E4 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+            background-clip:text;">{title}</span>
         </div>
         {sub_html}
     </div>
-    {stat_html}
+    <div style="padding-top:4px;flex-shrink:0;">{stat_html}</div>
 </div>
 """, unsafe_allow_html=True)
 

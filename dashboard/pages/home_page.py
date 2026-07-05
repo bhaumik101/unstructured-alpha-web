@@ -174,23 +174,19 @@ _top_bear = _hd["bear"][0][0] if _hd["bear"] else None
 
 # ── HERO ──────────────────────────────────────────────────────────────────────
 st.markdown(f"""
-<div style="text-align:center;padding:36px 0 0;font-family:'Inter',sans-serif;">
-    <div style="display:inline-flex;align-items:center;gap:6px;
-                font-size:0.62rem;letter-spacing:0.20em;color:#00D566;margin-bottom:18px;
-                font-weight:700;background:rgba(0,213,102,0.07);
-                border:1px solid rgba(0,213,102,0.22);border-radius:20px;
-                padding:4px 14px;">
-        <span class="ua-pulse-dot"></span>
-        INSTITUTIONAL-GRADE MACRO INTELLIGENCE · FREE
+<div style="text-align:center;padding:44px 0 4px;font-family:'Inter',sans-serif;">
+    <div class="ua-slide-up-d1" style="margin-bottom:22px;">
+        <span class="ua-live-label">
+            <span class="ua-pulse-dot"></span>
+            INSTITUTIONAL-GRADE MACRO INTELLIGENCE · FREE
+        </span>
     </div>
-    <div style="font-size:clamp(2.2rem,4.5vw,3.1rem);font-weight:900;color:#E8EEFF;
-                line-height:1.08;max-width:780px;margin:0 auto 16px;letter-spacing:-1.8px;">
+    <div class="ua-slide-up-d2" style="font-size:clamp(2.2rem,4.5vw,3.1rem);font-weight:900;color:#E8EEFF;
+                line-height:1.08;max-width:780px;margin:0 auto 18px;letter-spacing:-1.8px;">
         Before the market moves,<br>
-        <span style="background:linear-gradient(135deg,#00D566 10%,#00C8E0 60%,#7C3AED 100%);
-                     -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-                     background-clip:text;">the signals already did.</span>
+        <span class="ua-gradient-text">the signals already did.</span>
     </div>
-    <div style="font-size:1.0rem;color:#8892AA;margin:0 auto 0;max-width:560px;
+    <div class="ua-slide-up-d3" style="font-size:0.97rem;color:#8892AA;margin:0 auto;max-width:560px;
                 line-height:1.75;font-weight:400;">
         43 macro signals — Fed policy, energy flows, credit spreads, insider buying,
         put/call sentiment — scored in real time and mapped to the stocks you actually hold.
@@ -214,10 +210,10 @@ _top_bear_html = (
 )
 
 st.markdown(
-    f'<div style="background:rgba(18,21,30,0.92);border:1px solid rgba(0,213,102,0.20);'
+    f'<div class="ua-slide-up-d4" style="background:rgba(18,21,30,0.82);border:1px solid rgba(0,213,102,0.22);'
     f'border-radius:18px;padding:26px 30px 22px;margin:28px auto 0;max-width:900px;'
-    f'font-family:Inter,sans-serif;backdrop-filter:blur(12px);'
-    f'box-shadow:0 0 60px rgba(0,213,102,0.07),0 24px 64px rgba(0,0,0,0.55);">'
+    f'font-family:Inter,sans-serif;backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);'
+    f'box-shadow:0 0 60px rgba(0,213,102,0.09),0 24px 64px rgba(0,0,0,0.6),inset 0 1px 0 rgba(255,255,255,0.05);">'
     # Top separator accent line
     f'<div style="position:relative;margin-bottom:18px;">'
     f'<div style="position:absolute;top:-26px;left:-30px;right:-30px;height:1px;'
@@ -237,7 +233,7 @@ st.markdown(
     f'</div>'
     # Right: counter trio
     f'<div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;">'
-    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate">'
+    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate ua-number-in">'
     f'<div style="font-size:2.8rem;font-weight:900;color:#00D566;letter-spacing:-1.5px;'
     f'line-height:1.0;text-shadow:0 0 30px rgba(0,213,102,0.4);">{_nb}</div>'
     f'<div style="font-size:0.58rem;color:#00D566;letter-spacing:0.14em;font-weight:700;'
@@ -245,7 +241,7 @@ st.markdown(
     f'{_top_bull_html}'
     f'</div>'
     f'<div style="width:1px;height:60px;background:rgba(255,255,255,0.06);"></div>'
-    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate">'
+    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate ua-number-in">'
     f'<div style="font-size:2.8rem;font-weight:900;color:#FF4444;letter-spacing:-1.5px;'
     f'line-height:1.0;text-shadow:0 0 30px rgba(255,68,68,0.35);">{_nr}</div>'
     f'<div style="font-size:0.58rem;color:#FF4444;letter-spacing:0.14em;font-weight:700;'
@@ -253,7 +249,7 @@ st.markdown(
     f'{_top_bear_html}'
     f'</div>'
     f'<div style="width:1px;height:60px;background:rgba(255,255,255,0.06);"></div>'
-    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate">'
+    f'<div style="text-align:center;min-width:60px;" class="ua-kpi-animate ua-number-in">'
     f'<div style="font-size:2.8rem;font-weight:900;color:#6B7FBF;letter-spacing:-1.5px;'
     f'line-height:1.0;">{_nn}</div>'
     f'<div style="font-size:0.58rem;color:#6B7FBF;letter-spacing:0.14em;font-weight:700;'
@@ -299,7 +295,7 @@ try:
         _fl_verb = "TURNED BULLISH" if _flip["to_status"] == "bullish" else "TURNED BEARISH"
         _fl_icon = "📈" if _flip["to_status"] == "bullish" else "📉"
         st.markdown(
-            f'<div style="background:rgba({_fl_r},{_fl_g},{_fl_b},0.07);'
+            f'<div class="ua-pop-in" style="background:rgba({_fl_r},{_fl_g},{_fl_b},0.07);'
             f'border:1px solid rgba({_fl_r},{_fl_g},{_fl_b},0.28);'
             f'border-radius:10px;padding:11px 20px;margin:10px auto 0;max-width:860px;'
             f'display:flex;align-items:center;gap:10px;font-family:Inter,sans-serif;">'
@@ -318,25 +314,37 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 # ── CREDIBILITY STRIP ─────────────────────────────────────────────────────────
 st.markdown("""
-<div style="border-top:1px solid rgba(255,255,255,0.06);border-bottom:1px solid rgba(255,255,255,0.06);
-            padding:14px 0;margin:4px 0 28px;text-align:center;font-family:Inter,sans-serif;">
-    <div style="font-size:0.58rem;letter-spacing:0.16em;color:#6B7FBF;margin-bottom:10px;
+<div style="background:rgba(18,21,30,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+            border-top:1px solid rgba(255,255,255,0.05);border-bottom:1px solid rgba(255,255,255,0.05);
+            padding:16px 0;margin:4px 0 28px;text-align:center;font-family:Inter,sans-serif;">
+    <div style="font-size:0.57rem;letter-spacing:0.16em;color:#6B7FBF;margin-bottom:12px;
                 font-weight:700;">DATA SOURCED FROM THE SAME INSTITUTIONS WALL STREET USES</div>
-    <div style="display:flex;justify-content:center;gap:28px;flex-wrap:wrap;align-items:center;">
-        <span style="font-size:0.80rem;color:#8892AA;">
-            <b style="color:#E8EEFF;">FRED</b> · Federal Reserve</span>
-        <span style="color:rgba(255,255,255,0.12);">|</span>
-        <span style="font-size:0.80rem;color:#8892AA;">
-            <b style="color:#E8EEFF;">SEC EDGAR</b> · Insider Filings</span>
-        <span style="color:rgba(255,255,255,0.12);">|</span>
-        <span style="font-size:0.80rem;color:#8892AA;">
-            <b style="color:#E8EEFF;">FINRA</b> · Short Interest</span>
-        <span style="color:rgba(255,255,255,0.12);">|</span>
-        <span style="font-size:0.80rem;color:#8892AA;">
-            <b style="color:#E8EEFF;">EIA</b> · Energy Data</span>
-        <span style="color:rgba(255,255,255,0.12);">|</span>
-        <span style="font-size:0.80rem;color:#8892AA;">
-            <b style="color:#E8EEFF;">13F Filings</b> · Institutional Positions</span>
+    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;color:#8892AA;
+                     background:rgba(0,213,102,0.05);border:1px solid rgba(0,213,102,0.12);
+                     border-radius:8px;padding:5px 12px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#00D566;flex-shrink:0;"></span>
+            <b style="color:#E8EEFF;">FRED</b>&nbsp;· Federal Reserve</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;color:#8892AA;
+                     background:rgba(0,200,224,0.05);border:1px solid rgba(0,200,224,0.12);
+                     border-radius:8px;padding:5px 12px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#00C8E0;flex-shrink:0;"></span>
+            <b style="color:#E8EEFF;">SEC EDGAR</b>&nbsp;· Insider Filings</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;color:#8892AA;
+                     background:rgba(124,58,237,0.05);border:1px solid rgba(124,58,237,0.12);
+                     border-radius:8px;padding:5px 12px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#7C3AED;flex-shrink:0;"></span>
+            <b style="color:#E8EEFF;">FINRA</b>&nbsp;· Short Interest</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;color:#8892AA;
+                     background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.12);
+                     border-radius:8px;padding:5px 12px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#F59E0B;flex-shrink:0;"></span>
+            <b style="color:#E8EEFF;">EIA</b>&nbsp;· Energy Data</span>
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:0.78rem;color:#8892AA;
+                     background:rgba(52,211,153,0.05);border:1px solid rgba(52,211,153,0.12);
+                     border-radius:8px;padding:5px 12px;">
+            <span style="width:6px;height:6px;border-radius:50%;background:#34D399;flex-shrink:0;"></span>
+            <b style="color:#E8EEFF;">13F Filings</b>&nbsp;· Institutional</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -344,10 +352,11 @@ st.markdown("""
 # ── INSTANT PORTFOLIO CHECK ───────────────────────────────────────────────────
 if _data_loaded:
     st.markdown("""
-<div style="background:rgba(18,21,30,0.95);border:1px solid rgba(0,200,224,0.22);
+<div style="background:rgba(18,21,30,0.82);border:1px solid rgba(0,200,224,0.22);
             border-radius:16px;padding:22px 26px 18px;margin:0 0 24px;
             font-family:Inter,sans-serif;
-            box-shadow:0 0 30px rgba(0,200,224,0.05),0 8px 32px rgba(0,0,0,0.4);">
+            backdrop-filter:blur(16px) saturate(150%);-webkit-backdrop-filter:blur(16px) saturate(150%);
+            box-shadow:0 0 30px rgba(0,200,224,0.07),0 8px 32px rgba(0,0,0,0.45),inset 0 1px 0 rgba(255,255,255,0.04);">
     <div style="font-size:0.58rem;letter-spacing:0.18em;font-weight:700;color:#00C8E0;
                 margin-bottom:8px;">⚡ INSTANT MACRO CHECK — NO ACCOUNT NEEDED</div>
     <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;margin-bottom:4px;
@@ -450,8 +459,9 @@ if _data_loaded:
             if _nar.get("watch_note") else ""
         )
         st.markdown(
-            f'<div style="background:{_bias_bg};border:1px solid {_bias_color}22;'
+            f'<div class="ua-slide-up-d1" style="background:{_bias_bg};border:1px solid {_bias_color}22;'
             f'border-left:4px solid {_bias_color};'
+            f'backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);'
             f'border-radius:12px;padding:20px 22px;font-family:Inter,sans-serif;">'
             f'<div style="font-size:0.58rem;font-weight:700;letter-spacing:0.14em;color:{_bias_color};'
             f'text-transform:uppercase;margin-bottom:6px;">MACHINE READS THE MARKET</div>'
@@ -494,7 +504,8 @@ if _data_loaded:
                 for r in _bear_tkrs
             )
             st.markdown(
-                f'<div style="background:rgba(18,21,30,0.8);border:1px solid rgba(255,255,255,0.07);'
+                f'<div class="ua-slide-up-d2" style="background:rgba(18,21,30,0.75);border:1px solid rgba(255,255,255,0.08);'
+                f'backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);'
                 f'border-radius:12px;padding:18px 20px;font-family:Inter,sans-serif;">'
                 f'<div style="font-size:0.58rem;font-weight:700;letter-spacing:0.14em;color:#00D566;'
                 f'text-transform:uppercase;margin-bottom:12px;">WHAT THE MACHINE FAVORS NOW</div>'
@@ -561,8 +572,9 @@ try:
             _note_date_str = _note_date
 
         st.markdown(
-            f'<div style="background:rgba(18,21,30,0.8);border:1px solid rgba(255,255,255,0.07);'
+            f'<div class="ua-slide-up-d1" style="background:rgba(18,21,30,0.78);border:1px solid rgba(255,255,255,0.07);'
             f'border-top:2px solid #00D566;'
+            f'backdrop-filter:blur(12px) saturate(130%);-webkit-backdrop-filter:blur(12px) saturate(130%);'
             f'border-radius:12px;padding:18px 22px;margin-bottom:24px;font-family:Inter,sans-serif;">'
             f'<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">'
             f'<span style="font-size:0.58rem;letter-spacing:0.16em;font-weight:700;color:#00D566;">📰 LATEST RESEARCH NOTE</span>'
@@ -712,11 +724,13 @@ _PROOFS = [
         "timing": "3–5 weeks ahead",
     },
 ]
-for _col, _p in zip([_proof_c1, _proof_c2, _proof_c3], _PROOFS):
+for _pi, (_col, _p) in enumerate(zip([_proof_c1, _proof_c2, _proof_c3], _PROOFS)):
+    _proof_delay_cls = ["ua-pop-in", "ua-slide-up-d1", "ua-slide-up-d2"][_pi]
     with _col:
         st.markdown(
-            f'<div style="background:rgba(18,21,30,0.85);border:1px solid rgba(255,255,255,0.06);'
+            f'<div class="{_proof_delay_cls}" style="background:rgba(18,21,30,0.78);border:1px solid rgba(255,255,255,0.07);'
             f'border-left:4px solid {_p["color"]};border-radius:10px;padding:18px 16px 14px;'
+            f'backdrop-filter:blur(12px) saturate(130%);-webkit-backdrop-filter:blur(12px) saturate(130%);'
             f'font-family:Inter,sans-serif;min-height:195px;">'
             f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">'
             f'<span style="font-size:1.2rem;">{_p["icon"]}</span>'

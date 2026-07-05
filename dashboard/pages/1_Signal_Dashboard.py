@@ -192,31 +192,43 @@ else:
     temp_color, temp_label = "#6B7FBF", "No Data"
 
 st.markdown(f"""
-<div style="background:rgba(18,21,30,0.85);border-radius:12px;padding:16px 20px;border:1px solid rgba(255,255,255,0.07);
-            border-left:5px solid {temp_color};font-family:Inter,sans-serif;margin-bottom:16px;">
+<div class="ua-slide-up" style="background:rgba(18,21,30,0.78);border-radius:14px;padding:18px 22px;
+            border:1px solid rgba(255,255,255,0.08);border-left:5px solid {temp_color};
+            backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);
+            box-shadow:0 4px 24px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.04);
+            font-family:Inter,sans-serif;margin-bottom:16px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
         <div>
-            <div style="font-size:0.62rem;color:#8892AA;letter-spacing:0.10em;text-transform:uppercase;">
-                MARKET TEMPERATURE — {scope_lbl}
+            <div style="display:flex;align-items:center;gap:6px;font-size:0.60rem;color:#8892AA;
+                        letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;">
+                <span class="ua-pulse-dot"></span>MARKET TEMPERATURE — {scope_lbl}
             </div>
-            <div style="font-size:1.4rem;font-weight:800;color:{temp_color};margin-top:2px;">{temp_label}</div>
+            <div style="font-size:1.5rem;font-weight:800;color:{temp_color};margin-top:2px;
+                        letter-spacing:-0.3px;">{temp_label}</div>
         </div>
-        <div style="display:flex;gap:28px;text-align:center;">
+        <div style="display:flex;gap:24px;text-align:center;">
             <div>
-                <div style="font-size:1.6rem;font-weight:700;color:#00D566;">{bull_n}</div>
-                <div style="font-size:0.68rem;color:#8892AA;">Bullish</div>
+                <div class="ua-number-in" style="font-size:1.8rem;font-weight:800;color:#00D566;
+                             letter-spacing:-1px;line-height:1.0;text-shadow:0 0 20px rgba(0,213,102,0.3);">{bull_n}</div>
+                <div style="font-size:0.60rem;color:#00D566;letter-spacing:0.10em;font-weight:700;margin-top:3px;">BULLISH</div>
             </div>
+            <div style="width:1px;background:rgba(255,255,255,0.06);"></div>
             <div>
-                <div style="font-size:1.6rem;font-weight:700;color:#FF4444;">{bear_n}</div>
-                <div style="font-size:0.68rem;color:#8892AA;">Bearish</div>
+                <div class="ua-number-in" style="font-size:1.8rem;font-weight:800;color:#FF4444;
+                             letter-spacing:-1px;line-height:1.0;text-shadow:0 0 20px rgba(255,68,68,0.25);">{bear_n}</div>
+                <div style="font-size:0.60rem;color:#FF4444;letter-spacing:0.10em;font-weight:700;margin-top:3px;">BEARISH</div>
             </div>
+            <div style="width:1px;background:rgba(255,255,255,0.06);"></div>
             <div>
-                <div style="font-size:1.6rem;font-weight:700;color:#6B7FBF;">{neut_n}</div>
-                <div style="font-size:0.68rem;color:#8892AA;">Neutral</div>
+                <div class="ua-number-in" style="font-size:1.8rem;font-weight:800;color:#6B7FBF;
+                             letter-spacing:-1px;line-height:1.0;">{neut_n}</div>
+                <div style="font-size:0.60rem;color:#6B7FBF;letter-spacing:0.10em;font-weight:700;margin-top:3px;">NEUTRAL</div>
             </div>
+            <div style="width:1px;background:rgba(255,255,255,0.06);"></div>
             <div>
-                <div style="font-size:1.6rem;font-weight:700;color:#E8EEFF;">{total_n}</div>
-                <div style="font-size:0.68rem;color:#8892AA;">Total</div>
+                <div class="ua-number-in" style="font-size:1.8rem;font-weight:800;color:#E8EEFF;
+                             letter-spacing:-1px;line-height:1.0;">{total_n}</div>
+                <div style="font-size:0.60rem;color:#8892AA;letter-spacing:0.10em;font-weight:700;margin-top:3px;">TOTAL</div>
             </div>
         </div>
     </div>
@@ -253,8 +265,9 @@ try:
             _to_lbl = _flip["to_status"].replace("_", " ").title()
             with _flip_cols[_fi]:
                 st.markdown(
-                    f'<div style="background:rgba(18,21,30,0.85);border-radius:6px;padding:8px 12px;'
-                    f'border:1px solid rgba(255,255,255,0.07);border-top:3px solid {_to_c};'
+                    f'<div class="ua-pop-in" style="background:rgba(18,21,30,0.80);border-radius:8px;padding:10px 12px;'
+                    f'border:1px solid rgba(255,255,255,0.08);border-top:3px solid {_to_c};'
+                    f'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);'
                     f'margin-bottom:8px;font-family:Inter,sans-serif;">'
                     f'<div style="font-size:0.75rem;font-weight:700;color:#E8EEFF;'
                     f'line-height:1.3;margin-bottom:4px;">{_fname[:36]}</div>'
@@ -476,10 +489,12 @@ for row_start in range(0, len(visible_signals), COLS):
                     )
                     _src_badge = source_badge(cfg.get("source", ""), cfg.get("series_id", ""))
                     st.markdown(
-                        f'<div style="background:rgba(18,21,30,0.88);border-radius:10px;padding:14px 16px;'
-                        f'border-left:3px solid {border};border:1px solid rgba(255,255,255,0.07);'
+                        f'<div style="background:rgba(18,21,30,0.78);border-radius:10px;padding:14px 16px;'
+                        f'border-left:3px solid {border};border:1px solid rgba(255,255,255,0.08);'
                         f'border-left-width:3px;margin-bottom:10px;font-family:Inter,sans-serif;'
-                        f'transition:border-color 0.18s ease,box-shadow 0.18s ease;">'
+                        f'backdrop-filter:blur(10px) saturate(130%);-webkit-backdrop-filter:blur(10px) saturate(130%);'
+                        f'box-shadow:0 2px 12px rgba(0,0,0,0.28);'
+                        f'transition:all 0.18s cubic-bezier(0.4,0,0.2,1);">'
                         f'<div style="display:flex;justify-content:space-between;align-items:flex-start;'
                         f'margin-bottom:8px;">'
                         f'<div style="font-size:0.80rem;font-weight:700;color:#E8EEFF;line-height:1.3;'
@@ -522,8 +537,10 @@ for row_start in range(0, len(visible_signals), COLS):
                         if _flip_note else ""
                     )
                     st.markdown(
-                        f'<div style="background:#0B0D12;border-radius:6px;padding:14px 16px;'
+                        f'<div style="background:rgba(18,21,30,0.78);border-radius:10px;padding:14px 16px;'
                         f'border-left:4px solid {border};border:1px solid rgba(255,255,255,0.08);'
+                        f'backdrop-filter:blur(10px) saturate(130%);-webkit-backdrop-filter:blur(10px) saturate(130%);'
+                        f'box-shadow:0 2px 12px rgba(0,0,0,0.28);'
                         f'margin-bottom:10px;font-family:Inter,sans-serif;min-height:140px;">'
                         f'<div style="font-size:0.68rem;color:#8892AA;letter-spacing:0.03em;margin-bottom:2px;">'
                         f'{_cat_icon} {_cat_name} · PCS {cfg["pcs"]}/10</div>'
