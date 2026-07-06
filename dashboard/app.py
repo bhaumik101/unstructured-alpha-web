@@ -97,6 +97,7 @@ pg = st.navigation(
             st.Page("pages/8_About.py",             title="About"),
             st.Page("pages/9_AI_Assistant.py",      title="AI Assistant"),
             st.Page("pages/37_Legal.py",            title="Privacy & Terms"),
+            st.Page("pages/38_Admin.py",            title="Admin"),
         ],
     },
     position="sidebar",
