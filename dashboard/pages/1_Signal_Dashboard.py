@@ -139,18 +139,28 @@ with col_display:
 
 st.markdown("")
 
-# ── Category Tabs ─────────────────────────────────────────────────────────────
-cat_labels  = ["All"] + [v['name'] for v in CATEGORIES.values()]
-cat_keys    = [None]     + list(CATEGORIES.keys())
-cat_sel_idx = st.radio(
+# ── Category Filter — segmented pills with icons + live signal counts ─────────
+_cat_counts = {
+    ck: sum(1 for sv in all_signals.values() if sv["config"].get("category") == ck)
+    for ck in CATEGORIES
+}
+_cat_options = ["all"] + list(CATEGORIES.keys())
+
+def _cat_fmt(k: str) -> str:
+    if k == "all":
+        return f"All  ({len(all_signals)})"
+    cat = CATEGORIES[k]
+    return f"{cat['icon']} {cat['name']}  ({_cat_counts.get(k, 0)})"
+
+_cat_sel = st.segmented_control(
     "Category",
-    cat_labels,
-    index=0,
-    horizontal=True,
-    key="dash_cat",
+    options=_cat_options,
+    format_func=_cat_fmt,
+    default="all",
+    key="dash_cat_sc",
     label_visibility="collapsed",
 )
-selected_cat = cat_keys[cat_labels.index(cat_sel_idx)]
+selected_cat = None if (_cat_sel is None or _cat_sel == "all") else _cat_sel
 
 # ── Search ────────────────────────────────────────────────────────────────────
 search_term = st.text_input(
@@ -316,6 +326,25 @@ try:
 except Exception:
     pass
 
+# ── Live Pulse CSS ────────────────────────────────────────────────────────────
+st.markdown("""
+<style>
+@keyframes ua-sd-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255,255,255,0.6); }
+  60%  { box-shadow: 0 0 0 6px rgba(255,255,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+}
+.ua-sd-live-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 5px;
+  animation: ua-sd-pulse 1.5s ease-in-out infinite;
+}
+</style>
+""", unsafe_allow_html=True)
+
 # ── Theme Context Banner ──────────────────────────────────────────────────────
 st.markdown("""
 <div style="background:rgba(0,200,224,0.05);border-radius:8px;padding:14px 20px;
@@ -417,6 +446,11 @@ for row_start in range(0, len(visible_signals), COLS):
         else:
             border = STATUS_COLOR.get(status, "#8892AA")
 
+        # Pre-compute border RGB components for gradient backgrounds
+        _bc_r = int(border[1:3], 16)
+        _bc_g = int(border[3:5], 16)
+        _bc_b = int(border[5:7], 16)
+
         # "Changed X days ago" footer — from the 60-day flip lookup
         _days_flipped = _flip_lookup.get(sig_id)
         if _days_flipped is not None:
@@ -456,6 +490,14 @@ for row_start in range(0, len(visible_signals), COLS):
             if _streak_label.startswith("🟢") else ""
         )
 
+        # Live pulse indicator — shown for signals that flipped today or yesterday
+        _is_live = _days_flipped is not None and _days_flipped <= 1
+        _pulse_dot = (
+            f'<span class="ua-sd-live-dot" style="background:rgba({_bc_r},{_bc_g},{_bc_b},1);'
+            f'box-shadow:0 0 5px rgba({_bc_r},{_bc_g},{_bc_b},0.8);"></span>'
+            if _is_live else ""
+        )
+
         with col:
             try:
                 if mode == "Simple":
@@ -488,21 +530,31 @@ for row_start in range(0, len(visible_signals), COLS):
                         if _flip_note else ""
                     )
                     _src_badge = source_badge(cfg.get("source", ""), cfg.get("series_id", ""))
+                    _cat_color = cat.get("color", "#6B7FBF")
+                    _cat_cr, _cat_cg, _cat_cb = int(_cat_color[1:3], 16), int(_cat_color[3:5], 16), int(_cat_color[5:7], 16)
                     st.markdown(
-                        f'<div style="background:rgba(18,21,30,0.78);border-radius:10px;padding:14px 16px;'
-                        f'border-left:3px solid {border};border:1px solid rgba(255,255,255,0.08);'
-                        f'border-left-width:3px;margin-bottom:10px;font-family:Inter,sans-serif;'
-                        f'backdrop-filter:blur(10px) saturate(130%);-webkit-backdrop-filter:blur(10px) saturate(130%);'
-                        f'box-shadow:0 2px 12px rgba(0,0,0,0.28);'
+                        f'<div style="background:linear-gradient(180deg,'
+                        f'rgba({_bc_r},{_bc_g},{_bc_b},0.10) 0%,rgba(18,21,30,0.82) 44%);'
+                        f'border-radius:12px;padding:14px 16px;'
+                        f'border:1px solid rgba(255,255,255,0.08);border-top:2px solid {border};'
+                        f'margin-bottom:10px;font-family:Inter,sans-serif;'
+                        f'backdrop-filter:blur(12px) saturate(150%);'
+                        f'-webkit-backdrop-filter:blur(12px) saturate(150%);'
+                        f'box-shadow:0 4px 20px rgba(0,0,0,0.30);'
                         f'transition:all 0.18s cubic-bezier(0.4,0,0.2,1);">'
                         f'<div style="display:flex;justify-content:space-between;align-items:flex-start;'
                         f'margin-bottom:8px;">'
                         f'<div style="font-size:0.80rem;font-weight:700;color:#E8EEFF;line-height:1.3;'
-                        f'flex:1;letter-spacing:-0.1px;">{_sig_name}</div>'
-                        f'<div style="font-size:0.82rem;font-weight:800;color:{border};'
-                        f'background:{border}15;border:1px solid {border}30;border-radius:5px;'
-                        f'padding:2px 8px;white-space:nowrap;margin-left:8px;'
+                        f'flex:1;letter-spacing:-0.1px;">{_pulse_dot}{_sig_name}</div>'
+                        f'<div style="text-align:right;margin-left:8px;flex-shrink:0;">'
+                        f'<div style="font-size:0.80rem;font-weight:800;color:{border};'
+                        f'background:rgba({_bc_r},{_bc_g},{_bc_b},0.12);'
+                        f'border:1px solid rgba({_bc_r},{_bc_g},{_bc_b},0.25);'
+                        f'border-radius:6px;padding:2px 8px;white-space:nowrap;'
                         f'letter-spacing:0.02em;">{sym} {_lbl_text}</div>'
+                        f'<div style="font-size:0.64rem;color:{border};opacity:0.80;'
+                        f'margin-top:3px;font-weight:600;letter-spacing:0.02em;">{score:.0f}/100</div>'
+                        f'</div>'
                         f'</div>'
                         f'<div style="font-size:0.77rem;color:#B8C0D4;line-height:1.55;margin-bottom:8px;">'
                         f'{_bottom_note}{_lag_html}'
@@ -510,7 +562,12 @@ for row_start in range(0, len(visible_signals), COLS):
                         f'<div style="display:flex;justify-content:space-between;align-items:center;'
                         f'flex-wrap:wrap;gap:4px;">'
                         f'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-                        f'<span style="font-size:0.66rem;color:#6B7FBF;">{_cat_icon} {_cat_name}</span>'
+                        f'<span style="font-size:0.62rem;'
+                        f'background:rgba({_cat_cr},{_cat_cg},{_cat_cb},0.12);'
+                        f'color:rgba({_cat_cr},{_cat_cg},{_cat_cb},1);'
+                        f'border:1px solid rgba({_cat_cr},{_cat_cg},{_cat_cb},0.28);'
+                        f'border-radius:8px;padding:1px 7px;font-weight:600;white-space:nowrap;">'
+                        f'{_cat_icon} {_cat_name}</span>'
                         f'{_fatigue_html}'
                         f'{_src_badge}'
                         f'</div>'
@@ -537,15 +594,23 @@ for row_start in range(0, len(visible_signals), COLS):
                         if _flip_note else ""
                     )
                     st.markdown(
-                        f'<div style="background:rgba(18,21,30,0.78);border-radius:10px;padding:14px 16px;'
-                        f'border-left:4px solid {border};border:1px solid rgba(255,255,255,0.08);'
-                        f'backdrop-filter:blur(10px) saturate(130%);-webkit-backdrop-filter:blur(10px) saturate(130%);'
-                        f'box-shadow:0 2px 12px rgba(0,0,0,0.28);'
+                        f'<div style="background:linear-gradient(180deg,'
+                        f'rgba({_bc_r},{_bc_g},{_bc_b},0.10) 0%,rgba(18,21,30,0.82) 44%);'
+                        f'border-radius:12px;padding:14px 16px;'
+                        f'border:1px solid rgba(255,255,255,0.08);border-top:2px solid {border};'
+                        f'backdrop-filter:blur(12px) saturate(150%);'
+                        f'-webkit-backdrop-filter:blur(12px) saturate(150%);'
+                        f'box-shadow:0 4px 20px rgba(0,0,0,0.30);'
                         f'margin-bottom:10px;font-family:Inter,sans-serif;min-height:140px;">'
-                        f'<div style="font-size:0.68rem;color:#8892AA;letter-spacing:0.03em;margin-bottom:2px;">'
-                        f'{_cat_icon} {_cat_name} · PCS {cfg["pcs"]}/10</div>'
+                        f'<div style="font-size:0.66rem;letter-spacing:0.03em;margin-bottom:2px;">'
+                        f'<span style="background:rgba({_bc_r},{_bc_g},{_bc_b},0.12);'
+                        f'color:rgba({_bc_r},{_bc_g},{_bc_b},1);'
+                        f'border:1px solid rgba({_bc_r},{_bc_g},{_bc_b},0.28);'
+                        f'border-radius:6px;padding:1px 6px;font-weight:600;">'
+                        f'{_cat_icon} {_cat_name}</span>'
+                        f'<span style="color:#6B7FBF;margin-left:6px;">PCS {cfg["pcs"]}/10</span></div>'
                         f'<div style="font-weight:700;font-size:0.88rem;color:#E8EEFF;margin-bottom:8px;line-height:1.3;">'
-                        f'{cfg["name"][:50]}</div>'
+                        f'{_pulse_dot}{cfg["name"][:50]}</div>'
                         f'<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">'
                         f'<div><div style="font-size:1.6rem;font-weight:700;color:{border};">{sym} {score:.0f} <span style="font-size:0.75rem;">{_trend_badge}</span></div>'
                         f'<div style="font-size:0.65rem;color:#8892AA;">score/100 · 7d trend</div></div>'

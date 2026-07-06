@@ -1615,14 +1615,14 @@ THIRTEENF_CUSIP_TO_TICKER = {
 # ─────────────────────────────────────────────────────────────────────────────
 
 CATEGORIES = {
-    "macro":              {"name": "Macro & Liquidity",      "icon": "", "color": "#7C3AED"},
-    "energy":             {"name": "Energy & Oil",           "icon": "", "color": "#5D4037"},
-    "nuclear":            {"name": "Power & Nuclear",        "icon": "", "color": "#4A1B6B"},
-    "ai_infrastructure":  {"name": "AI Infrastructure",      "icon": "", "color": "#B8860B"},
-    "financials":         {"name": "Financials & Credit",    "icon": "", "color": "#2E5266"},
-    "healthcare":         {"name": "Healthcare & Biotech",   "icon": "", "color": "#6B2E5F"},
-    "consumer":           {"name": "Consumer",               "icon": "", "color": "#8B5E34"},
-    "industrials":        {"name": "Industrials",            "icon": "", "color": "#3D4F2E"},
+    "macro":              {"name": "Macro & Liquidity",      "icon": "🌐", "color": "#7C3AED"},
+    "energy":             {"name": "Energy & Oil",           "icon": "⚡", "color": "#F59E0B"},
+    "nuclear":            {"name": "Power & Nuclear",        "icon": "⚛️", "color": "#A855F7"},
+    "ai_infrastructure":  {"name": "AI Infrastructure",      "icon": "🤖", "color": "#00C8E0"},
+    "financials":         {"name": "Financials & Credit",    "icon": "💳", "color": "#3B82F6"},
+    "healthcare":         {"name": "Healthcare & Biotech",   "icon": "🧬", "color": "#EC4899"},
+    "consumer":           {"name": "Consumer",               "icon": "🛍️", "color": "#F97316"},
+    "industrials":        {"name": "Industrials",            "icon": "⚙️", "color": "#6B7280"},
 }
 # NOTE: "quantum", "critical_minerals", "defense_aerospace", "biotech_longevity",
 # "cybersecurity", "robotics_automation", and "water_security" categories were
