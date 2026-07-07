@@ -10,7 +10,8 @@ from utils.config import TICKERS
 # ── Modern Dark Design System CSS ────────────────────────────────────────────
 _CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap');
+/* preconnect hints injected via JS below for max speed */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap&font-display=swap');
 
 /* ── Design tokens ───────────────────────────────────────────────────────── */
 :root {
@@ -184,10 +185,11 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
 .metric-card.bull::before  { background: #00D566; }
 .metric-card.bear::before  { background: #FF4444; }
 .metric-card.neutral::before { background: #6B7FBF; }
+.metric-card, .page-card, .stat-box { will-change: transform; }
 .metric-card:hover {
     border-color: rgba(0,213,102,0.22);
     box-shadow: 0 0 24px rgba(0,213,102,0.07), 0 8px 24px rgba(0,0,0,0.4);
-    transform: translateY(-2px);
+    transform: translate3d(0,-2px,0);
 }
 .metric-card b { color: #E8EEFF; }
 .metric-card span { color: #8892AA; }
@@ -211,7 +213,7 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
 .page-card:hover {
     border-color: rgba(0,213,102,0.18);
     box-shadow: 0 0 24px rgba(0,213,102,0.07), 0 12px 32px rgba(0,0,0,0.5);
-    transform: translateY(-2px);
+    transform: translate3d(0,-2px,0);
 }
 .page-card .page-title { font-size: 0.94rem; font-weight: 600; color: #E8EEFF; margin-bottom: 4px; letter-spacing: -0.1px; }
 .page-card .page-desc  { font-size: 0.79rem; color: #8892AA; line-height: 1.55; }
@@ -770,6 +772,37 @@ code, pre {
     border: none;
 }
 
+/* ── Scroll-to-top button ─────────────────────────────────────────────────── */
+#ua-scroll-top {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 40px;
+    height: 40px;
+    background: rgba(0,213,102,0.15);
+    border: 1px solid rgba(0,213,102,0.35);
+    border-radius: 50%;
+    color: #00D566;
+    font-size: 18px;
+    line-height: 40px;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s, background 0.2s;
+    z-index: 9999;
+    will-change: transform;
+    transform: translate3d(0,0,0);
+    backdrop-filter: blur(8px);
+}
+#ua-scroll-top.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+#ua-scroll-top:hover {
+    background: rgba(0,213,102,0.28);
+}
+
 /* ── Mobile responsiveness ───────────────────────────────────────────────── */
 @media (max-width: 768px) {
     [data-testid="stHorizontalBlock"] > [data-testid="stVerticalBlock"] {
@@ -780,6 +813,10 @@ code, pre {
     .ticker-strip-outer { display: none !important; }
     .ua-bento { grid-template-columns: 1fr !important; }
     .ua-bento-wide { grid-column: span 1 !important; }
+    .metric-card, .page-card { padding: 14px !important; }
+    .ua-header { flex-direction: column !important; gap: 8px !important; }
+    .ua-header-right { text-align: left !important; font-size: 0.72rem !important; }
+    #ua-scroll-top { bottom: 16px; right: 16px; }
 }
 </style>
 """
@@ -922,6 +959,27 @@ def render_header(page_subtitle: str = "") -> None:
         var el = document.createElement('meta');
         Object.keys(m).forEach(function(k) { el.setAttribute(k, m[k]); });
         document.head.appendChild(el);
+    });
+})();
+</script>
+""", unsafe_allow_html=True)
+
+    # ── Scroll-to-top button ───────────────────────────────────────────────────
+    st.markdown("""
+<div id="ua-scroll-top" title="Back to top">↑</div>
+<script>
+(function() {
+    var btn = document.getElementById('ua-scroll-top');
+    if (!btn) return;
+    var root = document.querySelector('[data-testid="stAppViewContainer"]') || window;
+    function onScroll() {
+        var y = (root === window) ? window.scrollY : root.scrollTop;
+        btn.classList.toggle('visible', y > 300);
+    }
+    (root === window ? window : root).addEventListener('scroll', onScroll, {passive: true});
+    btn.addEventListener('click', function() {
+        if (root === window) window.scrollTo({top: 0, behavior: 'smooth'});
+        else root.scrollTo({top: 0, behavior: 'smooth'});
     });
 })();
 </script>
@@ -1153,8 +1211,8 @@ def _render_live_ticker_strip() -> None:
 </div>
 <style>
 @keyframes tickerScroll {{
-  0%   {{ transform: translateX(0); }}
-  100% {{ transform: translateX(-50%); }}
+  0%   {{ transform: translate3d(0,0,0); }}
+  100% {{ transform: translate3d(-50%,0,0); }}
 }}
 </style>
 """

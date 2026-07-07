@@ -63,6 +63,29 @@ HEATMAP_COLORSCALE = [
     [1.00, "#003D1A"],
 ]
 
+# ── Plotly chart config ───────────────────────────────────────────────────────
+# Pass to st.plotly_chart(fig, config=PLOTLY_CONFIG, ...) to suppress the mode
+# bar on non-interactive charts. This reduces DOM overhead and visual noise.
+PLOTLY_CONFIG: dict = {
+    "displayModeBar": False,
+    "scrollZoom": False,
+    "staticPlot": False,       # keep hover; only strip the toolbar
+    "responsive": True,
+}
+
+# Variant for charts where users should be able to zoom/pan (e.g. price charts):
+PLOTLY_CONFIG_INTERACTIVE: dict = {
+    "displayModeBar": True,
+    "modeBarButtonsToRemove": [
+        "select2d", "lasso2d", "autoScale2d",
+        "hoverCompareCartesian", "hoverClosestCartesian",
+        "toggleSpikelines",
+    ],
+    "displaylogo": False,
+    "scrollZoom": True,
+    "responsive": True,
+}
+
 # ── Chart Style Helper ────────────────────────────────────────────────────────
 
 def style_chart(fig, height: int = 350, title: str = "") -> object:
