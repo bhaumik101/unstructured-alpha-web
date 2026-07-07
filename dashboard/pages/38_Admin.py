@@ -37,7 +37,7 @@ inject_premium_css()
 
 # ── Access gate ───────────────────────────────────────────────────────────────
 
-current_user = st.session_state.get("user_email", "")
+current_user = st.session_state.get("user", {}).get("email", "")
 if current_user != ADMIN_EMAIL:
     st.error("Access denied.")
     st.stop()
