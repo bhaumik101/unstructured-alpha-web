@@ -82,7 +82,7 @@ Happy to answer any questions about methodology, the tech stack (Streamlit + Pos
 - [ ] Screenshots ready (5 minimum — use the above captions)
 - [ ] Thumbnail image (240×240, no text, icon-style)
 - [ ] Product URL: https://unstructuredalpha.com
-- [ ] Twitter handle: @UnstructuredAlpha (set up first if not yet done)
+- [x] Twitter handle: @UnstAlpha ✅
 - [ ] Schedule for Tuesday or Wednesday, 12:01 AM PT (highest traffic days)
 - [ ] Post first comment immediately after launch goes live
 - [ ] Share in r/investing, r/stocks, r/algotrading thread on launch day
@@ -92,7 +92,7 @@ Happy to answer any questions about methodology, the tech stack (Streamlit + Pos
 
 ## Twitter Post for Launch Day
 ```
-Just launched @UnstructuredAlpha on @ProductHunt 🚀
+Just launched @UnstAlpha on @ProductHunt 🚀
 
 28 independent macro signals, scored daily. Ticker Deep Dive, Model Validation, morning digest.
 

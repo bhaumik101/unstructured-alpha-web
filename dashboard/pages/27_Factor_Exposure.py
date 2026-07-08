@@ -25,7 +25,7 @@ import streamlit as st
 from plotly.subplots import make_subplots
 
 from utils.header import render_header, render_page_header, render_sidebar_base
-from utils.theme import source_badge
+from utils.theme import source_badge, PLOTLY_CONFIG
 
 st.set_page_config(page_title="Factor Exposure — UA", layout="wide")
 
@@ -329,7 +329,7 @@ with load_col:
         font=dict(family="Inter, sans-serif"),
         showlegend=False,
     )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_bar, use_container_width=True, config=PLOTLY_CONFIG)
     st.markdown(
         source_badge("yfinance", "ETF factor proxies") + "&nbsp;" +
         source_badge("yfinance", ticker_input),
@@ -487,7 +487,7 @@ if len(rolling_mkt_beta) > 10:
         showlegend=False,
         font=dict(family="Inter, sans-serif"),
     )
-    st.plotly_chart(fig_roll, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_roll, use_container_width=True, config=PLOTLY_CONFIG)
     st.caption(
         f"63-day (quarterly) rolling OLS beta against SPY. Current: {cur_beta:.2f}. "
         "High market beta means the stock amplifies index moves; below 1.0 means it dampens them."
@@ -584,7 +584,7 @@ with pie_col:
         x=0.5, y=0.5, showarrow=False,
         font=dict(color="#E8EEFF", size=11, family="Inter"),
     )
-    st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_pie, use_container_width=True, config=PLOTLY_CONFIG)
 
 with interp_col2:
     # Factor description cards
@@ -673,7 +673,7 @@ if len(compare_tickers) > 1:
             legend=dict(font=dict(color="#E8EEFF", size=10), bgcolor="rgba(18,21,30,0.85)"),
             font=dict(family="Inter, sans-serif"),
         )
-        st.plotly_chart(fig_cmp, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig_cmp, use_container_width=True, config=PLOTLY_CONFIG)
 
         # Summary table
         rows = []
