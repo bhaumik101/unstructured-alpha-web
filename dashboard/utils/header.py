@@ -1307,9 +1307,9 @@ def render_sidebar_base() -> None:
         # AI Assistant quick-access
         st.markdown(
             '<div style="background:rgba(184,134,11,0.13);border-radius:6px;padding:10px 12px;'
-            'border:1px solid rgba(184,134,11,0.35);margin-bottom:10px;">'
+            'border:1px solid rgba(184,134,11,0.35);margin-bottom:6px;">'
             '<div style="font-size:0.68rem;color:#C9A84C;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">AI Research Assistant</div>'
-            '<div style="font-size:0.79rem;color:rgba(255,255,255,0.08);margin-top:3px;line-height:1.4;">'
+            '<div style="font-size:0.79rem;color:rgba(255,255,255,0.75);margin-top:3px;line-height:1.4;">'
             'Questions about signals, tickers, or methodology?</div>'
             '</div>',
             unsafe_allow_html=True,
