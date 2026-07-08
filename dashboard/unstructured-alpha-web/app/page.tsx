@@ -37,11 +37,10 @@ const S = {
     color: "#e8eaf2",
   },
   logoMark: {
-    width: 26,
-    height: 26,
-    background: "linear-gradient(135deg, #00d566 0%, #7c3aed 100%)",
-    borderRadius: 6,
+    width: 28,
+    height: 28,
     flexShrink: 0,
+    borderRadius: "50%",
   },
   navLinks: { display: "flex", gap: 28, alignItems: "center" },
   navLink: { color: "#8892aa", fontSize: 14, cursor: "pointer" },
@@ -393,7 +392,8 @@ export default function Home() {
       <nav style={S.nav}>
         <div style={S.navInner}>
           <a href="/" style={S.logo}>
-            <div style={S.logoMark} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="UA" style={S.logoMark} />
             Unstructured Alpha
           </a>
           <div style={S.navLinks}>
@@ -689,7 +689,7 @@ export default function Home() {
             <div style={S.pricingCard(true)}>
               <div style={S.pricingBadge}>Most popular</div>
               <div style={S.pricingTier}>Pro</div>
-              <div style={S.price}>$29</div>
+              <div style={S.price}>$20</div>
               <div style={S.priceSub}>per month · cancel anytime</div>
               <ul style={S.featureList}>
                 {[
@@ -733,7 +733,8 @@ export default function Home() {
           <div style={S.footerTop}>
             <div>
               <div style={{ ...S.logo, marginBottom: 10 }}>
-                <div style={S.logoMark} />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.svg" alt="UA" style={S.logoMark} />
                 Unstructured Alpha
               </div>
               <div style={{ fontSize: 13, color: "#4a5280", maxWidth: 300, lineHeight: 1.6 }}>

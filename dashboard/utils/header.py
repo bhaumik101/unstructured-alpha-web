@@ -1010,9 +1010,30 @@ def render_header(page_subtitle: str = "") -> None:
         f'<span class="market-status-dot" style="background:{_status_dot};"></span>{_status_label} · {_time_str}'
         f'</span>'
     )
+    # User pill — shown inline in the header bar whenever someone is signed in
+    _user = st.session_state.get("user")
+    _user_email = (_user or {}).get("email", "")
+    _is_pro = (_user or {}).get("subscription_tier", "") == "pro"
+    _user_pill = ""
+    if _user_email:
+        _tier_badge = (
+            '<span style="background:#7C3AED;color:#fff;font-size:0.55rem;font-weight:700;'
+            'padding:1px 5px;border-radius:4px;margin-left:4px;letter-spacing:0.04em;">PRO</span>'
+        ) if _is_pro else ""
+        _user_pill = (
+            f'<span style="display:inline-flex;align-items:center;gap:4px;'
+            f'background:rgba(0,213,102,0.08);border:1px solid rgba(0,213,102,0.2);'
+            f'border-radius:6px;padding:2px 8px;font-size:0.68rem;color:#00D566;'
+            f'font-weight:600;font-family:Inter,sans-serif;white-space:nowrap;">'
+            f'👤 {_user_email}{_tier_badge}</span>'
+        )
+
     right_html = (
         f"<b>{page_subtitle}</b><br>{_date_str}<br>{status_badge_html}"
-        if page_subtitle else f"{_date_str}<br>{status_badge_html}"
+        + (f"<br><div style='margin-top:5px;'>{_user_pill}</div>" if _user_pill else "")
+        if page_subtitle else
+        f"{_date_str}<br>{status_badge_html}"
+        + (f"<br><div style='margin-top:5px;'>{_user_pill}</div>" if _user_pill else "")
     )
 
     st.markdown(f"""
