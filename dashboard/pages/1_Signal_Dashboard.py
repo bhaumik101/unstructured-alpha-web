@@ -14,7 +14,10 @@ from utils.config import CATEGORIES, SIGNALS, TICKERS
 from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
 from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
-from utils.theme import inject_skeleton_css, skeleton_cards, source_badge, inject_premium_css
+from utils.theme import (
+    inject_skeleton_css, skeleton_cards, source_badge, inject_premium_css,
+    PLOTLY_CONFIG, render_disclaimer, render_signal_legend, render_data_freshness,
+)
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
 render_header("Signal Dashboard")
@@ -37,7 +40,13 @@ with tab_signals:
     _load_ts = datetime.now().strftime("%I:%M %p")
     _hdr_col, _ref_col = st.columns([6, 1])
     with _hdr_col:
-        st.caption(f"Data cached up to 2 hours · computed ~{_load_ts}")
+        st.markdown(
+            render_data_freshness(
+                source="FRED / EIA / SEC EDGAR / FINRA / yfinance",
+                cadence=f"Cached up to 2 hours · computed ~{_load_ts}",
+            ),
+            unsafe_allow_html=True,
+        )
     with _ref_col:
         if st.button("↺ Refresh", key="sd_refresh", use_container_width=True):
             st.cache_data.clear()
@@ -370,6 +379,9 @@ with tab_signals:
     if not visible_signals:
         st.info("No signals match your filter. Try broadening the category or search term.")
         st.stop()
+
+    # ── Score legend ──────────────────────────────────────────────────────────────
+    st.markdown(render_signal_legend(), unsafe_allow_html=True)
 
     # ── Heatmap View (alternative to card grid) ───────────────────────────────────
     # Shows every signal as a small colored cell — great for at-a-glance scanning
@@ -735,7 +747,7 @@ with tab_signals:
             yaxis=dict(tickfont=dict(size=10, color="#E8EEFF")),
             margin=dict(l=60, r=20, t=10, b=80),
         )
-        st.plotly_chart(fig_heat, use_container_width=True)
+        st.plotly_chart(fig_heat, use_container_width=True, config=PLOTLY_CONFIG)
     else:
         # Simple mode: show a clean ranked list
         st.markdown('<div class="section-header">TOP SIGNALS TO WATCH</div>', unsafe_allow_html=True)
@@ -878,7 +890,7 @@ with tab_signals:
                 yaxis=dict(tickfont=dict(size=8, color="#8892AA"), autorange="reversed"),
                 font=dict(family="Inter, sans-serif"),
             )
-            st.plotly_chart(_fig_corr, use_container_width=True)
+            st.plotly_chart(_fig_corr, use_container_width=True, config=PLOTLY_CONFIG)
 
             # Find and call out the most highly correlated pairs (≥0.7)
             _high_pairs = []
@@ -904,6 +916,8 @@ with tab_signals:
                     unsafe_allow_html=True,
                 )
 
+    # Financial disclaimer
+    st.markdown(render_disclaimer(compact=True), unsafe_allow_html=True)
 
 
 with tab_regime:

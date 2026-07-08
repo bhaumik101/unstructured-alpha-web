@@ -33,7 +33,10 @@ from utils.score_history import (
 from utils.signals_cache import get_all_signal_scores
 from utils.narrative import generate_narrative
 from utils.convergence import get_convergence_events, render_convergence_events
-from utils.theme import inject_skeleton_css, inject_premium_css, empty_state, section_label
+from utils.theme import (
+    inject_skeleton_css, inject_premium_css, empty_state, section_label,
+    render_educational_callout, render_signal_legend,
+)
 
 st.set_page_config(page_title="Today's Brief — UA", layout="wide")
 render_header("Today's Brief")
@@ -149,6 +152,22 @@ with tab_today:
     # ── Section 1: Signal Pulse ───────────────────────────────────────────────────
 
     st.markdown(section_label("Signal Pulse", dot="#00D566"), unsafe_allow_html=True)
+    st.markdown(
+        render_educational_callout(
+            title="How to read these signals",
+            body=(
+                "Each signal is a 0–100 score derived from public macro data (FRED, EIA, SEC EDGAR). "
+                "A score ≥ 65 means the indicator is historically elevated in a direction that has "
+                "preceded strength in related assets. A score ≤ 35 indicates the opposite. "
+                "Scores between 36–64 are neutral — no strong tilt. "
+                "<strong>These are informational indicators, not buy/sell signals.</strong>"
+            ),
+            icon="📊",
+            accent="#00C8E0",
+        ),
+        unsafe_allow_html=True,
+    )
+    st.markdown(render_signal_legend(), unsafe_allow_html=True)
 
     with st.spinner("Loading signal pulse (38 signals — cached 2 hours)…"):
         _all_scores = get_all_signal_scores()

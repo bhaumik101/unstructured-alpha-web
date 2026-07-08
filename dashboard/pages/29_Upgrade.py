@@ -533,27 +533,27 @@ st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 col_free, col_pro = st.columns(2, gap="large")
 
 FREE_FEATS = [
-    ("Signal Dashboard — 38 signals", True),
-    ("Today's Brief & Market Heatmap", True),
-    ("Ticker Deep Dive", True),
-    ("Congress Trade Tracker", True),
-    ("Watchlist — up to 5 tickers", True),
-    ("Morning intelligence digest", False),
-    ("Factor Exposure (Fama-French)", False),
-    ("Signal Backtester", False),
-    ("Portfolio Analyzer", False),
+    ("Signal Dashboard — 43 macro signals scored 0–100", True),
+    ("Today's Brief — daily regime + signal flip summary", True),
+    ("Ticker Deep Dive — confluence score for any stock", True),
+    ("Congress Trade Tracker — recent legislator filings", True),
+    ("Watchlist — track up to 5 tickers with live scores", True),
+    ("Morning email digest — personalized signal brief", False),
+    ("Factor Exposure — Fama-French regression per ticker", False),
+    ("Signal Backtester — test custom signal combos", False),
+    ("Portfolio Analyzer — macro exposure across holdings", False),
     ("Unlimited watchlist tickers", False),
 ]
 
 PRO_FEATS = [
-    "Everything in Free — unlimited",
-    "Morning digest email (Pro only)",
-    "Factor Exposure — Fama-French regression",
-    "Signal Backtester — build & test any combo",
-    "Portfolio Analyzer — macro exposure map",
-    "Options Flow — unusual activity feed",
-    "Unlimited watchlist tickers",
-    "Priority support",
+    "Everything in Free, no ticker limits",
+    "Morning digest email — personalized to your watchlist",
+    "Factor Exposure — Fama-French 3-factor regression",
+    "Signal Backtester — long/short returns for any signal combo",
+    "Portfolio Analyzer — macro tilt across your holdings",
+    "Unusual Options Activity feed — flow vs. open interest",
+    "Unlimited watchlist tickers + 30-day score sparklines",
+    "Priority support via email",
 ]
 
 with col_free:

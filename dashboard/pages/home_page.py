@@ -26,7 +26,7 @@ from utils.config import SIGNALS, CATEGORIES
 from utils.narrative import generate_narrative
 from utils.top_tickers import get_top_tickers
 from utils.convergence import get_convergence_events, render_convergence_events
-from utils.theme import inject_premium_css, inject_skeleton_css
+from utils.theme import inject_premium_css, inject_skeleton_css, render_platform_note
 
 render_header("Home")
 inject_premium_css()
@@ -285,6 +285,7 @@ st.markdown(
     "font-family:Inter,sans-serif;'>No account needed to browse signals</div>",
     unsafe_allow_html=True,
 )
+st.markdown(render_platform_note(), unsafe_allow_html=True)
 
 # ── SIGNAL FLIP ALERT BANNER ──────────────────────────────────────────────────
 try:

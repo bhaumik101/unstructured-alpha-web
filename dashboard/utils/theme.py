@@ -64,16 +64,17 @@ HEATMAP_COLORSCALE = [
 ]
 
 # ── Plotly chart config ───────────────────────────────────────────────────────
-# Pass to st.plotly_chart(fig, config=PLOTLY_CONFIG, ...) to suppress the mode
-# bar on non-interactive charts. This reduces DOM overhead and visual noise.
+# Default config — no toolbar clutter, but scroll-zoom enabled so users can
+# zoom with the mouse wheel / trackpad pinch without needing the mode bar.
 PLOTLY_CONFIG: dict = {
     "displayModeBar": False,
-    "scrollZoom": False,
-    "staticPlot": False,       # keep hover; only strip the toolbar
+    "scrollZoom": True,          # wheel/pinch zoom — works without toolbar
+    "staticPlot": False,         # keep hover tooltips
     "responsive": True,
+    "doubleClick": "reset",      # double-click resets zoom
 }
 
-# Variant for charts where users should be able to zoom/pan (e.g. price charts):
+# Full interactive mode — toolbar + zoom/pan for price/signal history charts:
 PLOTLY_CONFIG_INTERACTIVE: dict = {
     "displayModeBar": True,
     "modeBarButtonsToRemove": [
@@ -81,9 +82,20 @@ PLOTLY_CONFIG_INTERACTIVE: dict = {
         "hoverCompareCartesian", "hoverClosestCartesian",
         "toggleSpikelines",
     ],
+    "modeBarButtonsToAdd": ["resetScale2d"],
     "displaylogo": False,
     "scrollZoom": True,
     "responsive": True,
+    "doubleClick": "reset",
+}
+
+# Time-series variant — adds range selector buttons (1M/3M/6M/1Y/All) via layout,
+# no toolbar visible. Use with style_timeseries_chart().
+PLOTLY_CONFIG_TIMESERIES: dict = {
+    "displayModeBar": False,
+    "scrollZoom": True,
+    "responsive": True,
+    "doubleClick": "reset",
 }
 
 # ── Chart Style Helper ────────────────────────────────────────────────────────
@@ -408,6 +420,113 @@ def style_area_chart(fig, line_color: str = GREEN, fill_opacity: float = 0.12,
         )
 
     return style_chart(fig, height=height, title=title)
+
+
+# ── Time-Series Chart Helper ──────────────────────────────────────────────────
+
+def style_timeseries_chart(
+    fig,
+    height: int = 380,
+    title: str = "",
+    range_buttons: bool = True,
+    rangeslider: bool = False,
+    y_title: str = "",
+) -> object:
+    """
+    Apply the UA dark theme to a time-series Plotly figure and add
+    clickable range-selector buttons (1M · 3M · 6M · 1Y · All).
+
+    Use with PLOTLY_CONFIG_TIMESERIES so the toolbar stays hidden while
+    range buttons + scroll-zoom give full interactivity.
+
+    Usage::
+
+        fig = go.Figure([go.Scatter(x=dates, y=values, ...)])
+        fig = style_timeseries_chart(fig, title="Signal History", height=380)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG_TIMESERIES)
+    """
+    fig = style_chart(fig, height=height, title=title)
+
+    _btn_style = dict(
+        bgcolor="rgba(255,255,255,0.05)",
+        activecolor="rgba(0,213,102,0.20)",
+        bordercolor="rgba(255,255,255,0.12)",
+        borderwidth=1,
+        font=dict(color=TEXT_SECONDARY, size=10, family="Inter, sans-serif"),
+    )
+
+    xaxis_updates: dict = {
+        "type": "date",
+        "tickformat": "%b '%y",
+        "nticks": 8,
+        "showspikes": True,
+        "spikecolor": "rgba(255,255,255,0.15)",
+        "spikethickness": 1,
+        "spikedash": "dot",
+        "rangeslider": dict(visible=rangeslider, thickness=0.04,
+                            bgcolor=BG_CARD, bordercolor=BORDER_LIGHT),
+    }
+
+    if range_buttons:
+        xaxis_updates["rangeselector"] = dict(
+            buttons=[
+                dict(count=1,  label="1M",  step="month", stepmode="backward"),
+                dict(count=3,  label="3M",  step="month", stepmode="backward"),
+                dict(count=6,  label="6M",  step="month", stepmode="backward"),
+                dict(count=1,  label="1Y",  step="year",  stepmode="backward"),
+                dict(step="all", label="All"),
+            ],
+            **_btn_style,
+            x=0, xanchor="left", y=1.02, yanchor="bottom",
+        )
+
+    yaxis_updates: dict = {}
+    if y_title:
+        yaxis_updates["title_text"] = y_title
+
+    fig.update_layout(xaxis=xaxis_updates)
+    if yaxis_updates:
+        fig.update_layout(yaxis=yaxis_updates)
+
+    return fig
+
+
+# ── Disclaimer Helper ─────────────────────────────────────────────────────────
+
+def render_disclaimer(compact: bool = False) -> str:
+    """
+    Return an HTML financial disclaimer block.
+    Use with st.markdown(..., unsafe_allow_html=True).
+
+    Args:
+        compact: If True, returns a single-line inline disclaimer.
+                 If False (default), returns the full block version.
+    """
+    if compact:
+        return (
+            '<div style="font-size:0.68rem;color:#6B7FBF;margin-top:10px;'
+            'font-family:Inter,sans-serif;line-height:1.5;">'
+            '&#9888; <b>Not investment advice.</b> Signal scores are generated from '
+            'public data using algorithmic models. Past performance does not '
+            'guarantee future results. Always do your own research.'
+            '</div>'
+        )
+    return (
+        '<div style="background:rgba(245,158,11,0.06);'
+        'border:1px solid rgba(245,158,11,0.20);border-radius:8px;'
+        'padding:10px 14px;margin-top:20px;font-family:Inter,sans-serif;">'
+        '<div style="font-size:0.72rem;font-weight:700;color:#F59E0B;'
+        'letter-spacing:0.05em;margin-bottom:4px;">&#9888; DISCLAIMER</div>'
+        '<div style="font-size:0.73rem;color:#8892AA;line-height:1.6;">'
+        'Unstructured Alpha signal scores are generated algorithmically from '
+        'publicly available macro, insider, and alternative data. They are '
+        '<b style="color:#B8C0D4;">not investment advice</b> and do not '
+        'constitute a recommendation to buy or sell any security. Past signal '
+        'accuracy does not guarantee future performance. Always conduct your '
+        'own due diligence before making any investment decisions. Unstructured '
+        'Alpha is not a registered investment advisor.'
+        '</div></div>'
+    )
 
 
 # ── Skeleton / Shimmer Loading System ────────────────────────────────────────
@@ -1180,3 +1299,142 @@ def inject_premium_css() -> None:
     """
     import streamlit as st
     st.markdown(_COUNTER_CSS, unsafe_allow_html=True)
+
+
+# ── Polish helpers ────────────────────────────────────────────────────────────
+
+def render_signal_legend() -> str:
+    """
+    Compact horizontal legend explaining Confluence Score ranges (Bull / Neutral / Bear).
+    Designed to sit above signal card grids.
+    """
+    return (
+        '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;'
+        'padding:8px 14px;background:rgba(255,255,255,0.03);border-radius:8px;'
+        'border:1px solid rgba(255,255,255,0.06);font-family:Inter,sans-serif;'
+        'margin-bottom:12px;">'
+        '<span style="font-size:0.7rem;font-weight:600;color:#4A5280;'
+        'letter-spacing:0.07em;text-transform:uppercase;">Score key</span>'
+        '<span style="font-size:0.78rem;color:#00D566;display:flex;align-items:center;gap:5px;">'
+        '<span style="width:8px;height:8px;border-radius:50%;background:#00D566;'
+        'display:inline-block;flex-shrink:0;"></span>65–100 Bullish</span>'
+        '<span style="font-size:0.78rem;color:#F59E0B;display:flex;align-items:center;gap:5px;">'
+        '<span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;'
+        'display:inline-block;flex-shrink:0;"></span>36–64 Neutral</span>'
+        '<span style="font-size:0.78rem;color:#FF4D6A;display:flex;align-items:center;gap:5px;">'
+        '<span style="width:8px;height:8px;border-radius:50%;background:#FF4D6A;'
+        'display:inline-block;flex-shrink:0;"></span>0–35 Bearish</span>'
+        '<span style="margin-left:auto;font-size:0.72rem;color:#4A5280;">'
+        'Composite of 43 macro signals · 0–100 scale</span>'
+        '</div>'
+    )
+
+
+def render_data_freshness(
+    source: str = "FRED / EIA / SEC EDGAR",
+    cadence: str = "Updated every ~2 hours",
+    note: str = "",
+) -> str:
+    """
+    Compact provenance + freshness line for display below section headers or charts.
+    Returns an HTML string — pass to st.markdown(..., unsafe_allow_html=True).
+    """
+    note_html = (
+        f'<span style="color:#4A5280;"> · {note}</span>'
+        if note else ""
+    )
+    return (
+        f'<div style="display:flex;align-items:center;gap:6px;margin:4px 0 10px;'
+        f'font-family:Inter,sans-serif;">'
+        f'<span style="width:6px;height:6px;border-radius:50%;background:#00D566;'
+        f'display:inline-block;flex-shrink:0;"></span>'
+        f'<span style="font-size:0.72rem;color:#4A5280;">'
+        f'<span style="color:#8892AA;font-weight:600;">{cadence}</span>'
+        f' · Sources: {source}{note_html}</span>'
+        f'</div>'
+    )
+
+
+def render_educational_callout(
+    title: str,
+    body: str,
+    icon: str = "ℹ️",
+    accent: str = "#00C8E0",
+) -> str:
+    """
+    Educational info callout card — explains what a metric or signal means.
+    Non-intrusive; uses a left border accent rather than a full background fill.
+    Returns an HTML string.
+    """
+    hex_c = accent.lstrip("#")
+    r_, g_, b_ = int(hex_c[0:2], 16), int(hex_c[2:4], 16), int(hex_c[4:6], 16)
+    return (
+        f'<div style="border-left:3px solid {accent};'
+        f'background:rgba({r_},{g_},{b_},0.05);'
+        f'border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;'
+        f'font-family:Inter,sans-serif;">'
+        f'<div style="display:flex;align-items:flex-start;gap:8px;">'
+        f'<span style="font-size:0.9rem;margin-top:1px;flex-shrink:0;">{icon}</span>'
+        f'<div>'
+        f'<div style="font-size:0.8rem;font-weight:700;color:#C8D0E4;'
+        f'margin-bottom:3px;">{title}</div>'
+        f'<div style="font-size:0.78rem;color:#8892AA;line-height:1.55;">{body}</div>'
+        f'</div></div></div>'
+    )
+
+
+def render_pro_cta(
+    feature_name: str = "this analysis",
+    description: str = "Get deeper macro context and expanded signal breakdowns.",
+    compact: bool = False,
+) -> str:
+    """
+    Clean, non-pushy Pro upgrade CTA block.
+    Set compact=True for an inline pill; False for a card.
+    Returns an HTML string.
+    """
+    if compact:
+        return (
+            '<div style="display:inline-flex;align-items:center;gap:8px;'
+            'background:rgba(124,58,237,0.08);border:1px solid rgba(124,58,237,0.20);'
+            'border-radius:8px;padding:6px 12px;font-family:Inter,sans-serif;">'
+            '<span style="font-size:0.68rem;color:#A78BFA;font-weight:700;'
+            'letter-spacing:0.06em;">⚡ PRO</span>'
+            f'<span style="font-size:0.8rem;color:#8892AA;">{feature_name}</span>'
+            '<a href="/Upgrade" style="font-size:0.78rem;color:#7C3AED;font-weight:600;'
+            'text-decoration:none;margin-left:4px;white-space:nowrap;">Unlock →</a>'
+            '</div>'
+        )
+    return (
+        '<div style="background:rgba(124,58,237,0.07);'
+        'border:1px solid rgba(124,58,237,0.18);border-radius:10px;'
+        'padding:14px 18px;margin:12px 0;font-family:Inter,sans-serif;'
+        'display:flex;align-items:flex-start;gap:12px;">'
+        '<span style="font-size:1.1rem;margin-top:2px;flex-shrink:0;">⚡</span>'
+        '<div style="flex:1;min-width:0;">'
+        '<div style="font-size:0.82rem;font-weight:700;color:#A78BFA;margin-bottom:3px;">'
+        f'Pro — {feature_name}</div>'
+        f'<div style="font-size:0.78rem;color:#8892AA;line-height:1.5;">{description}</div>'
+        '</div>'
+        '<a href="/Upgrade" style="font-size:0.8rem;color:#7C3AED;font-weight:700;'
+        'text-decoration:none;white-space:nowrap;padding:6px 14px;'
+        'background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.25);'
+        'border-radius:6px;align-self:center;">Unlock →</a>'
+        '</div>'
+    )
+
+
+def render_platform_note() -> str:
+    """
+    One-line informational note clarifying the platform's purpose.
+    Designed to sit below the hero section on the home page.
+    Returns an HTML string — call st.markdown(..., unsafe_allow_html=True).
+    """
+    return (
+        '<div style="text-align:center;padding:8px 16px;'
+        'font-family:Inter,sans-serif;font-size:0.75rem;color:#4A5280;">'
+        'Unstructured Alpha aggregates publicly available macro data for informational '
+        'purposes only. Nothing here constitutes investment advice. '
+        'All signals reflect statistical patterns in historical data, not predictions.'
+        '</div>'
+    )
