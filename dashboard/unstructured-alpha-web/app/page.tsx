@@ -1,4 +1,3 @@
-// Update APP_URL once you point your subdomain at Render
 const APP_URL = "https://app.unstructuredalpha.com";
 
 const S = {
@@ -690,7 +689,6 @@ export default function Home() {
             <div style={S.pricingCard(true)}>
               <div style={S.pricingBadge}>Most popular</div>
               <div style={S.pricingTier}>Pro</div>
-              {/* UPDATE PRICE BEFORE LAUNCH */}
               <div style={S.price}>$29</div>
               <div style={S.priceSub}>per month · cancel anytime</div>
               <ul style={S.featureList}>
