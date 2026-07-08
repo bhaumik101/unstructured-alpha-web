@@ -34,15 +34,14 @@ from utils.signals_cache import get_all_signal_scores
 from utils.narrative import generate_narrative
 from utils.convergence import get_convergence_events, render_convergence_events
 from utils.theme import (
-    inject_skeleton_css, inject_premium_css, empty_state, section_label,
+    inject_all_css, empty_state, section_label,
     render_educational_callout, render_signal_legend,
 )
 
 st.set_page_config(page_title="Today's Brief — UA", layout="wide")
 render_header("Today's Brief")
 render_sidebar_base()
-inject_skeleton_css()
-inject_premium_css()
+inject_all_css()
 
 render_page_header(
     "Today's Brief",

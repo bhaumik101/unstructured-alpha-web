@@ -10,6 +10,23 @@ headless = true
 enableXsrfProtection = false
 port = 8501
 enableStaticServing = true   # serves files from ./static/ at /_stapp/static/<filename>
+maxMessageSize = 200          # MB — cap WebSocket payload size
+maxUploadSize = 50            # MB — cap file upload size
 
 [browser]
 gatherUsageStats = false
+
+[runner]
+# fastReruns: start a new rerun before the previous one fully finishes.
+# Eliminates the visible "flicker" when users click buttons or change widgets.
+# This is the single biggest perceived-speed improvement in Streamlit 1.38+.
+fastReruns = true
+# magicEnabled: disable bare-expression auto-st.write (we never use it, and
+# disabling it skips the AST inspection pass on every rerun).
+magicEnabled = false
+
+[client]
+# toolbarMode: "minimal" hides the Deploy / Edit / Share toolbar for end users
+# so the UI looks like a product, not a dev tool.
+toolbarMode = "minimal"
+showErrorDetails = false      # never show Python stack traces to end users

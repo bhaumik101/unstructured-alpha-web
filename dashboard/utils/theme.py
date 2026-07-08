@@ -1301,6 +1301,24 @@ def inject_premium_css() -> None:
     st.markdown(_COUNTER_CSS, unsafe_allow_html=True)
 
 
+def inject_all_css() -> None:
+    """
+    Convenience function — inject BOTH skeleton/shimmer CSS and premium
+    animation CSS in a single call. Use this instead of calling
+    inject_skeleton_css() + inject_premium_css() separately.
+
+    Safe to call multiple times (Streamlit deduplicates identical markdown
+    injections within a session).
+
+    Usage::
+
+        from utils.theme import inject_all_css
+        inject_all_css()  # once near the top of any page
+    """
+    import streamlit as st
+    st.markdown(_SKELETON_CSS + _COUNTER_CSS, unsafe_allow_html=True)
+
+
 # ── Polish helpers ────────────────────────────────────────────────────────────
 
 def render_signal_legend() -> str:
@@ -1437,4 +1455,239 @@ def render_platform_note() -> str:
         'purposes only. Nothing here constitutes investment advice. '
         'All signals reflect statistical patterns in historical data, not predictions.'
         '</div>'
+    )
+
+
+# ── Animated stat counter (JavaScript count-up) ───────────────────────────────
+
+def animated_stat_counter(
+    stats: list[tuple[str, float, str, str]],
+    height: int = 90,
+    cols: int = 4,
+    duration_ms: int = 1200,
+) -> None:
+    """
+    Render a row of KPI tiles with JavaScript count-up animation using
+    st.components.v1.html(). Each number counts up from 0 to its target
+    over `duration_ms` milliseconds with an easing curve.
+
+    Args:
+        stats: list of (label, value, prefix, suffix) tuples.
+               e.g. [("Signals", 43, "", ""), ("Bull", 62.0, "", "%")]
+        height:      iframe height in pixels (auto-sized to fit the tiles)
+        cols:        number of columns in the grid (1–6)
+        duration_ms: count-up animation duration in milliseconds
+
+    Usage::
+
+        from utils.theme import animated_stat_counter
+        animated_stat_counter([
+            ("Signals Tracked", 43, "", ""),
+            ("Bullish Score",   72, "", "%"),
+            ("Active Alerts",    5, "", ""),
+            ("Days Live",       90, "", ""),
+        ])
+    """
+    import streamlit.components.v1 as components
+    import json
+
+    items_js = json.dumps([
+        {"label": s[0], "target": float(s[1]),
+         "prefix": s[2], "suffix": s[3],
+         "decimals": 1 if (s[1] != int(s[1])) else 0}
+        for s in stats
+    ])
+
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * {{ margin:0; padding:0; box-sizing:border-box; }}
+  body {{ background:#0b0d12; font-family:Inter,-apple-system,sans-serif; }}
+  .grid {{
+    display: grid;
+    grid-template-columns: repeat({cols}, 1fr);
+    gap: 10px;
+    padding: 4px 0;
+  }}
+  .tile {{
+    background: #12151e;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px;
+    padding: 14px 16px;
+    transition: border-color 0.18s;
+  }}
+  .tile:hover {{ border-color: rgba(124,58,237,0.35); }}
+  .label {{
+    font-size: 0.60rem;
+    font-weight: 700;
+    letter-spacing: 0.10em;
+    text-transform: uppercase;
+    color: #8892aa;
+    margin-bottom: 6px;
+  }}
+  .value {{
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: #e8eeff;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }}
+</style>
+</head>
+<body>
+<div class="grid" id="grid"></div>
+<script>
+var stats = {items_js};
+var grid  = document.getElementById('grid');
+
+stats.forEach(function(s, i) {{
+  var tile = document.createElement('div');
+  tile.className = 'tile';
+  var lbl = document.createElement('div');
+  lbl.className = 'label';
+  lbl.textContent = s.label;
+  var val = document.createElement('div');
+  val.className = 'value';
+  val.textContent = s.prefix + '0' + s.suffix;
+  tile.appendChild(lbl);
+  tile.appendChild(val);
+  grid.appendChild(tile);
+
+  // stagger start
+  setTimeout(function() {{
+    var start = null;
+    function step(ts) {{
+      if (!start) start = ts;
+      var progress = Math.min((ts - start) / {duration_ms}, 1);
+      // ease-out cubic
+      var ease = 1 - Math.pow(1 - progress, 3);
+      var cur = s.target * ease;
+      val.textContent = s.prefix + cur.toFixed(s.decimals) + s.suffix;
+      if (progress < 1) requestAnimationFrame(step);
+    }}
+    requestAnimationFrame(step);
+  }}, i * 80);
+}});
+</script>
+</body>
+</html>
+"""
+    components.html(html, height=height, scrolling=False)
+
+
+# ── Live data badge helpers ───────────────────────────────────────────────────
+
+def live_badge(text: str = "LIVE", color: str = "#00D566") -> str:
+    """
+    Compact animated pulse badge to indicate live/real-time data.
+    Returns HTML string — use inside st.markdown(unsafe_allow_html=True)
+    or embed inside larger HTML blocks.
+
+    Usage::
+
+        st.markdown("Market data " + live_badge(), unsafe_allow_html=True)
+    """
+    hex_c = color.lstrip("#")
+    r_, g_, b_ = int(hex_c[0:2], 16), int(hex_c[2:4], 16), int(hex_c[4:6], 16)
+    return (
+        f'<span style="display:inline-flex;align-items:center;gap:5px;'
+        f'background:rgba({r_},{g_},{b_},0.10);'
+        f'border:1px solid rgba({r_},{g_},{b_},0.30);'
+        f'border-radius:20px;padding:2px 8px;font-size:0.65rem;'
+        f'font-weight:700;color:{color};letter-spacing:0.06em;'
+        f'font-family:Inter,sans-serif;vertical-align:middle;">'
+        f'<span class="ua-pulse-dot" style="background:{color};'
+        f'width:6px;height:6px;border-radius:50%;display:inline-block;'
+        f'animation:ua_pulse 1.8s ease-in-out infinite;flex-shrink:0;"></span>'
+        f'{text}</span>'
+    )
+
+
+def regime_pill(regime: str, score: float | None = None) -> str:
+    """
+    Styled macro-regime pill — BULL / BEAR / NEUTRAL with color coding.
+    Optionally shows a score in parentheses.
+
+    Args:
+        regime: "BULL", "BEAR", or "NEUTRAL" (case-insensitive)
+        score:  Optional float score to append, e.g. 72.4
+
+    Returns HTML string.
+
+    Usage::
+
+        st.markdown(regime_pill("BULL", 74), unsafe_allow_html=True)
+    """
+    r = regime.upper().strip()
+    if r in ("BULL", "BULLISH"):
+        color, bg = "#00D566", "rgba(0,213,102,0.10)"
+        label = "● BULL"
+    elif r in ("BEAR", "BEARISH"):
+        color, bg = "#FF4444", "rgba(255,68,68,0.10)"
+        label = "● BEAR"
+    else:
+        color, bg = "#F59E0B", "rgba(245,158,11,0.10)"
+        label = "● NEUTRAL"
+
+    score_html = (
+        f' <span style="opacity:0.75;font-weight:600;">({score:.0f})</span>'
+        if score is not None else ""
+    )
+    return (
+        f'<span style="display:inline-flex;align-items:center;gap:0;'
+        f'background:{bg};border:1px solid {color}33;border-radius:20px;'
+        f'padding:3px 10px;font-size:0.70rem;font-weight:700;color:{color};'
+        f'letter-spacing:0.06em;font-family:Inter,sans-serif;">'
+        f'{label}{score_html}</span>'
+    )
+
+
+def progress_ring(pct: float, size: int = 48, stroke: int = 4,
+                  color: str = "#00D566", label: str = "") -> str:
+    """
+    SVG circular progress ring — compact visual for a 0–100 percentage.
+    Animates from 0 to `pct` on load.
+
+    Args:
+        pct:    value 0–100
+        size:   diameter in pixels
+        stroke: ring stroke width
+        color:  stroke color (hex)
+        label:  text rendered in the center
+
+    Returns HTML string.
+
+    Usage::
+
+        st.markdown(progress_ring(72, label="72%"), unsafe_allow_html=True)
+    """
+    pct = max(0.0, min(100.0, float(pct)))
+    r       = (size - stroke * 2) / 2
+    cx = cy = size / 2
+    circ    = 2 * _math.pi * r
+    dash    = circ * pct / 100
+    gap     = circ - dash
+    # Start at top (rotate -90°)
+    return (
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
+        f'style="display:inline-block;vertical-align:middle;">'
+        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" '
+        f'stroke="rgba(255,255,255,0.06)" stroke-width="{stroke}"/>'
+        f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="none" '
+        f'stroke="{color}" stroke-width="{stroke}" '
+        f'stroke-dasharray="{dash:.2f} {gap:.2f}" '
+        f'stroke-linecap="round" '
+        f'transform="rotate(-90 {cx} {cy})">'
+        f'<animate attributeName="stroke-dasharray" '
+        f'from="0 {circ:.2f}" to="{dash:.2f} {gap:.2f}" '
+        f'dur="0.9s" fill="freeze" calcMode="spline" '
+        f'keyTimes="0;1" keySplines="0.25,0.46,0.45,0.94"/>'
+        f'</circle>'
+        + (f'<text x="{cx}" y="{cy+4}" text-anchor="middle" '
+           f'font-family="Inter,sans-serif" font-size="{max(size//5, 8)}" '
+           f'font-weight="700" fill="{color}">{label}</text>' if label else "")
+        + f'</svg>'
     )
