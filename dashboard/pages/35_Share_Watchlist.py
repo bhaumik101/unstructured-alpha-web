@@ -27,7 +27,7 @@ st.set_page_config(
 )
 
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import inject_premium_css
+from utils.theme import inject_premium_css, PLOTLY_CONFIG
 from utils.db import init_db
 from utils.auth_ui import try_restore_session, init_cookies_for_this_run
 
@@ -222,7 +222,7 @@ for _i in range(0, len(_tickers), _cols_per_row):
                         showlegend=False,
                     )
                     st.plotly_chart(_sh_fig, use_container_width=True,
-                                    config={"displayModeBar": False},
+                                    config=PLOTLY_CONFIG,
                                     key=f"share_spark_{_tk}")
                 else:
                     st.caption("Score history building…")

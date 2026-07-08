@@ -45,7 +45,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import inject_premium_css
+from utils.theme import inject_premium_css, PLOTLY_CONFIG
 from utils.fetchers import fetch_fred, fetch_ny_fed_gscpi, fetch_price, _get_fred_key
 
 # ── Page config ────────────────────────────────────────────────────────────────
@@ -353,7 +353,7 @@ for i, sig in enumerate(CHAIN_SIGNALS):
             yaxis=dict(visible=False),
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
 
         st.markdown(f"""
 <div class="sc-card">
@@ -432,7 +432,7 @@ for tab, sig in zip(tabs, CHAIN_SIGNALS):
                 ),
                 hovermode="x unified",
             )
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
 
         col_l, col_r = st.columns([3, 2])
         with col_l:

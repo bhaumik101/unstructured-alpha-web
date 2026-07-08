@@ -24,7 +24,7 @@ from utils.config import SIGNALS, TICKERS
 from utils.fetchers import fetch_live_quote, fetch_signal_series
 from utils.analysis import compute_confluence, score_signal
 from utils.header import render_header, render_sidebar_base, render_page_header, render_synthetic_data_banner
-from utils.theme import source_badge
+from utils.theme import source_badge, PLOTLY_CONFIG
 from utils.quotes import get_batch_quotes
 from utils.signals_cache import get_all_signal_scores
 
@@ -440,7 +440,7 @@ with tab_screener:
         margin=dict(l=8, r=8, t=10, b=8),
         font=dict(family="Inter, sans-serif", color="#8892AA"),
     )
-    st.plotly_chart(fig_dist, use_container_width=True, config={"displayModeBar": False})
+    st.plotly_chart(fig_dist, use_container_width=True, config=PLOTLY_CONFIG)
     st.markdown(
         f"&nbsp; {source_badge('yfinance', 'Live quotes · price history')} "
         f"&nbsp; {source_badge('ua', 'Confluence Score · UA internal')}",
@@ -666,7 +666,7 @@ with tab_rank:
             yaxis=dict(range=[0,100], gridcolor="rgba(255,255,255,0.06)", showgrid=True, color="#4A5568"),
             xaxis=dict(showgrid=False, color="#4A5568"),
             margin=dict(t=10,b=40,l=40,r=10), height=220)
-        st.plotly_chart(_fig_top, use_container_width=True)
+        st.plotly_chart(_fig_top, use_container_width=True, config=PLOTLY_CONFIG)
     with _r2:
         st.markdown("**Bottom 25 Bearish**")
         _fig_bot = _go_r.Figure(_go_r.Bar(
@@ -678,7 +678,7 @@ with tab_rank:
             yaxis=dict(range=[0,100], gridcolor="rgba(255,255,255,0.06)", showgrid=True, color="#4A5568"),
             xaxis=dict(showgrid=False, color="#4A5568"),
             margin=dict(t=10,b=40,l=40,r=10), height=220)
-        st.plotly_chart(_fig_bot, use_container_width=True)
+        st.plotly_chart(_fig_bot, use_container_width=True, config=PLOTLY_CONFIG)
 
     st.dataframe(
         _rank_df, use_container_width=True, hide_index=True,

@@ -27,7 +27,7 @@ from utils.config import TICKERS
 from utils import alerts_db
 from utils.alerts import evaluate_watchlist
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import inject_premium_css, inject_skeleton_css, section_label
+from utils.theme import inject_premium_css, inject_skeleton_css, section_label, PLOTLY_CONFIG
 from utils.auth_ui import require_login
 from utils.quotes import get_batch_quotes, mini_sparkline
 from utils.auth import set_digest_optin, get_digest_optin
@@ -249,7 +249,7 @@ else:
                         st.caption("30-day composite score trend")
                         st.plotly_chart(
                             _csp_fig, use_container_width=True,
-                            config={"displayModeBar": False},
+                            config=PLOTLY_CONFIG,
                             key="composite_sparkline",
                         )
     except Exception:
@@ -453,7 +453,7 @@ else:
                         unsafe_allow_html=True,
                     )
                     st.plotly_chart(_sh_fig, use_container_width=True,
-                                    config={"displayModeBar": False},
+                                    config=PLOTLY_CONFIG,
                                     key=f"score_spark_{ticker}")
                 else:
                     st.caption("Signal score: building history…")
@@ -508,7 +508,7 @@ else:
                 st.plotly_chart(
                     mini_sparkline(series, _spark_color, "3M", show_axes=True),
                     use_container_width=True,
-                    config={"displayModeBar": False},
+                    config=PLOTLY_CONFIG,
                     key=f"watch_spark_{ticker}",
                 )
             else:

@@ -30,7 +30,7 @@ import yfinance as yf
 
 from utils.header import render_header, render_sidebar_base, render_page_header
 from utils.fetchers import fetch_live_quote
-from utils.theme import source_badge, inject_premium_css, inject_skeleton_css, section_label
+from utils.theme import source_badge, inject_premium_css, inject_skeleton_css, section_label, PLOTLY_CONFIG
 
 st.set_page_config(page_title="Market Overview — UA", layout="wide")
 render_header("Market Overview")
@@ -267,7 +267,7 @@ if section == "Markets":
                 col.plotly_chart(
                     mini_sparkline(q["series"], color, period_sel),
                     use_container_width=True,
-                    config={"displayModeBar": False},
+                    config=PLOTLY_CONFIG,
                 )
         else:
             col.markdown(
