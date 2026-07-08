@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 from utils.config import SIGNALS, TICKERS
 from utils.db import engine, score_snapshots, init_db
-from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker
+from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, render_footer
 from utils.quotes import get_batch_quotes
 from utils.score_history import (
     record_all_signal_snapshots, get_signal_flips, get_signal_diff,
@@ -917,3 +917,6 @@ with tab_weekly:
                     st.rerun()
                 except Exception as _e:
                     st.error(f"Generation failed: {_e}")
+
+# ── Footer ────────────────────────────────────────────────────────────────────
+render_footer()

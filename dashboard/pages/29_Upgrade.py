@@ -23,7 +23,7 @@ st.set_page_config(
     layout="centered",
 )
 
-from utils.header import render_header
+from utils.header import render_header, render_footer
 from utils.auth_ui import get_cookies, try_restore_session
 from utils.billing import (
     get_user_tier, create_checkout_session, handle_checkout_success,
@@ -967,3 +967,6 @@ for q, a in faqs:
         st.markdown(f'<div class="faq-a">{a}</div>', unsafe_allow_html=True)
 
 st.markdown("<div style='height:40px'></div>", unsafe_allow_html=True)
+
+# ── Footer ────────────────────────────────────────────────────────────────────
+render_footer()

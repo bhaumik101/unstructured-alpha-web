@@ -54,8 +54,8 @@ from utils.analysis import (
     score_contract_velocity, build_narrative, compute_rsi,
 )
 from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
-from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner
-from utils.theme import confluence_gauge_svg, style_area_chart, source_badge, inject_premium_css, inject_skeleton_css, section_label
+from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner, render_footer
+from utils.theme import confluence_gauge_svg, style_area_chart, source_badge, inject_premium_css, inject_skeleton_css, section_label, PLOTLY_CONFIG, PLOTLY_CONFIG_INTERACTIVE, render_disclaimer, render_educational_callout
 from utils.card_generator import generate_signal_card
 from utils.audit_ui import render_evidence_expander
 from utils.lead_time_research import (
@@ -153,6 +153,26 @@ if ticker_input not in TICKERS:
         "Running analysis with sector-mapped macro signals. "
         "Add it to `utils/config.py` for custom signal configuration."
     )
+
+# ── First-visit onboarding callout ──────────────────────────────────────────
+if not st.session_state.get("_tdd_onboarded"):
+    st.markdown(
+        render_educational_callout(
+            title="How to read this page",
+            body=(
+                "The <strong>Confluence Score</strong> (0–100) measures how aligned the current macro "
+                "environment is with conditions that have historically preceded strength in this sector. "
+                "It is <em>not</em> a price target — it is a macro posture indicator. "
+                "Use the tabs below to explore signals, price charts, factor exposure, "
+                "insider activity, and earnings track record. "
+                "Scores ≥65 = macro tailwind · ≤35 = macro headwind · 36–64 = mixed regime."
+            ),
+            icon="🧭",
+            accent="#00C8E0",
+        ),
+        unsafe_allow_html=True,
+    )
+    st.session_state["_tdd_onboarded"] = True
 
 st.markdown(f"### Analyzing: **{ticker_input}** — {company_name_hint}")
 
@@ -756,7 +776,7 @@ if section == "Overview":
                 unsafe_allow_html=True,
             )
         with _radar_col_r:
-            st.plotly_chart(_fig_radar, use_container_width=True)
+            st.plotly_chart(_fig_radar, use_container_width=True, config=PLOTLY_CONFIG)
     except Exception:
         pass  # Radar chart failure must never crash the rest of the page
 
@@ -863,7 +883,7 @@ if section == "Overview":
                        title="Confluence Score", range=[0, 100]),
             margin=dict(l=0, r=0, t=10, b=0),
         )
-        st.plotly_chart(_fig_hist, use_container_width=True)
+        st.plotly_chart(_fig_hist, use_container_width=True, config=PLOTLY_CONFIG)
         st.caption(
             f"{len(_score_hist)} recorded day(s) for {ticker_input} — built up only from actual visits to "
             "this page (this app has no scheduler to snapshot every ticker daily), so a short or gappy "
@@ -2389,7 +2409,7 @@ if section == "Overview":
                                 showlegend=True,
                                 legend=dict(font=dict(size=9)),
                             )
-                            st.plotly_chart(fig_dist, use_container_width=True)
+                            st.plotly_chart(fig_dist, use_container_width=True, config=PLOTLY_CONFIG)
                             st.caption(
                                 f"Box plot of {ticker_input}'s actual forward returns at each time horizon "
                                 f"when its score was in each bucket. Current score bucket highlighted. "
@@ -2951,7 +2971,7 @@ elif section == "13F & Federal Contracts":
                     legend=dict(font=dict(color="#E8EEFF"), bgcolor="rgba(18,21,30,0.90)"),
                     margin=dict(l=0, r=0, t=30, b=0),
                 )
-                st.plotly_chart(fig_c, use_container_width=True)
+                st.plotly_chart(fig_c, use_container_width=True, config=PLOTLY_CONFIG)
 
             # Contract table
             display_cols = [c for c in ["date", "agency", "amount", "description"] if c in contracts_df.columns]
@@ -3251,7 +3271,7 @@ elif section == "Deep Correlation Scan":
                     yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"), title="Pearson r"),
                     margin=dict(l=0, r=0, t=10, b=0),
                 )
-                st.plotly_chart(fig_lag, use_container_width=True)
+                st.plotly_chart(fig_lag, use_container_width=True, config=PLOTLY_CONFIG)
 
             # Rolling 26-week correlation
             rolling = deep_corr.get("rolling_corr", pd.Series(dtype=float))
@@ -3271,7 +3291,7 @@ elif section == "Deep Correlation Scan":
                                title="26w rolling r", range=[-1, 1]),
                     margin=dict(l=0, r=0, t=30, b=0),
                 )
-                st.plotly_chart(fig_roll, use_container_width=True)
+                st.plotly_chart(fig_roll, use_container_width=True, config=PLOTLY_CONFIG)
 
             # Signal + price overlay
             aligned = deep_corr.get("aligned", pd.DataFrame())
@@ -3299,7 +3319,7 @@ elif section == "Deep Correlation Scan":
                                      gridcolor="rgba(255,255,255,0.05)", tickfont=dict(color="#8892AA"), title_font=dict(color="#7C3AED"))
                 fig_ov.update_yaxes(title_text=f"{ticker_input} Price (normalized to 100)", secondary_y=True,
                                      gridcolor="rgba(0,0,0,0)", tickfont=dict(color="#8892AA"), title_font=dict(color="#F59E0B"))
-                st.plotly_chart(fig_ov, use_container_width=True)
+                st.plotly_chart(fig_ov, use_container_width=True, config=PLOTLY_CONFIG)
 
         st.divider()
         st.markdown("##### Is this signal's lead time stable, or is it decaying?")
@@ -3624,7 +3644,7 @@ elif section == "Earnings Sentiment":
             showlegend=False,
             font=dict(family="Inter, sans-serif", color="#cccccc"),
         )
-        st.plotly_chart(_fig, use_container_width=True)
+        st.plotly_chart(_fig, use_container_width=True, config=PLOTLY_CONFIG)
 
         # ── Bull / Bear scoring ───────────────────────────────────────────────
         _latest   = _sent_df["sentiment_score"].iloc[-1]
@@ -3682,3 +3702,6 @@ elif section == "Earnings Sentiment":
             "financial terms such as 'liability', 'risk', and 'capital' as negative. "
             "**Source:** SEC EDGAR public HTTPS API — no API key required."
         )
+
+st.markdown(render_disclaimer(), unsafe_allow_html=True)
+render_footer(page="ticker")

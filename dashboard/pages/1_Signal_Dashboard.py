@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.config import CATEGORIES, SIGNALS, TICKERS
-from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner
+from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner, render_footer
 from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
 from utils.theme import (
@@ -748,6 +748,11 @@ with tab_signals:
             margin=dict(l=60, r=20, t=10, b=80),
         )
         st.plotly_chart(fig_heat, use_container_width=True, config=PLOTLY_CONFIG)
+        st.caption(
+            "Each cell is a 0–100 macro signal score for that ticker's relevant indicators. "
+            "🟢 ≥65 = elevated bullish signal · 🔴 ≤35 = bearish · gray = neutral or no relevant data. "
+            "Columns ordered by signal category (macro, commodity, credit, energy, sentiment)."
+        )
     else:
         # Simple mode: show a clean ranked list
         st.markdown('<div class="section-header">TOP SIGNALS TO WATCH</div>', unsafe_allow_html=True)
@@ -891,6 +896,12 @@ with tab_signals:
                 font=dict(family="Inter, sans-serif"),
             )
             st.plotly_chart(_fig_corr, use_container_width=True, config=PLOTLY_CONFIG)
+            st.caption(
+                "Pearson correlation of weekly signal values over the trailing 2-year window. "
+                "Pairs with r ≥ 0.70 (dark green) are measuring similar phenomena — "
+                "treat as one signal when counting bullish/bearish confirmations. "
+                "Pairs with r ≤ −0.50 move opposite and can act as natural hedges."
+            )
 
             # Find and call out the most highly correlated pairs (≥0.7)
             _high_pairs = []
@@ -1036,3 +1047,6 @@ with tab_regime:
         )
     else:
         st.info("ETF data loading — try again in a moment.")
+
+# ── Footer ────────────────────────────────────────────────────────────────────
+render_footer(page="signals")

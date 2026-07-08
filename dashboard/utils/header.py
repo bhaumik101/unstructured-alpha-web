@@ -1274,6 +1274,94 @@ def render_page_header(title: str, subtitle: str = "",
 """, unsafe_allow_html=True)
 
 
+def render_footer(page: str = "") -> None:
+    """
+    Render a professional full-width disclaimer footer.
+    Call once at the bottom of any page that surfaces signal data or analysis.
+    The `page` argument is optional — used to add a page-specific methodology note.
+    """
+    _year = __import__("datetime").datetime.now().year
+    _page_note_html = ""
+    if page == "signals":
+        _page_note_html = (
+            '<div style="font-size:0.70rem;color:#6B7FBF;margin-top:4px;">'
+            'Signal scores are 0–100 percentile ranks within a trailing 2-year '
+            'distribution. A score of 65+ is "bullish" (top percentile); 35− is '
+            '"bearish." Scores are informational — they do not predict specific price '
+            'targets or returns for any security.'
+            '</div>'
+        )
+    elif page == "ticker":
+        _page_note_html = (
+            '<div style="font-size:0.70rem;color:#6B7FBF;margin-top:4px;">'
+            'The Confluence Score is a correlation-weighted average of macro signals. '
+            'It reflects the current macro environment, not a price target. '
+            'Historical lead times are back-tested on available data and may not hold '
+            'in future market regimes.'
+            '</div>'
+        )
+
+    st.markdown(f"""
+<div style="margin-top:48px;padding:28px 0 20px;border-top:1px solid rgba(255,255,255,0.05);
+            font-family:Inter,sans-serif;">
+    <div style="max-width:900px;margin:0 auto;padding:0 16px;">
+
+        <!-- Primary disclaimer -->
+        <div style="background:rgba(18,21,30,0.6);border:1px solid rgba(255,255,255,0.06);
+                    border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+            <div style="font-size:0.65rem;font-weight:700;color:#8892AA;letter-spacing:0.10em;
+                        text-transform:uppercase;margin-bottom:6px;">
+                ⚠ Important Disclaimer
+            </div>
+            <div style="font-size:0.73rem;color:#6B7FBF;line-height:1.65;">
+                Unstructured Alpha is for <strong style="color:#8892AA;">educational and informational
+                purposes only</strong> and does not constitute personalized financial, investment, tax,
+                or legal advice. Nothing on this platform should be interpreted as a recommendation to
+                buy, sell, or hold any security. Macro signals reflect statistical patterns in historical
+                publicly available data — they are not guarantees of future performance. Past patterns
+                do not reliably predict future returns. Always consult a licensed financial adviser
+                before making investment decisions.
+            </div>
+            {_page_note_html}
+        </div>
+
+        <!-- Source + links row -->
+        <div style="display:flex;justify-content:space-between;align-items:center;
+                    flex-wrap:wrap;gap:12px;">
+            <div>
+                <div style="font-size:0.63rem;color:#4A5280;line-height:1.6;">
+                    Data sourced from public APIs:&nbsp;
+                    <span style="color:#8892AA;font-weight:600;">FRED</span> (Federal Reserve) ·
+                    <span style="color:#8892AA;font-weight:600;">SEC EDGAR</span> (insider filings) ·
+                    <span style="color:#8892AA;font-weight:600;">FINRA</span> (short interest) ·
+                    <span style="color:#8892AA;font-weight:600;">EIA</span> (energy data) ·
+                    <span style="color:#8892AA;font-weight:600;">yfinance</span> (price data)
+                </div>
+                <div style="font-size:0.63rem;color:#4A5280;margin-top:3px;">
+                    Signal data cached every ~2 hours. Scores are not real-time.
+                    © {_year} Unstructured Alpha. All rights reserved.
+                </div>
+            </div>
+            <div style="display:flex;gap:14px;flex-shrink:0;">
+                <a href="/8_About" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
+                                           font-weight:500;" onmouseover="this.style.color='#00C8E0'"
+                   onmouseout="this.style.color='#6B7FBF'">About</a>
+                <a href="/36_Privacy_Policy" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
+                                                     font-weight:500;" onmouseover="this.style.color='#00C8E0'"
+                   onmouseout="this.style.color='#6B7FBF'">Privacy Policy</a>
+                <a href="/37_Terms_of_Service" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
+                                                       font-weight:500;" onmouseover="this.style.color='#00C8E0'"
+                   onmouseout="this.style.color='#6B7FBF'">Terms of Service</a>
+                <a href="/Upgrade" style="font-size:0.68rem;color:#7C3AED;text-decoration:none;
+                                          font-weight:600;" onmouseover="this.style.color='#A78BFA'"
+                   onmouseout="this.style.color='#7C3AED'">Pro ⚡</a>
+            </div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
 def render_sidebar_base() -> None:
     """
     Render the standard sidebar content (account info, FRED key input, AI

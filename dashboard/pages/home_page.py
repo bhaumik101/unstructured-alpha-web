@@ -20,7 +20,7 @@ st.set_page_config(
 
 import html as _h
 import pandas as pd
-from utils.header import render_header, render_sidebar_base
+from utils.header import render_header, render_sidebar_base, render_footer
 from utils.signals_cache import get_all_signal_scores
 from utils.config import SIGNALS, CATEGORIES
 from utils.narrative import generate_narrative
@@ -1171,14 +1171,4 @@ with _q2:
         )
 
 # ── FOOTER ───────────────────────────────────────────────────────────────────
-st.markdown("""
-<div style="text-align:center;padding:28px 0 8px;font-family:Inter,sans-serif;">
-    <div style="font-size:0.68rem;color:#6B7FBF;letter-spacing:0.06em;">
-        UNSTRUCTURED ALPHA · ALTERNATIVE DATA INTELLIGENCE<br>
-        <span style="color:#434E6A;">
-        Not financial advice. All data from public sources:
-        FRED, EIA, FINRA, SEC EDGAR, USASpending.gov, Yahoo Finance.
-        </span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+render_footer()
