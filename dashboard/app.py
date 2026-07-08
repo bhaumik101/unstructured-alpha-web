@@ -48,58 +48,58 @@ from utils.auth_ui import init_cookies_for_this_run, try_restore_session
 # of the "sidebar reverts to flat list after clicking anything" bug.
 pg = st.navigation(
     {
+        # ── Top-level ────────────────────────────────────────────────────────
         "": [
-            st.Page("pages/home_page.py",           title="Home",              default=True),
-            st.Page("pages/29_Upgrade.py",          title="⚡ Upgrade to Pro"),
+            st.Page("pages/home_page.py",      title="Home",             default=True),
+            st.Page("pages/29_Upgrade.py",     title="⚡ Upgrade to Pro"),
         ],
+        # ── Watchlist ────────────────────────────────────────────────────────
+        # Shared watchlist + watchlist stress test live as tabs inside My Watchlist
         "Watchlist": [
-            st.Page("pages/10_Watchlist.py",        title="My Watchlist"),
-            st.Page("pages/35_Share_Watchlist.py",  title="Shared Watchlist"),
-            st.Page("pages/36_Stress_Tester.py",    title="⚡ Stress Tester"),
-            st.Page("pages/14_Stock_Chart.py",      title="Stock Viewer"),
-            st.Page("pages/32_Profile.py",          title="My Profile"),
+            st.Page("pages/10_Watchlist.py",   title="My Watchlist"),
+            st.Page("pages/14_Stock_Chart.py", title="Stock Chart"),
         ],
+        # ── Daily Intel ──────────────────────────────────────────────────────
+        # Today's Brief absorbs Weekly Brief (tab).
+        # Alternative Data combines Congress Tracker + Options Flow.
+        # Events combines Macro Calendar + Event Forecaster.
         "Daily Intel": [
-            st.Page("pages/2_Today_Digest.py",       title="Today's Brief"),
-            st.Page("pages/18_Weekly_Brief.py",      title="Weekly Brief"),
-            st.Page("pages/12_Sector_Map.py",        title="Sector Map"),
-            st.Page("pages/20_Congress_Tracker.py",  title="Congress Tracker"),
-            st.Page("pages/23_Event_Forecaster.py",  title="Event Forecaster"),
+            st.Page("pages/2_Today_Digest.py",        title="Today's Brief"),
+            st.Page("pages/41_Alternative_Data.py",   title="Alternative Data"),
+            st.Page("pages/43_Events_Forecasts.py",   title="Events & Forecasts"),
         ],
+        # ── Signals ──────────────────────────────────────────────────────────
+        # Signal Dashboard absorbs Regime Playbook (tab).
+        # Sector View combines Sector Map + Market Heatmap + Supply Chain.
         "Signals": [
             st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard"),
-            st.Page("pages/22_Regime_Playbook.py",  title="Regime Playbook"),
-            st.Page("pages/31_Supply_Chain.py",      title="Supply Chain"),
+            st.Page("pages/42_Sector_View.py",       title="Sector View"),
         ],
+        # ── Research (free) ──────────────────────────────────────────────────
+        # Track Record absorbs Earnings Track Record (tab) + Signal Call Log.
+        # Stock Screener absorbs Live Scoreboard + Short Squeeze Radar (tabs).
         "Research": [
-            st.Page("pages/40_Stock_Recommender.py",    title="⚡ Stock Recommender"),
-            st.Page("pages/39_Portfolio_Backtest.py",   title="⚡ Portfolio Backtest"),
-            st.Page("pages/30_Track_Record_Live.py",    title="Signal Call Log"),
-            st.Page("pages/3_Ticker_Deep_Dive.py",     title="Ticker Deep Dive"),
-            st.Page("pages/27_Factor_Exposure.py",     title="Factor Exposure"),
-            st.Page("pages/24_Basket_Builder.py",       title="Basket Builder"),
-            st.Page("pages/19_Signal_Backtester.py",   title="Signal Backtester"),
-            st.Page("pages/17_Portfolio_Analyzer.py",  title="Portfolio Analyzer"),
-            st.Page("pages/16_Short_Squeeze_Radar.py", title="Short Squeeze Radar"),
-            st.Page("pages/21_Options_Flow.py",         title="Options Flow"),
-            st.Page("pages/13_Track_Record.py",        title="Earnings Track Record"),
-            st.Page("pages/4_Power_Supercycle.py",     title="Power Supercycle"),
+            st.Page("pages/3_Ticker_Deep_Dive.py",    title="Ticker Deep Dive"),
+            st.Page("pages/4_Power_Supercycle.py",    title="Power Supercycle"),
+            st.Page("pages/5_Market_Overview.py",     title="Market Overview"),
+            st.Page("pages/6_Stock_Screener.py",      title="Stock Screener"),
+            st.Page("pages/30_Track_Record_Live.py",  title="Track Record"),
         ],
-        "Market": [
-            st.Page("pages/5_Market_Overview.py",    title="Market Overview"),
-            st.Page("pages/6_Stock_Screener.py",     title="Stock Screener"),
-            st.Page("pages/25_Market_Heatmap.py",    title="Market Heatmap"),
-            st.Page("pages/26_Macro_Calendar.py",    title="Macro Calendar"),
-            st.Page("pages/33_Scoreboard.py",        title="Live Scoreboard"),
-            st.Page("pages/34_Best_Ideas.py",        title="Best Ideas"),
+        # ── Pro Tools ────────────────────────────────────────────────────────
+        # Stock Recommender: hero Pro page — ranked AI-driven stock ideas.
+        # Portfolio Suite: Backtest + Stress Tester + Signal Backtester +
+        #   Portfolio Analyzer + Basket Builder — all portfolio-level tools.
+        "⚡ Pro Tools": [
+            st.Page("pages/40_Stock_Recommender.py", title="Stock Recommender"),
+            st.Page("pages/44_Portfolio_Suite.py",   title="Portfolio Suite"),
         ],
-        "Info": [
-            st.Page("pages/11_Model_Validation.py", title="Model Validation"),
-            st.Page("pages/28_Export.py",           title="Export Report"),
-            st.Page("pages/8_About.py",             title="About"),
-            st.Page("pages/9_AI_Assistant.py",      title="AI Assistant"),
-            st.Page("pages/37_Legal.py",            title="Privacy & Terms"),
-            st.Page("pages/38_Admin.py",            title="Admin"),
+        # ── Account ──────────────────────────────────────────────────────────
+        # About absorbs Model Validation (tab). Export lives inside TDD.
+        "Account": [
+            st.Page("pages/32_Profile.py",   title="My Profile"),
+            st.Page("pages/8_About.py",      title="About & Methodology"),
+            st.Page("pages/37_Legal.py",     title="Privacy & Terms"),
+            st.Page("pages/38_Admin.py",     title="Admin"),
         ],
     },
     position="sidebar",

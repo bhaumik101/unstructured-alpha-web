@@ -1,0 +1,577 @@
+# pages/44_Portfolio_Suite.py
+# Unstructured Alpha — Portfolio Suite (Pro)
+# Combines: Portfolio Backtest · Macro Stress Tester · Signal Backtester ·
+#           Portfolio Macro Analyzer · Basket Builder
+# All tools in one Pro-gated hub.
+
+import streamlit as st
+
+st.set_page_config(page_title="Portfolio Suite — UA", layout="wide")
+
+from utils.header import render_header, render_sidebar_base, render_page_header
+from utils.theme import inject_premium_css
+from utils.billing import require_pro
+
+render_header("Portfolio Suite")
+render_sidebar_base()
+inject_premium_css()
+
+require_pro(page_name="Portfolio Suite")
+
+render_page_header(
+    "Portfolio Suite",
+    "Every portfolio-level tool in one place — backtest, stress test, signal combination, exposure analysis, and basket building.",
+    icon="🗂️",
+)
+
+tab_bt, tab_stress, tab_sigbt, tab_macro, tab_basket = st.tabs([
+    "📊 Portfolio Backtest",
+    "🔬 Stress Tester",
+    "⚗️ Signal Backtester",
+    "📐 Macro Exposure",
+    "🧺 Basket Builder",
+])
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 1 — PORTFOLIO BACKTEST  (core logic from 39_Portfolio_Backtest.py)
+# ─────────────────────────────────────────────────────────────────────────────
+with tab_bt:
+    import pandas as pd
+    import plotly.graph_objects as go
+    from datetime import datetime, timedelta, timezone
+
+    st.markdown("#### Signal-Driven Long/Short Backtest")
+    st.caption("Rank all 193 tickers by confluence score at each rebalance date. Go long the top N, short the bottom N.")
+
+    bc1, bc2, bc3, bc4 = st.columns(4)
+    bull_thresh = bc1.slider("Bull threshold", 55, 80, 65, key="ps_bull")
+    bear_thresh = bc2.slider("Bear threshold", 20, 45, 35, key="ps_bear")
+    n_pos       = bc3.slider("N positions/side", 3, 15, 5, key="ps_n")
+    lookback_y  = bc4.slider("Lookback (years)", 1, 5, 2, key="ps_ly")
+
+    rebal_freq  = st.radio("Rebalance", ["Weekly (7d)", "Monthly (30d)"], horizontal=True, key="ps_rebal")
+    rebal_days  = 7 if "Weekly" in rebal_freq else 30
+
+    @st.cache_data(ttl=3600, show_spinner=False, max_entries=4)
+    def _run_backtest(bull_t, bear_t, n, years, rebal):
+        from utils.db import engine, score_snapshots
+        from sqlalchemy import select
+        import yfinance as yf
+        import numpy as np
+
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=365*years)).strftime("%Y-%m-%d")
+        try:
+            with engine.begin() as conn:
+                rows = conn.execute(
+                    select(score_snapshots)
+                    .where(score_snapshots.c.snapshot_date >= cutoff)
+                    .order_by(score_snapshots.c.snapshot_date)
+                ).mappings().all()
+        except Exception:
+            return None
+
+        if not rows:
+            return None
+
+        df = pd.DataFrame([dict(r) for r in rows])
+        pivot = df.pivot_table(index="snapshot_date", columns="ticker", values="score")
+        pivot = pivot.ffill()
+
+        dates = pd.to_datetime(pivot.index)
+        rebal_dates = []
+        last = None
+        for d in dates:
+            if last is None or (d - last).days >= rebal:
+                rebal_dates.append(d)
+                last = d
+
+        if len(rebal_dates) < 3:
+            return None
+
+        all_tickers = list(pivot.columns)
+        start_px = (datetime.now() - timedelta(days=365*years+30)).strftime("%Y-%m-%d")
+        end_px   = datetime.now().strftime("%Y-%m-%d")
+        try:
+            prices = yf.download(all_tickers, start=start_px, end=end_px,
+                                  auto_adjust=True, progress=False)["Close"]
+            if isinstance(prices, pd.Series):
+                prices = prices.to_frame(name=all_tickers[0])
+        except Exception:
+            return None
+
+        prices.index = pd.to_datetime(prices.index)
+        daily_returns = prices.pct_change().fillna(0)
+
+        long_eq = pd.Series(dtype=float)
+        short_eq = pd.Series(dtype=float)
+        combined_eq = pd.Series(dtype=float)
+        contributions: dict[str, float] = {}
+
+        equity = 100.0
+        l_eq = s_eq = c_eq = 100.0
+        prev_date = None
+
+        for i, rb_date in enumerate(rebal_dates[:-1]):
+            next_rb = rebal_dates[i + 1]
+            score_row = pivot.iloc[pivot.index.get_indexer([rb_date.strftime("%Y-%m-%d")], method="nearest")[0]]
+            ranked = score_row.dropna().sort_values(ascending=False)
+
+            longs  = [t for t in ranked.index if ranked[t] >= bull_t][:n]
+            shorts = [t for t in ranked.index[::-1] if ranked[t] <= bear_t][:n]
+            if not longs and not shorts:
+                continue
+
+            period = daily_returns.loc[rb_date:next_rb]
+            if period.empty:
+                continue
+
+            l_rets = period[longs].mean(axis=1)  if longs  else pd.Series(0, index=period.index)
+            s_rets = -period[shorts].mean(axis=1) if shorts else pd.Series(0, index=period.index)
+            c_rets = (l_rets + s_rets) / 2
+
+            for day, r in c_rets.items():
+                l_eq  *= (1 + l_rets.get(day, 0))
+                s_eq  *= (1 + s_rets.get(day, 0))
+                c_eq  *= (1 + r)
+                long_eq[day]     = l_eq
+                short_eq[day]    = s_eq
+                combined_eq[day] = c_eq
+
+            for t in longs:
+                if t in period.columns:
+                    contributions[t] = contributions.get(t, 0) + period[t].sum()
+            for t in shorts:
+                if t in period.columns:
+                    contributions[t] = contributions.get(t, 0) + (-period[t].sum())
+
+        if long_eq.empty:
+            return None
+
+        spy_start = long_eq.index[0].strftime("%Y-%m-%d") if len(long_eq) else start_px
+        try:
+            spy_px = yf.download("SPY", start=spy_start, end=end_px,
+                                  auto_adjust=True, progress=False)["Close"].squeeze()
+            spy_eq = (spy_px / spy_px.iloc[0] * 100) if not spy_px.empty else pd.Series()
+        except Exception:
+            spy_eq = pd.Series()
+
+        return {
+            "long_eq": long_eq, "short_eq": short_eq,
+            "combined_eq": combined_eq, "spy_eq": spy_eq,
+            "contributions": dict(sorted(contributions.items(), key=lambda x: -abs(x[1]))[:15]),
+        }
+
+    def _stats(eq: pd.Series) -> dict:
+        if eq.empty or len(eq) < 5:
+            return {}
+        total_ret  = eq.iloc[-1] / eq.iloc[0] - 1
+        n_years    = max((eq.index[-1] - eq.index[0]).days / 365.25, 0.01)
+        cagr       = (1 + total_ret) ** (1 / n_years) - 1
+        daily_rets = eq.pct_change().dropna()
+        sharpe     = (daily_rets.mean() * 252) / max(daily_rets.std() * (252**0.5), 1e-9)
+        roll_max   = eq.cummax()
+        drawdowns  = (eq - roll_max) / roll_max
+        max_dd     = drawdowns.min()
+        win_rate   = (daily_rets > 0).mean()
+        return {"Total Return": f"{total_ret*100:+.1f}%", "CAGR": f"{cagr*100:+.1f}%",
+                "Sharpe": f"{sharpe:.2f}", "Max Drawdown": f"{max_dd*100:.1f}%",
+                "Win Rate": f"{win_rate*100:.0f}%"}
+
+    if st.button("▶  Run Backtest", key="ps_run_bt"):
+        with st.spinner("Running walk-forward backtest…"):
+            result = _run_backtest(bull_thresh, bear_thresh, n_pos, lookback_y, rebal_days)
+
+        if result is None:
+            st.info("Not enough score_snapshots history yet. Keep using Ticker Deep Dive to build it up — scores are snapshotted at view time.")
+        else:
+            s1, s2, s3, s4 = st.columns(4)
+            for col, label, eq in [(s1,"Long",result["long_eq"]),(s2,"Short",result["short_eq"]),
+                                    (s3,"Combined",result["combined_eq"]),(s4,"SPY",result["spy_eq"])]:
+                stats = _stats(eq)
+                if stats:
+                    col.metric(f"{label} Return",  stats.get("Total Return","—"))
+                    col.metric(f"{label} Sharpe",  stats.get("Sharpe","—"))
+
+            fig = go.Figure()
+            for label, eq, color in [("Long",result["long_eq"],"#00D566"),
+                                       ("Short",result["short_eq"],"#FF4444"),
+                                       ("Combined",result["combined_eq"],"#4A9EFF"),
+                                       ("SPY",result["spy_eq"],"#6B7FBF")]:
+                if not eq.empty:
+                    rebased = eq / eq.iloc[0] * 100
+                    fig.add_trace(go.Scatter(x=rebased.index, y=rebased.values,
+                                              name=label, line=dict(color=color, width=1.5)))
+            fig.update_layout(
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                font=dict(color="#8892AA", family="Inter", size=11),
+                xaxis=dict(showgrid=False, color="#4A5568"),
+                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)", color="#4A5568", title="Rebased to 100"),
+                legend=dict(bgcolor="rgba(0,0,0,0)", borderwidth=0),
+                margin=dict(t=20, b=40, l=50, r=20), height=300,
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            if result["contributions"]:
+                import pandas as pd
+                contrib_df = pd.DataFrame([{"Ticker":k,"Contribution (%)":round(v*100,1)}
+                                            for k,v in result["contributions"].items()])
+                st.markdown("**Top contributing tickers**")
+                st.dataframe(contrib_df, use_container_width=True, hide_index=True)
+
+        st.caption("Walk-forward: scores are from the score_snapshots DB — genuinely out-of-sample. Short P&L is shown positive when short was correct.")
+    else:
+        st.info("Configure parameters above and click **Run Backtest** to begin.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 2 — STRESS TESTER  (delegates to 36_Stress_Tester.py logic via st.switch_page hint)
+# ─────────────────────────────────────────────────────────────────────────────
+with tab_stress:
+    import pandas as pd
+
+    st.markdown("#### Macro Scenario Stress Tester")
+    st.caption("Build a portfolio and test it against macro regime scenarios — credit shock, inflation surge, growth collapse, and more.")
+
+    @st.cache_data(ttl=3600, show_spinner=False, max_entries=4)
+    def _stress_signals():
+        from utils.signals_cache import get_all_signal_scores
+        return get_all_signal_scores()
+
+    SCENARIOS = {
+        "Credit Shock":       {"hy_spread": "bearish", "yield_curve": "bearish", "vix": "bearish"},
+        "Inflation Surge":    {"tips_breakeven": "bearish", "ten_year_yield": "bearish", "consumer_sentiment": "bearish"},
+        "Growth Collapse":    {"ism_pmi": "bearish", "jobless_claims": "bearish", "retail_sales": "bearish"},
+        "Energy Spike":       {"crude_oil": "bearish", "crude_inventories": "bearish", "ata_trucking": "bearish"},
+        "Risk-On Rally":      {"hy_spread": "bullish", "yield_curve": "bullish", "vix": "bullish"},
+        "AI Buildout":        {"hyperscaler_capex": "bullish", "semiconductor_etf": "bullish", "copper": "bullish"},
+    }
+
+    SECTOR_EXPOSURE = {
+        "Technology":     {"Credit Shock": -0.30, "Inflation Surge": -0.15, "Growth Collapse": -0.25, "Energy Spike": -0.05, "Risk-On Rally": +0.35, "AI Buildout": +0.45},
+        "Energy":         {"Credit Shock": -0.10, "Inflation Surge": +0.25, "Growth Collapse": -0.15, "Energy Spike": +0.40, "Risk-On Rally": +0.10, "AI Buildout": +0.05},
+        "Financials":     {"Credit Shock": -0.45, "Inflation Surge": -0.05, "Growth Collapse": -0.30, "Energy Spike": -0.10, "Risk-On Rally": +0.30, "AI Buildout": +0.05},
+        "Healthcare":     {"Credit Shock": -0.05, "Inflation Surge": -0.10, "Growth Collapse": -0.05, "Energy Spike": -0.05, "Risk-On Rally": +0.10, "AI Buildout": +0.05},
+        "Industrials":    {"Credit Shock": -0.20, "Inflation Surge": -0.10, "Growth Collapse": -0.35, "Energy Spike": -0.20, "Risk-On Rally": +0.25, "AI Buildout": +0.20},
+        "Consumer":       {"Credit Shock": -0.20, "Inflation Surge": -0.25, "Growth Collapse": -0.30, "Energy Spike": -0.20, "Risk-On Rally": +0.20, "AI Buildout": +0.10},
+        "Utilities":      {"Credit Shock": +0.05, "Inflation Surge": -0.15, "Growth Collapse": +0.10, "Energy Spike": -0.05, "Risk-On Rally": -0.10, "AI Buildout": +0.15},
+        "Real Estate":    {"Credit Shock": -0.30, "Inflation Surge": -0.20, "Growth Collapse": -0.25, "Energy Spike": -0.10, "Risk-On Rally": +0.15, "AI Buildout": -0.05},
+    }
+
+    st.markdown("**Build your portfolio**")
+    from utils.config import TICKERS
+    all_tickers = list(TICKERS.keys())
+
+    if "stress_holdings" not in st.session_state:
+        st.session_state.stress_holdings = [{"ticker":"NVDA","weight":25},{"ticker":"AAPL","weight":20},{"ticker":"JPM","weight":15}]
+
+    holdings = st.session_state.stress_holdings
+    add_c1, add_c2, add_c3 = st.columns([2,1,1])
+    new_t = add_c1.selectbox("Add ticker", [""] + all_tickers, key="stress_add_t")
+    new_w = add_c2.number_input("Weight %", 1, 100, 10, key="stress_add_w")
+    if add_c3.button("Add", key="stress_add_btn") and new_t:
+        holdings.append({"ticker": new_t, "weight": new_w})
+        st.session_state.stress_holdings = holdings
+        st.rerun()
+
+    if holdings:
+        h_df = pd.DataFrame(holdings)
+        st.dataframe(h_df, use_container_width=True, hide_index=True)
+        total_w = sum(h["weight"] for h in holdings)
+
+        st.markdown("**Run scenario**")
+        scenario = st.selectbox("Scenario", list(SCENARIOS.keys()), key="stress_scenario")
+
+        if st.button("▶  Run Stress Test", key="stress_run"):
+            from utils.config import TICKERS as TICKER_META
+            results = []
+            for h in holdings:
+                t  = h["ticker"]
+                w  = h["weight"] / max(total_w, 1)
+                meta = TICKER_META.get(t, {})
+                sector = meta.get("sector", "Technology")
+                impact = SECTOR_EXPOSURE.get(sector, {}).get(scenario, 0.0)
+                portfolio_impact = impact * w
+                results.append({
+                    "Ticker": t, "Sector": sector,
+                    "Weight": f"{w*100:.0f}%",
+                    "Scenario Impact": f"{impact*100:+.0f}%",
+                    "Portfolio P&L": f"{portfolio_impact*100:+.1f}%",
+                })
+
+            res_df = pd.DataFrame(results)
+            total_pnl = sum(float(r["Portfolio P&L"].replace("%","")) for r in results)
+            color = "#00D566" if total_pnl > 0 else "#FF4444"
+            st.markdown(
+                f'<div style="background:rgba(255,255,255,0.03);border:1px solid {color}44;'
+                f'border-radius:8px;padding:12px 16px;text-align:center;margin-bottom:12px;">'
+                f'<div style="font-size:0.70rem;color:#8892AA;">{scenario} — estimated portfolio impact</div>'
+                f'<div style="font-size:2rem;font-weight:800;color:{color};">{total_pnl:+.1f}%</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            st.dataframe(res_df, use_container_width=True, hide_index=True)
+            st.caption("Impacts are estimated from historical sector sensitivities to macro regime shifts. Not a price prediction.")
+    else:
+        st.info("Add some holdings above to run a stress test.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 3 — SIGNAL BACKTESTER
+# ─────────────────────────────────────────────────────────────────────────────
+with tab_sigbt:
+    import pandas as pd
+    import plotly.graph_objects as go
+    from datetime import datetime, timedelta
+
+    st.markdown("#### Custom Signal Combination Backtester")
+    st.caption("Select signals and a ticker, set your thresholds, and see how this combination would have predicted price direction historically.")
+
+    from utils.config import SIGNALS
+    sig_opts = {cfg["name"]: sid for sid, cfg in SIGNALS.items()}
+
+    sb1, sb2 = st.columns(2)
+    chosen_sig_names = sb1.multiselect("Signals to combine", list(sig_opts.keys()), default=list(sig_opts.keys())[:3], key="sb_sigs")
+    from utils.config import TICKERS as TICKER_CFG
+    sb_ticker = sb2.selectbox("Ticker to test against", list(TICKER_CFG.keys()), index=0, key="sb_ticker")
+
+    sb3, sb4 = st.columns(2)
+    bull_t_sb = sb3.slider("Combined bull threshold", 50, 85, 65, key="sb_bull")
+    lookback_sb = sb4.slider("Lookback (months)", 6, 36, 18, key="sb_lookback")
+
+    if st.button("▶  Run Signal Backtest", key="sb_run") and chosen_sig_names:
+        chosen_sids = [sig_opts[n] for n in chosen_sig_names if n in sig_opts]
+        with st.spinner("Fetching signals and prices…"):
+            try:
+                from utils.signals_cache import get_all_signal_scores
+                from utils.fetchers import fetch_price
+                import yfinance as yf
+                import numpy as np
+
+                all_sv = get_all_signal_scores()
+                end = datetime.now().strftime("%Y-%m-%d")
+                start = (datetime.now() - timedelta(days=30*lookback_sb)).strftime("%Y-%m-%d")
+
+                sig_series = {}
+                for sid in chosen_sids:
+                    sv = all_sv.get(sid, {})
+                    s = sv.get("data")
+                    if s is not None and not s.empty:
+                        sig_series[sid] = s
+
+                if not sig_series:
+                    st.warning("No signal data available for the selected signals.")
+                else:
+                    price = fetch_price(sb_ticker, start, end)
+                    if price.empty:
+                        st.warning(f"No price data for {sb_ticker}.")
+                    else:
+                        common_idx = price.index
+                        for s in sig_series.values():
+                            common_idx = common_idx.intersection(s.index)
+
+                        if len(common_idx) < 30:
+                            st.warning("Not enough overlapping data points (need ≥30).")
+                        else:
+                            from utils.analysis import score_signal
+                            # Build weekly score series
+                            weekly_dates = pd.date_range(start, end, freq="W")
+                            combined_scores = []
+                            for d in weekly_dates:
+                                scores_at_d = []
+                                for sid, s in sig_series.items():
+                                    near = s.loc[:d].dropna()
+                                    if not near.empty:
+                                        recent = near.iloc[-12:] if len(near) >= 12 else near
+                                        from utils.config import SIGNALS as SIG_CFG
+                                        inv = SIG_CFG.get(sid,{}).get("inverse", False)
+                                        sc = score_signal(recent, inverse=inv).get("score", 50)
+                                        scores_at_d.append(sc)
+                                combined_scores.append({"date": d, "score": np.mean(scores_at_d) if scores_at_d else 50})
+
+                            score_ts = pd.DataFrame(combined_scores).set_index("date")["score"]
+                            price_reindexed = price.reindex(score_ts.index, method="nearest")
+                            fwd_ret = price_reindexed.pct_change(4).shift(-4) * 100
+
+                            hits = ((score_ts >= bull_t_sb) & (fwd_ret > 0)).sum()
+                            total_bull = (score_ts >= bull_t_sb).sum()
+                            acc = hits / max(total_bull, 1) * 100
+
+                            m1, m2, m3 = st.columns(3)
+                            m1.metric("Bull Signals Fired", int(total_bull))
+                            m2.metric("Correct (price +4w later)", int(hits))
+                            m3.metric("Accuracy", f"{acc:.0f}%")
+
+                            fig = go.Figure()
+                            fig.add_trace(go.Scatter(x=score_ts.index, y=score_ts.values,
+                                                      name="Combined Score", line=dict(color="#4A9EFF", width=1.5)))
+                            fig.add_hline(y=bull_t_sb, line_dash="dash", line_color="#00D566",
+                                          annotation_text="Bull threshold")
+                            fig.update_layout(
+                                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                                font=dict(color="#8892AA", family="Inter", size=11),
+                                xaxis=dict(showgrid=False, color="#4A5568"),
+                                yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)",
+                                           color="#4A5568", range=[0,100]),
+                                margin=dict(t=20, b=40, l=50, r=20), height=250,
+                            )
+                            st.plotly_chart(fig, use_container_width=True)
+                            st.caption("Accuracy = % of times the combined score ≥ threshold was followed by positive price return 4 weeks later.")
+            except Exception as e:
+                st.error(f"Error running backtest: {e}")
+    else:
+        if not chosen_sig_names:
+            st.info("Select at least one signal above.")
+        else:
+            st.info("Click **Run Signal Backtest** to see results.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 4 — MACRO EXPOSURE ANALYZER
+# ─────────────────────────────────────────────────────────────────────────────
+with tab_macro:
+    import pandas as pd
+
+    st.markdown("#### Portfolio Macro Exposure")
+    st.caption("See which macro signals your portfolio is most exposed to, based on each holding's sector and the current signal regime.")
+
+    from utils.config import TICKERS as TICKER_META2
+
+    if "macro_holdings" not in st.session_state:
+        st.session_state.macro_holdings = [
+            {"ticker": "NVDA", "weight": 30},
+            {"ticker": "XOM",  "weight": 20},
+            {"ticker": "JPM",  "weight": 20},
+            {"ticker": "UNH",  "weight": 15},
+            {"ticker": "CAT",  "weight": 15},
+        ]
+
+    ma_c1, ma_c2, ma_c3 = st.columns([2,1,1])
+    ma_new_t = ma_c1.selectbox("Add ticker", [""] + list(TICKER_META2.keys()), key="ma_add_t")
+    ma_new_w = ma_c2.number_input("Weight %", 1, 100, 10, key="ma_add_w")
+    if ma_c3.button("Add", key="ma_add_btn") and ma_new_t:
+        st.session_state.macro_holdings.append({"ticker": ma_new_t, "weight": ma_new_w})
+        st.rerun()
+
+    holdings2 = st.session_state.macro_holdings
+    if holdings2:
+        from utils.ticker_score import SECTOR_SIGNAL_MAP
+        from utils.signals_cache import get_all_signal_scores
+        from utils.config import SIGNALS
+
+        with st.spinner("Analyzing macro exposure…"):
+            all_sv2 = get_all_signal_scores()
+
+        total_w2 = sum(h["weight"] for h in holdings2)
+        exposure: dict[str, float] = {}
+
+        for h in holdings2:
+            t = h["ticker"]
+            w = h["weight"] / max(total_w2, 1)
+            meta = TICKER_META2.get(t, {})
+            sector = meta.get("sector", "Technology")
+            sigs = SECTOR_SIGNAL_MAP.get(sector, [])
+            for sid in sigs:
+                sv = all_sv2.get(sid, {})
+                if sv and not sv.get("error"):
+                    sc = float(sv.get("score", 50))
+                    name = sv.get("name", sid)
+                    bull_contribution = (sc - 50) / 50 * w
+                    exposure[name] = exposure.get(name, 0) + bull_contribution
+
+        if exposure:
+            exp_sorted = sorted(exposure.items(), key=lambda x: -abs(x[1]))[:12]
+            exp_df = pd.DataFrame([
+                {"Signal": k, "Net Exposure": round(v * 100, 1),
+                 "Direction": "🟢 Bullish" if v > 0.01 else "🔴 Bearish" if v < -0.01 else "⚪ Neutral"}
+                for k, v in exp_sorted
+            ])
+            st.dataframe(exp_df, use_container_width=True, hide_index=True,
+                         column_config={"Net Exposure": st.column_config.ProgressColumn(
+                             "Net Exposure", min_value=-30, max_value=30, format="%.1f%%")})
+            st.caption("Net Exposure = how much each macro signal moves your portfolio's expected return, weighted by holding size.")
+        else:
+            st.info("No signal exposure computed. Check that your tickers map to known sectors.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TAB 5 — BASKET BUILDER
+# ─────────────────────────────────────────────────────────────────────────────
+with tab_basket:
+    import pandas as pd
+    import plotly.graph_objects as go
+
+    st.markdown("#### Thematic Basket Builder")
+    st.caption("Build a signal-driven thematic basket and see how it scores on macro alignment.")
+
+    from utils.config import TICKERS as TICKER_META3
+    from utils.top_tickers import get_top_tickers
+
+    THEMES = {
+        "AI Infrastructure":    [t for t,m in TICKER_META3.items() if m.get("theme") in ("AI Infrastructure","ai_infrastructure") or m.get("sector") == "Technology"][:10],
+        "Energy Transition":    [t for t,m in TICKER_META3.items() if m.get("sector") in ("Energy","Utilities")][:10],
+        "Nuclear Power":        [t for t,m in TICKER_META3.items() if "nuclear" in m.get("theme","").lower() or m.get("sector")=="Utilities"][:8],
+        "Financials":           [t for t,m in TICKER_META3.items() if m.get("sector")=="Financial Services"][:8],
+        "Defense & Contracts":  [t for t,m in TICKER_META3.items() if "defense" in m.get("theme","").lower() or "aerospace" in m.get("theme","").lower()][:8],
+    }
+
+    bb1, bb2 = st.columns(2)
+    theme = bb1.selectbox("Theme", list(THEMES.keys()) + ["Custom"], key="bb_theme")
+    if theme == "Custom":
+        basket_tickers = bb2.multiselect("Pick tickers", list(TICKER_META3.keys()), key="bb_custom")
+    else:
+        basket_tickers = THEMES.get(theme, [])
+        bb2.multiselect("Tickers in basket", basket_tickers, default=basket_tickers, key="bb_view", disabled=True)
+
+    if basket_tickers:
+        with st.spinner("Scoring basket…"):
+            try:
+                top = get_top_tickers()
+                score_lookup = {
+                    **{r["ticker"]: r["score"] for r in top.get("bullish",[])},
+                    **{r["ticker"]: r["score"] for r in top.get("bearish",[])},
+                }
+            except Exception:
+                score_lookup = {}
+
+        rows = []
+        for t in basket_tickers:
+            meta = TICKER_META3.get(t, {})
+            sc = score_lookup.get(t, 50)
+            rows.append({
+                "Ticker": t, "Name": meta.get("name", t)[:28],
+                "Sector": meta.get("sector","—"), "Score": round(sc, 0),
+                "Signal": "🟢" if sc >= 65 else "🔴" if sc <= 35 else "⚪",
+            })
+
+        basket_df = pd.DataFrame(rows)
+        avg_score  = basket_df["Score"].mean()
+        bull_count = (basket_df["Score"] >= 65).sum()
+        bear_count = (basket_df["Score"] <= 35).sum()
+
+        bm1, bm2, bm3 = st.columns(3)
+        bm1.metric("Basket Avg Score", f"{avg_score:.0f}")
+        bm2.metric("🟢 Bullish tickers", bull_count)
+        bm3.metric("🔴 Bearish tickers", bear_count)
+
+        st.dataframe(
+            basket_df,
+            use_container_width=True, hide_index=True,
+            column_config={"Score": st.column_config.ProgressColumn("Score", min_value=0, max_value=100, format="%.0f")},
+        )
+
+        fig_bk = go.Figure(go.Bar(
+            x=basket_df["Ticker"], y=basket_df["Score"],
+            marker=dict(
+                color=["#00D566" if s>=65 else "#FF4444" if s<=35 else "#6B7FBF" for s in basket_df["Score"]],
+                line=dict(width=0),
+            ),
+        ))
+        fig_bk.add_hline(y=65, line_dash="dash", line_color="#00D566", line_width=1)
+        fig_bk.add_hline(y=35, line_dash="dash", line_color="#FF4444", line_width=1)
+        fig_bk.update_layout(
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="#8892AA", family="Inter", size=11),
+            xaxis=dict(showgrid=False, color="#4A5568"),
+            yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)", color="#4A5568",
+                       range=[0,100], title="Score"),
+            margin=dict(t=10, b=40, l=50, r=20), height=220,
+        )
+        st.plotly_chart(fig_bk, use_container_width=True)
+    else:
+        st.info("Select a theme or pick custom tickers above.")
