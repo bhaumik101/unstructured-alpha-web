@@ -15,7 +15,7 @@ import os
 
 import streamlit as st
 
-from utils.theme import BG_PAGE, BG_CARD, TEXT_PRIMARY, PURPLE, CYAN, GREEN, AMBER, inject_premium_css, inject_skeleton_css
+from utils.theme import BG_PAGE, BG_CARD, TEXT_PRIMARY, PURPLE, CYAN, GREEN, AMBER, inject_all_css
 
 st.set_page_config(
     page_title="Upgrade to Pro — Unstructured Alpha",
@@ -32,8 +32,7 @@ from utils.billing import (
 )
 
 render_header()
-inject_premium_css()
-inject_skeleton_css()
+inject_all_css()
 
 # ── Base URL ──────────────────────────────────────────────────────────────────
 def _base_url() -> str:
@@ -508,7 +507,7 @@ with col_l:
         st.rerun()
 with col_m:
     if st.button(
-        "🏆  Annual  —  $16/mo  ✦ BEST VALUE",
+        "🏆  Annual  —  Save 20% ($192/yr)  ✦ BEST VALUE",
         use_container_width=True,
         type="primary" if st.session_state.upgrade_plan == "annual" else "secondary",
         key="toggle_annual",
@@ -518,8 +517,8 @@ with col_m:
 with col_r:
     st.markdown("""
     <div style="padding-top:10px;font-size:0.78rem;color:#34D399;font-weight:700;">
-        ✦ Annual = 2 months free<br>
-        <span style="color:#4A5063;font-weight:400;">($192/yr, billed once)</span>
+        ✦ Annual saves $48/year<br>
+        <span style="color:#4A5063;font-weight:400;">(billed $192 once · 2 months free)</span>
     </div>
     """, unsafe_allow_html=True)
 

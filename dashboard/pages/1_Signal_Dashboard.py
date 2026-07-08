@@ -711,6 +711,68 @@ with tab_signals:
 
     st.divider()
 
+    # ── Signal Insight Callout ────────────────────────────────────────────────────
+    # Plain-English synthesis of the current bull/bear distribution
+    if total_n > 0:
+        _bull_pct_int = int(round(bull_pct))
+        if bull_pct >= 60:
+            _insight_border = "#00D566"
+            _insight_icon = "🟢"
+            _insight_headline = "The macro backdrop is risk-on."
+            _insight_body = (
+                f"<b>{bull_n} of {total_n} signals</b> are bullish right now ({_bull_pct_int}%). "
+                "Broad agreement across macro, commodity, and credit indicators often precedes "
+                "sustained upside in cyclical sectors. Tickers with high Confluence Scores "
+                "historically outperform in this regime — check Ticker Deep Dive for your names."
+            )
+        elif bull_pct <= 35:
+            _insight_border = "#FF4444"
+            _insight_icon = "🔴"
+            _insight_headline = "The macro backdrop is risk-off."
+            _bear_pct_int = int(round(bear_n / total_n * 100))
+            _insight_body = (
+                f"<b>{bear_n} of {total_n} signals</b> are bearish right now ({_bear_pct_int}%). "
+                "Broad bearish agreement across indicators has historically preceded weakness in "
+                "rate-sensitive and cyclical names. Consider tightening stops and reviewing exposure — "
+                "open Ticker Deep Dive on any position to see how signals hit it specifically."
+            )
+        else:
+            _insight_border = "#6B7FBF"
+            _insight_icon = "🟡"
+            _insight_headline = "The macro picture is mixed — no clear directional edge."
+            _insight_body = (
+                f"<b>{bull_n} bullish / {bear_n} bearish / {neut_n} neutral</b> across {total_n} signals. "
+                "When signals disagree this broadly, it often means a regime transition is underway. "
+                "Watch for the next 2–3 signal flips — they can confirm the new direction early. "
+                "Today's Brief shows exactly what changed since yesterday."
+            )
+
+        st.markdown(f"""
+        <div style="background:rgba(18,21,30,0.78);border-radius:14px;padding:20px 24px;
+                    border:1px solid rgba(255,255,255,0.08);border-left:5px solid {_insight_border};
+                    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+                    box-shadow:0 4px 24px rgba(0,0,0,0.35);font-family:Inter,sans-serif;margin-bottom:16px;">
+            <div style="font-size:0.62rem;letter-spacing:0.14em;font-weight:700;color:#6B7FBF;
+                        text-transform:uppercase;margin-bottom:6px;">
+                {_insight_icon} SIGNAL INTERPRETATION
+            </div>
+            <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;margin-bottom:8px;letter-spacing:-0.2px;">
+                {_insight_headline}
+            </div>
+            <div style="font-size:0.82rem;color:#B8C0D4;line-height:1.65;">
+                {_insight_body}
+            </div>
+            <div style="margin-top:14px;font-size:0.75rem;color:#6B7FBF;
+                        border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;">
+                💡 <b style="color:#8892AA;">Next step:</b>
+                Pick a ticker → run
+                <b style="color:#A78BFA;">Ticker Deep Dive</b> to see exactly which of these {total_n} signals
+                are driving its Confluence Score and what they imply for forward returns.
+                Or check <b style="color:#00C8E0;">Today's Brief</b> for a digest of what moved overnight.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
     # ── Confluence Heat Map ───────────────────────────────────────────────────────
     if mode == "Pro":
         st.markdown('<div class="section-header">MULTI-SIGNAL HEAT MAP</div>', unsafe_allow_html=True)

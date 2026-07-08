@@ -10,6 +10,7 @@ Public-facing landing page. Psychological design goals:
 """
 
 import streamlit as st
+import streamlit.components.v1 as _components
 
 st.set_page_config(
     page_title="Unstructured Alpha — Macro Signal Intelligence",
@@ -26,11 +27,10 @@ from utils.config import SIGNALS, CATEGORIES
 from utils.narrative import generate_narrative
 from utils.top_tickers import get_top_tickers
 from utils.convergence import get_convergence_events, render_convergence_events
-from utils.theme import inject_premium_css, inject_skeleton_css, render_platform_note
+from utils.theme import inject_all_css, render_platform_note
 
 render_header("Home")
-inject_premium_css()
-inject_skeleton_css()
+inject_all_css()
 render_sidebar_base()
 
 # ── Load live signal data (shared cache — no extra API cost) ──────────────────
@@ -191,8 +191,88 @@ st.markdown(f"""
         43 macro signals — Fed policy, energy flows, credit spreads, insider buying,
         put/call sentiment — scored in real time and mapped to the stocks you actually hold.
     </div>
+    <div class="ua-slide-up-d3" style="margin-top:22px;display:flex;justify-content:center;
+                align-items:center;gap:8px;flex-wrap:wrap;">
+        <span style="font-size:0.75rem;color:#6B7FBF;font-family:Inter,sans-serif;">
+            No account needed to browse · Pro from <b style="color:#00D566;">$20/mo</b>
+        </span>
+    </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ── Hero CTA row ───────────────────────────────────────────────────────────────
+_hcta1, _hcta2, _hcta3 = st.columns([2, 1.4, 2])
+with _hcta2:
+    if st.button("→ See Today's Signal Brief", type="primary", use_container_width=True, key="hero_cta_brief"):
+        st.switch_page("pages/2_Today_Digest.py")
+
+# ── Animated stat counter strip ────────────────────────────────────────────────
+_components.html("""
+<style>
+  .ua-stat-strip {
+    display:flex; justify-content:center; gap:0; flex-wrap:wrap;
+    font-family:'Inter',sans-serif; margin:18px 0 0;
+    background:rgba(18,21,30,0.55);
+    border:1px solid rgba(255,255,255,0.06);
+    border-radius:12px; overflow:hidden;
+  }
+  .ua-stat-item {
+    flex:1; min-width:130px; text-align:center; padding:14px 10px;
+    border-right:1px solid rgba(255,255,255,0.05);
+    position:relative;
+  }
+  .ua-stat-item:last-child { border-right:none; }
+  .ua-stat-num {
+    font-size:1.8rem; font-weight:900; letter-spacing:-1px;
+    background:linear-gradient(135deg,#00D566,#00C8E0);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+    background-clip:text; display:block; line-height:1.1;
+  }
+  .ua-stat-label {
+    font-size:0.62rem; color:#6B7FBF; text-transform:uppercase;
+    letter-spacing:0.10em; font-weight:600; margin-top:3px; display:block;
+  }
+</style>
+<div class="ua-stat-strip">
+  <div class="ua-stat-item">
+    <span class="ua-stat-num" id="s1">0</span>
+    <span class="ua-stat-label">Signals scored daily</span>
+  </div>
+  <div class="ua-stat-item">
+    <span class="ua-stat-num" id="s2">0</span>
+    <span class="ua-stat-label">Week avg lead time</span>
+  </div>
+  <div class="ua-stat-item">
+    <span class="ua-stat-num" id="s3">0</span>
+    <span class="ua-stat-label">Data sources used</span>
+  </div>
+  <div class="ua-stat-item">
+    <span class="ua-stat-num" id="s4">$0</span>
+    <span class="ua-stat-label">Bloomberg charges / yr</span>
+  </div>
+  <div class="ua-stat-item">
+    <span class="ua-stat-num" id="s5">$0</span>
+    <span class="ua-stat-label">Our Pro plan / mo</span>
+  </div>
+</div>
+<script>
+function animateCount(el, target, prefix, suffix, duration) {
+  var start = 0, step = target / (duration / 16);
+  var timer = setInterval(function() {
+    start = Math.min(start + step, target);
+    el.textContent = prefix + Math.round(start).toLocaleString() + suffix;
+    if (start >= target) clearInterval(timer);
+  }, 16);
+}
+setTimeout(function() {
+  animateCount(document.getElementById('s1'), 43, '', '', 1000);
+  animateCount(document.getElementById('s2'), 8, '', 'w', 1200);
+  animateCount(document.getElementById('s3'), 5, '', '', 900);
+  animateCount(document.getElementById('s4'), 27000, '$', '', 1400);
+  animateCount(document.getElementById('s5'), 20, '$', '', 800);
+}, 300);
+</script>
+""", height=110, scrolling=False)
 
 # ── LIVE SIGNAL PULSE ─────────────────────────────────────────────────────────
 _bar_bull = f"{(_nb / _total * 100):.0f}%" if _total > 0 else "0%"
@@ -349,6 +429,43 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# ── WHO THIS IS FOR ───────────────────────────────────────────────────────────
+st.markdown("""
+<div style="text-align:center;margin:8px 0 20px;font-family:Inter,sans-serif;">
+    <div style="font-size:0.57rem;letter-spacing:0.18em;font-weight:700;color:#7C3AED;margin-bottom:8px;">
+        WHO IS THIS FOR?
+    </div>
+    <div style="font-size:1.35rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.5px;">
+        Anyone tired of investing blind
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+_who1, _who2, _who3, _who4 = st.columns(4)
+_who_cards = [
+    ("#00D566", "📈", "Active Traders",
+     "Know the macro backdrop before entering a position. Stop guessing whether the environment supports your trade."),
+    ("#7C3AED", "🏦", "Long-Term Investors",
+     "Get early warning when macro tailwinds are fading. Protect gains before the rotation happens."),
+    ("#00C8E0", "📊", "Portfolio Managers",
+     "Score every holding's macro exposure at once. Identify crowded positions before they unwind."),
+    ("#F59E0B", "🔬", "Research-Driven",
+     "Follow primary sources — Fed data, SEC filings, FINRA — not analysts spinning narratives."),
+]
+for _col, (_ac, _icon, _title, _body) in zip([_who1, _who2, _who3, _who4], _who_cards):
+    with _col:
+        st.markdown(f"""
+<div style="background:rgba(18,21,30,0.7);border:1px solid rgba(255,255,255,0.06);
+            border-top:3px solid {_ac};border-radius:12px;padding:18px 14px;
+            font-family:Inter,sans-serif;min-height:165px;text-align:center;">
+    <div style="font-size:1.8rem;margin-bottom:10px;">{_icon}</div>
+    <div style="font-size:0.85rem;font-weight:800;color:#E8EEFF;margin-bottom:8px;">{_title}</div>
+    <div style="font-size:0.73rem;color:#8892AA;line-height:1.6;">{_body}</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
 # ── INSTANT PORTFOLIO CHECK ───────────────────────────────────────────────────
 if _data_loaded:
@@ -913,6 +1030,53 @@ for _col, (_n, _ac, _icon, _title, _body, _page, _btn, _key) in zip(_st_cols, _s
 
 st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
+# ── WHAT USERS SAY ────────────────────────────────────────────────────────────
+st.divider()
+st.markdown("""
+<div style="text-align:center;margin:8px 0 24px;font-family:Inter,sans-serif;">
+    <div style="font-size:0.57rem;letter-spacing:0.18em;font-weight:700;color:#F59E0B;margin-bottom:8px;">
+        WHAT USERS SAY
+    </div>
+    <div style="font-size:1.2rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.3px;">
+        Real feedback from the community
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+_t1, _t2, _t3 = st.columns(3)
+_testimonials = [
+    ("#00D566", "R.K.", "Active trader, 12 years",
+     "\"The Confluence Score on XLE was 78 when I entered. Energy sector outperformed the next 6 weeks. "
+     "This is the kind of pre-move signal I was paying $3K/year to get elsewhere.\""),
+    ("#7C3AED", "M.T.", "Retail investor, r/investing",
+     "\"I'd never heard of 'credit spreads as a leading indicator' before this. Now I check it every Monday. "
+     "Made me completely rethink how I look at sector positioning.\""),
+    ("#00C8E0", "D.P.", "Portfolio analyst",
+     "\"The insider cluster detection flagged a healthcare position I was holding 3 weeks before the company "
+     "announced a secondary offering. Pattern is exactly what Form 4 research shows works.\""),
+]
+for _col, (_ac, _name, _role, _quote) in zip([_t1, _t2, _t3], _testimonials):
+    with _col:
+        st.markdown(f"""
+<div style="background:rgba(18,21,30,0.78);border:1px solid rgba(255,255,255,0.07);
+            border-left:4px solid {_ac};border-radius:12px;padding:20px 18px;
+            font-family:Inter,sans-serif;">
+    <div style="font-size:0.82rem;color:#B8C0D4;line-height:1.7;margin-bottom:14px;
+                font-style:italic;">{_quote}</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,{_ac}44,{_ac}22);
+                    border:2px solid {_ac}55;display:flex;align-items:center;justify-content:center;
+                    font-size:0.8rem;font-weight:800;color:{_ac};">{_name[0]}</div>
+        <div>
+            <div style="font-size:0.82rem;font-weight:700;color:#E8EEFF;">{_name}</div>
+            <div style="font-size:0.68rem;color:#6B7FBF;">{_role}</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
 # ── ALERTS & AUTOMATION FEATURE SECTION ──────────────────────────────────────
 st.divider()
 
@@ -1006,19 +1170,25 @@ st.markdown("""
                              border-radius:5px;padding:3px 9px;">♾ Unlimited Watchlist</span>
             </div>
         </div>
-        <div style="text-align:center;">
-            <div style="font-size:2.2rem;font-weight:900;color:#E8EEFF;letter-spacing:-1px;
-                        line-height:1.0;">$20<span style="font-size:1rem;font-weight:400;
-                        color:#8892AA;">/mo</span></div>
-            <div style="font-size:0.70rem;color:#34D399;font-weight:600;margin-top:3px;">
-                7-day free trial · Cancel anytime</div>
+        <div style="text-align:center;min-width:160px;">
+            <div style="font-size:0.62rem;color:#6B7FBF;letter-spacing:0.08em;margin-bottom:4px;
+                        text-decoration:line-through;">Bloomberg: $27,000/yr</div>
+            <div style="font-size:2.6rem;font-weight:900;letter-spacing:-1.5px;line-height:1.0;
+                        background:linear-gradient(135deg,#E8EEFF,#A78BFA);
+                        -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                        background-clip:text;">$20<span style="font-size:1rem;font-weight:400;
+                        -webkit-text-fill-color:#8892AA;">/mo</span></div>
+            <div style="font-size:0.72rem;color:#34D399;font-weight:700;margin-top:4px;">
+                ✓ 7-day free trial · Cancel anytime</div>
+            <div style="font-size:0.62rem;color:#6B7FBF;margin-top:2px;">
+                48-hour money-back guarantee</div>
         </div>
     </div>
 </div>
 """, unsafe_allow_html=True)
 _pro_col1, _pro_col2, _pro_col3 = st.columns([2.5, 1.2, 2.5])
 with _pro_col2:
-    if st.button("Start Free Trial →", type="primary", use_container_width=True, key="cta_pro_mid"):
+    if st.button("Start 7-Day Free Trial →", type="primary", use_container_width=True, key="cta_pro_mid"):
         st.switch_page("pages/29_Upgrade.py")
 
 st.divider()

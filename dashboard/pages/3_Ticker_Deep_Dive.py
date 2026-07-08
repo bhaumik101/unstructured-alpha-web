@@ -84,7 +84,36 @@ render_page_header(
 STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF", "no_data": "#8892AA"}
 STATUS_EMOJI = {"bullish": "▲", "bearish": "▼", "neutral": "●", "no_data": "○"}
 
-with st.expander("How this page works — start here"):
+st.markdown("""
+<div style="background:linear-gradient(135deg,rgba(124,58,237,0.08),rgba(0,200,224,0.06));
+            border:1px solid rgba(124,58,237,0.22);border-radius:12px;
+            padding:16px 22px;margin-bottom:16px;font-family:Inter,sans-serif;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:220px;">
+            <div style="font-size:0.60rem;letter-spacing:0.14em;font-weight:700;color:#A78BFA;
+                        margin-bottom:4px;">🔬 HOW TICKER DEEP DIVE WORKS</div>
+            <div style="font-size:0.82rem;color:#B8C0D4;line-height:1.6;">
+                Type any ticker → get a <b style="color:#E8EEFF;">Confluence Score (0–100)</b> from
+                43 live macro signals, a bull/bear case in plain English, insider activity, earnings
+                catalysts, and signal-by-signal breakdown. Updated every 2 hours from primary sources.
+            </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+            <span style="font-size:0.72rem;color:#00D566;background:rgba(0,213,102,0.08);
+                         border:1px solid rgba(0,213,102,0.2);border-radius:6px;padding:3px 10px;">
+                ✓ SEC EDGAR insider filings</span>
+            <span style="font-size:0.72rem;color:#00C8E0;background:rgba(0,200,224,0.08);
+                         border:1px solid rgba(0,200,224,0.2);border-radius:6px;padding:3px 10px;">
+                ✓ FRED + EIA macro signals</span>
+            <span style="font-size:0.72rem;color:#A78BFA;background:rgba(124,58,237,0.08);
+                         border:1px solid rgba(124,58,237,0.2);border-radius:6px;padding:3px 10px;">
+                ✓ FINRA short interest</span>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+with st.expander("Detailed methodology — signal scoring, lead times, and validation"):
     st.markdown("""
     Enter any ticker to get a comprehensive investment brief built from multiple independent data sources:
 
@@ -632,7 +661,7 @@ if section == "Overview":
             st.session_state["chart_ticker"] = ticker_input
             st.switch_page("pages/10_Watchlist.py")
     if st.session_state.get("_tdd_show_share"):
-        _share_url = f"https://unstructuredalpha.com/Ticker_Deep_Dive?ticker={ticker_input}"
+        _share_url = f"https://app.unstructuredalpha.com/Ticker_Deep_Dive?ticker={ticker_input}"
         st.code(_share_url, language=None)
         st.caption("Share this link — it loads directly to this ticker's full analysis.")
         if st.button("✕ Dismiss", key="share_dismiss"):
