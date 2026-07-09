@@ -285,9 +285,21 @@ def fetch_live_quote(ticker: str) -> dict:
     """
     try:
         t = yf.Ticker(ticker)
+        # fast_info is an OBJECT — use getattr, not .get()
         fi = t.fast_info
-        price = fi.get("lastPrice") or fi.get("last_price")
-        prev_close = fi.get("previousClose") or fi.get("previous_close")
+        price = getattr(fi, "last_price", None)
+        prev_close = (
+            getattr(fi, "previous_close", None)
+            or getattr(fi, "regular_market_previous_close", None)
+        )
+        # Fallback to .info dict if fast_info didn't give us a price
+        if price is None:
+            try:
+                info = t.info or {}
+                price = info.get("regularMarketPrice") or info.get("currentPrice")
+                prev_close = prev_close or info.get("regularMarketPreviousClose") or info.get("previousClose")
+            except Exception:
+                pass
         if price is None:
             return {
                 "price": None, "prev_close": None, "pct_change": None,
@@ -1265,11 +1277,11 @@ def fetch_options_chain(ticker: str) -> dict:
         total_put_vol  = float(puts_df["volume"].sum())  if not puts_df.empty  else 0
         pcr = total_put_vol / total_call_vol if total_call_vol > 0 else float("nan")
 
-        # Current price from fast_info
+        # Current price from fast_info (fast_info is an object, not a dict — use getattr)
         current_price = None
         try:
             fi = t.fast_info
-            current_price = fi.get("lastPrice") or fi.get("last_price")
+            current_price = getattr(fi, "last_price", None)
         except Exception:
             pass
 

@@ -392,3 +392,30 @@ services:
         sync: false
       - key: RENDER_EXTERNAL_URL
         sync: false
+
+  # SEO web service — FastAPI app that renders server-side HTML pages for
+  # individual tickers (/ticker/NVDA), macro signals (/signal/ata_trucking),
+  # and a daily signal report (/signals/report). Streamlit cannot serve
+  # Google-crawlable HTML; this service fills that gap.
+  #
+  # After deploying, point seo.unstructuredalpha.com at this service in the
+  # Render dashboard, then set SEO_BASE_URL to match.
+  # Submit /sitemap.xml to Google Search Console.
+  - type: web
+    name: unstructured-alpha-seo
+    runtime: python
+    plan: starter
+    rootDir: dashboard
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn seo.main:app --host 0.0.0.0 --port $PORT --workers 2
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+      - key: SEO_BASE_URL
+        value: "https://seo.unstructuredalpha.com"
+      - key: APP_URL
+        value: "https://unstructuredalpha.com"

@@ -91,32 +91,59 @@ tv_symbol = _to_tv_symbol(TICKER)
 # ── Data fetch (for price header + stats strip only) ──────────────────────────
 @st.cache_data(ttl=300, show_spinner=False, max_entries=30)
 def _load_meta(ticker: str) -> dict:
+    out: dict = {}
+    t = yf.Ticker(ticker)
+
+    # Layer 1 — fast_info (lightweight, correct attribute names for yfinance 0.2+)
     try:
-        t  = yf.Ticker(ticker)
         fi = t.fast_info
-        df = t.history(period="5d", interval="1d", auto_adjust=True)
-        last  = float(df["Close"].iloc[-1])  if not df.empty          else None
-        prev  = float(df["Close"].iloc[-2])  if len(df) > 1           else last
-        open_ = float(df["Open"].iloc[-1])   if not df.empty          else None
-        high_ = float(df["High"].iloc[-1])   if not df.empty          else None
-        low_  = float(df["Low"].iloc[-1])    if not df.empty          else None
-        vol   = int(df["Volume"].iloc[-1])   if not df.empty          else None
-        return {
-            "name":       getattr(fi, "long_name",           None) or getattr(fi, "short_name", None),
-            "last":       last,
-            "prev":       prev,
-            "open":       open_,
-            "high":       high_,
-            "low":        low_,
-            "volume":     vol,
-            "pre_price":  getattr(fi, "pre_market_price",    None),
-            "post_price": getattr(fi, "post_market_price",   None),
-            "52w_high":   getattr(fi, "fifty_two_week_high", None) or getattr(fi, "year_high",  None),
-            "52w_low":    getattr(fi, "fifty_two_week_low",  None) or getattr(fi, "year_low",   None),
-            "mkt_cap":    getattr(fi, "market_cap",          None),
-        }
+        out["name"]       = getattr(fi, "long_name",  None) or getattr(fi, "short_name", None)
+        out["last"]       = getattr(fi, "last_price", None)
+        out["prev"]       = getattr(fi, "previous_close", None) or getattr(fi, "regular_market_previous_close", None)
+        out["open"]       = getattr(fi, "open",       None)
+        out["high"]       = getattr(fi, "day_high",   None)
+        out["low"]        = getattr(fi, "day_low",    None)
+        out["volume"]     = getattr(fi, "day_volume", None) or getattr(fi, "last_volume", None)
+        out["52w_high"]   = getattr(fi, "year_high",  None)
+        out["52w_low"]    = getattr(fi, "year_low",   None)
+        out["mkt_cap"]    = getattr(fi, "market_cap", None)
+        out["pre_price"]  = getattr(fi, "pre_market_price",  None)
+        out["post_price"] = getattr(fi, "post_market_price", None)
     except Exception:
-        return {}
+        pass
+
+    # Layer 2 — .info dict (heavier but catches anything fast_info missed)
+    if not out.get("last") or not out.get("open") or not out.get("name"):
+        try:
+            info = t.info
+            out.setdefault("name",     info.get("longName") or info.get("shortName"))
+            out.setdefault("last",     info.get("regularMarketPrice") or info.get("currentPrice"))
+            out.setdefault("prev",     info.get("regularMarketPreviousClose") or info.get("previousClose"))
+            out.setdefault("open",     info.get("regularMarketOpen") or info.get("open"))
+            out.setdefault("high",     info.get("regularMarketDayHigh") or info.get("dayHigh"))
+            out.setdefault("low",      info.get("regularMarketDayLow")  or info.get("dayLow"))
+            out.setdefault("volume",   info.get("regularMarketVolume")  or info.get("volume"))
+            out.setdefault("52w_high", info.get("fiftyTwoWeekHigh"))
+            out.setdefault("52w_low",  info.get("fiftyTwoWeekLow"))
+            out.setdefault("mkt_cap",  info.get("marketCap"))
+        except Exception:
+            pass
+
+    # Layer 3 — yf.download() as last resort for OHLCV
+    if not out.get("last") or not out.get("open"):
+        try:
+            df = yf.download(ticker, period="5d", interval="1d", progress=False, auto_adjust=True)
+            if not df.empty:
+                out.setdefault("last",   float(df["Close"].iloc[-1]))
+                out.setdefault("prev",   float(df["Close"].iloc[-2]) if len(df) > 1 else out.get("last"))
+                out.setdefault("open",   float(df["Open"].iloc[-1]))
+                out.setdefault("high",   float(df["High"].iloc[-1]))
+                out.setdefault("low",    float(df["Low"].iloc[-1]))
+                out.setdefault("volume", int(df["Volume"].iloc[-1]))
+        except Exception:
+            pass
+
+    return out
 
 
 with st.spinner(f"Loading {TICKER}…"):
