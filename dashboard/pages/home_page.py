@@ -754,7 +754,7 @@ with _sp2:
     signal-by-signal breakdown, earnings markers, insider activity, news. Tells you
     <em>why</em> the macro environment is or isn't set up for this stock.</div>
     <div class="ua-spotlight-proof" style="color:#A78BFA;">
-        → Tested on 80+ tickers with statistical validation
+        → Tested on 280+ tickers with statistical validation
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -1134,6 +1134,55 @@ with _ac2:
 
 st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
 
+# ── SIGNAL STRATEGY BACKTEST TEASER ─────────────────────────────────────────
+st.markdown("""
+<div style="background:linear-gradient(135deg,rgba(18,21,30,0.95),rgba(14,24,50,0.95));
+            border:1px solid rgba(99,102,241,0.25);border-radius:16px;
+            padding:28px 32px;margin:8px 0 28px;font-family:Inter,sans-serif;">
+  <div style="display:flex;align-items:flex-start;gap:28px;flex-wrap:wrap;">
+    <div style="flex:1;min-width:260px;">
+      <div style="font-size:0.58rem;letter-spacing:0.18em;font-weight:700;color:#818cf8;margin-bottom:10px;">
+        NEW — SIGNAL STRATEGY BACKTEST
+      </div>
+      <div style="font-size:1.1rem;font-weight:800;color:#E8EEFF;letter-spacing:-0.3px;
+                  line-height:1.35;margin-bottom:10px;">
+        What if you had traded the signals since 2010?
+      </div>
+      <div style="font-size:0.83rem;color:#B8C0D4;line-height:1.7;margin-bottom:14px;">
+        We built a rules-based strategy using our 7 daily-frequency macro signals —
+        Yield Curve, HY Spread, VIX, Copper/Gold, Put/Call Ratio, and M2 — and backtested
+        it against SPY buy-and-hold from 2010 to today. No lookahead bias. Transaction costs included.
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span style="font-size:0.68rem;font-weight:600;background:rgba(99,102,241,0.12);
+                     color:#818cf8;border:1px solid rgba(99,102,241,0.25);border-radius:5px;
+                     padding:3px 9px;">7 macro signals</span>
+        <span style="font-size:0.68rem;font-weight:600;background:rgba(99,102,241,0.12);
+                     color:#818cf8;border:1px solid rgba(99,102,241,0.25);border-radius:5px;
+                     padding:3px 9px;">Rolling 252-day percentile</span>
+        <span style="font-size:0.68rem;font-weight:600;background:rgba(99,102,241,0.12);
+                     color:#818cf8;border:1px solid rgba(99,102,241,0.25);border-radius:5px;
+                     padding:3px 9px;">LONG / REDUCED / CASH</span>
+        <span style="font-size:0.68rem;font-weight:600;background:rgba(34,197,94,0.10);
+                     color:#22c55e;border:1px solid rgba(34,197,94,0.25);border-radius:5px;
+                     padding:3px 9px;">Free to run</span>
+      </div>
+    </div>
+    <div style="min-width:160px;text-align:center;padding-top:4px;">
+      <div style="font-size:0.65rem;color:#6B7FBF;margin-bottom:4px;">Current position</div>
+      <div style="font-size:0.60rem;color:#6B7FBF;margin-top:6px;">Based on live macro signals</div>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+_strat_c1, _strat_c2, _strat_c3 = st.columns([2, 1.4, 2])
+with _strat_c2:
+    if st.button("Run the Backtest →", use_container_width=True, key="cta_strat_hero"):
+        st.switch_page("pages/35_Signal_Strategy.py")
+
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+
 # ── PRO UPGRADE BANNER ────────────────────────────────────────────────────────
 st.markdown("""
 <div class="ua-pro-banner">
@@ -1271,7 +1320,7 @@ st.markdown("""
             margin-bottom:10px;">More tools</div>
 """, unsafe_allow_html=True)
 
-_t1, _t2, _t3, _t4 = st.columns(4)
+_t1, _t2, _t3, _t4, _t5 = st.columns(5)
 with _t1:
     if st.button("📡 Signal Dashboard", use_container_width=True, key="cta_signals"):
         st.switch_page("pages/1_Signal_Dashboard.py")
@@ -1284,6 +1333,9 @@ with _t3:
 with _t4:
     if st.button("✅ Model Validation", use_container_width=True, key="cta_validation"):
         st.switch_page("pages/11_Model_Validation.py")
+with _t5:
+    if st.button("📈 Signal Strategy", use_container_width=True, key="cta_strategy"):
+        st.switch_page("pages/35_Signal_Strategy.py")
 
 st.divider()
 

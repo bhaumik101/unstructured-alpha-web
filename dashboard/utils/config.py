@@ -1329,8 +1329,6 @@ TICKERS = {
     "BKR":  {"name": "Baker Hughes Company",                 "sector": "Oil Services",      "signals": ["crude_oil", "crude_inventories", "natural_gas", "dollar_index", "hy_spread"],                "theme": "energy"},
     "EQT":  {"name": "EQT Corporation",                      "sector": "Natural Gas E&P",   "signals": ["natural_gas", "gas_storage", "dollar_index", "hy_spread"],                               "theme": "energy"},
     "AR":   {"name": "Antero Resources Corp.",               "sector": "Natural Gas E&P",   "signals": ["natural_gas", "gas_storage", "crude_oil", "hy_spread"],                                  "theme": "energy"},
-    "LNG":  {"name": "Cheniere Energy Inc.",                 "sector": "LNG Export",        "signals": ["natural_gas", "gas_storage", "dollar_index", "hy_spread"],                               "theme": "energy"},
-
     # ── NUCLEAR ────────────────────────────────────────────────────────────────
     "CCJ":  {"name": "Cameco Corporation",                   "sector": "Uranium Mining",    "signals": ["uranium_proxy", "nuclear_generation", "power_demand_growth", "dollar_index", "vix"], "theme": "nuclear"},
     "LEU":  {"name": "Centrus Energy Corp.",                  "sector": "Nuclear Enrichment","signals": ["uranium_proxy", "nuclear_generation", "hyperscaler_capex", "vix"],        "theme": "nuclear"},
@@ -1523,6 +1521,126 @@ TICKERS = {
     "VMC":  {"name": "Vulcan Materials Company",              "sector": "Construction Materials", "signals": ["construction_spending", "durable_goods"],                                          "theme": "industrials"},
     "MLM":  {"name": "Martin Marietta Materials Inc.",        "sector": "Construction Materials", "signals": ["construction_spending", "durable_goods"],                                          "theme": "industrials"},
     "URI":  {"name": "United Rentals Inc.",                   "sector": "Equipment Rental",  "signals": ["construction_spending", "ism_pmi"],                                                      "theme": "industrials"},
+
+    # ── MEGA-CAP TECH (most-searched, previously missing) ─────────────────────
+    "AAPL": {"name": "Apple Inc.",                            "sector": "Technology",        "signals": ["consumer_sentiment", "semiconductor_etf", "hyperscaler_capex", "retail_sales"],            "theme": "ai_infrastructure"},
+    "META": {"name": "Meta Platforms Inc.",                   "sector": "Technology",        "signals": ["hyperscaler_capex", "semiconductor_etf", "consumer_sentiment", "ten_year_yield"],           "theme": "ai_infrastructure"},
+    "TSLA": {"name": "Tesla Inc.",                            "sector": "Automotive/EV",     "signals": ["copper", "semiconductor_etf", "consumer_sentiment", "ten_year_yield"],                       "theme": "ai_infrastructure"},
+    "NFLX": {"name": "Netflix Inc.",                          "sector": "Technology",        "signals": ["consumer_sentiment", "retail_sales", "ten_year_yield", "jobless_claims"],                    "theme": "consumer"},
+    "CRM":  {"name": "Salesforce Inc.",                       "sector": "Software",          "signals": ["hyperscaler_capex", "ten_year_yield", "ism_pmi"],                                            "theme": "ai_infrastructure"},
+    "NOW":  {"name": "ServiceNow Inc.",                       "sector": "Software",          "signals": ["hyperscaler_capex", "ten_year_yield"],                                                        "theme": "ai_infrastructure"},
+    "ORCL": {"name": "Oracle Corporation",                    "sector": "Software",          "signals": ["hyperscaler_capex", "ten_year_yield", "ism_pmi"],                                            "theme": "ai_infrastructure"},
+    "PLTR": {"name": "Palantir Technologies Inc.",            "sector": "Software/AI",       "signals": ["hyperscaler_capex", "ten_year_yield", "vix"],                                                "theme": "ai_infrastructure"},
+    "SNOW": {"name": "Snowflake Inc.",                        "sector": "Cloud",             "signals": ["hyperscaler_capex", "ten_year_yield"],                                                        "theme": "ai_infrastructure"},
+    "ARM":  {"name": "Arm Holdings plc",                      "sector": "Semiconductors",    "signals": ["semiconductor_etf", "hyperscaler_capex"],                                                    "theme": "ai_infrastructure"},
+    "MU":   {"name": "Micron Technology Inc.",                "sector": "Semiconductors",    "signals": ["semiconductor_etf", "hyperscaler_capex", "ism_pmi"],                                         "theme": "ai_infrastructure"},
+    "INTC": {"name": "Intel Corporation",                     "sector": "Semiconductors",    "signals": ["semiconductor_etf", "hyperscaler_capex", "ism_pmi"],                                         "theme": "ai_infrastructure"},
+    "QCOM": {"name": "Qualcomm Inc.",                         "sector": "Semiconductors",    "signals": ["semiconductor_etf", "hyperscaler_capex", "consumer_sentiment"],                              "theme": "ai_infrastructure"},
+    "TXN":  {"name": "Texas Instruments Inc.",                "sector": "Semiconductors",    "signals": ["semiconductor_etf", "ism_pmi", "durable_goods"],                                             "theme": "ai_infrastructure"},
+    "TSM":  {"name": "Taiwan Semiconductor Mfg. Co.",         "sector": "Semiconductors",    "signals": ["semiconductor_etf", "hyperscaler_capex", "dollar_index"],                                    "theme": "ai_infrastructure"},
+    "ASML": {"name": "ASML Holding N.V.",                     "sector": "Semiconductors",    "signals": ["semiconductor_etf", "hyperscaler_capex", "dollar_index"],                                    "theme": "ai_infrastructure"},
+
+    # ── PAYMENTS & FINTECH ────────────────────────────────────────────────────
+    # ── CONSUMER STAPLES (major gaps) ─────────────────────────────────────────
+    "MO":   {"name": "Altria Group Inc.",                     "sector": "Consumer Staples",  "signals": ["consumer_sentiment", "retail_sales"],                                                         "theme": "consumer"},
+    # ── CONSUMER DISCRETIONARY (major gaps) ───────────────────────────────────
+    # ── AUTOMOTIVE ────────────────────────────────────────────────────────────
+    # ── HEALTHCARE — major gaps ────────────────────────────────────────────────
+    "ABBV": {"name": "AbbVie Inc.",                           "sector": "Biotechnology",     "signals": ["fda_approval_velocity", "ten_year_yield", "hy_spread"],                                      "theme": "healthcare"},
+    # ── REITs ─────────────────────────────────────────────────────────────────
+    # ── MATERIALS & INDUSTRIAL GASES ──────────────────────────────────────────
+    # ── AEROSPACE & INDUSTRIAL ────────────────────────────────────────────────
+    # ── MEDIA & TELECOM ───────────────────────────────────────────────────────
+    # ── SECTOR ETFs (missing) ─────────────────────────────────────────────────
+    "XLK":  {"name": "Technology Select Sector SPDR",         "sector": "ETF",               "signals": ["semiconductor_etf", "hyperscaler_capex", "ten_year_yield"],                                  "theme": "ai_infrastructure"},
+    "XLV":  {"name": "Health Care Select Sector SPDR",        "sector": "ETF",               "signals": ["fda_approval_velocity", "ten_year_yield", "hy_spread"],                                      "theme": "healthcare"},
+    "XLB":  {"name": "Materials Select Sector SPDR",          "sector": "ETF",               "signals": ["copper", "dollar_index", "ism_pmi"],                                                         "theme": "macro"},
+    "XLRE": {"name": "Real Estate Select Sector SPDR",        "sector": "ETF",               "signals": ["ten_year_yield", "housing_starts"],                                                           "theme": "macro"},
+    "XLC":  {"name": "Communication Services SPDR",           "sector": "ETF",               "signals": ["consumer_sentiment", "hyperscaler_capex", "ten_year_yield"],                                 "theme": "consumer"},
+
+    # ── INTERNATIONAL ETFs ────────────────────────────────────────────────────
+    "FXI":  {"name": "iShares China Large-Cap ETF",           "sector": "ETF",               "signals": ["dollar_index", "copper", "shipping_index"],                                                   "theme": "macro"},
+    "EWJ":  {"name": "iShares MSCI Japan ETF",                "sector": "ETF",               "signals": ["dollar_index", "ism_pmi"],                                                                    "theme": "macro"},
+    "VGK":  {"name": "Vanguard FTSE Europe ETF",              "sector": "ETF",               "signals": ["dollar_index", "ism_pmi", "natural_gas"],                                                    "theme": "macro"},
+    "VWO":  {"name": "Vanguard FTSE Emerging Markets ETF",    "sector": "ETF",               "signals": ["dollar_index", "copper", "hy_spread"],                                                       "theme": "macro"},
+
+    # ── COMMODITIES ETFs ─────────────────────────────────────────────────────
+    "SLV":  {"name": "iShares Silver Trust ETF",              "sector": "ETF",               "signals": ["dollar_index", "vix", "ten_year_yield"],                                                      "theme": "macro"},
+    "IAU":  {"name": "iShares Gold Trust ETF",                "sector": "ETF",               "signals": ["dollar_index", "vix", "ten_year_yield"],                                                      "theme": "macro"},
+    "DBC":  {"name": "Invesco DB Commodity Index ETF",        "sector": "ETF",               "signals": ["crude_oil", "dollar_index", "ism_pmi"],                                                      "theme": "macro"},
+
+    # ── PAYMENTS / FINTECH (additional) ──────────────────────────────────────
+    "SPGI": {"name": "S&P Global Inc.",                       "sector": "Financial Services","signals": ["hy_spread", "bank_lending_standards", "yield_curve"],                                        "theme": "financials"},
+    "MCO":  {"name": "Moody's Corporation",                   "sector": "Financial Services","signals": ["hy_spread", "bank_lending_standards"],                                                        "theme": "financials"},
+    "MS":   {"name": "Morgan Stanley",                        "sector": "Banking",           "signals": ["vix", "hy_spread", "yield_curve", "bank_lending_standards"],                                 "theme": "financials"},
+    "BLK":  {"name": "BlackRock Inc.",                        "sector": "Asset Management",  "signals": ["vix", "m2_money_supply", "yield_curve", "ten_year_yield"],                                   "theme": "financials"},
+    "SCHW": {"name": "Charles Schwab Corporation",            "sector": "Brokerage",         "signals": ["yield_curve", "ten_year_yield", "bank_lending_standards"],                                   "theme": "financials"},
+    "V":    {"name": "Visa Inc.",                             "sector": "Payments",          "signals": ["credit_card_delinquency", "retail_sales", "consumer_sentiment", "jobless_claims"],           "theme": "financials"},
+    "MA":   {"name": "Mastercard Inc.",                       "sector": "Payments",          "signals": ["credit_card_delinquency", "retail_sales", "consumer_sentiment"],                             "theme": "financials"},
+    "PYPL": {"name": "PayPal Holdings Inc.",                  "sector": "Fintech",           "signals": ["retail_sales", "consumer_sentiment", "ecommerce_share", "ten_year_yield"],                   "theme": "consumer"},
+    "ICE":  {"name": "Intercontinental Exchange Inc.",        "sector": "Financial Services","signals": ["hy_spread", "ten_year_yield", "vix"],                                                         "theme": "financials"},
+    "CME":  {"name": "CME Group Inc.",                        "sector": "Financial Services","signals": ["vix", "ten_year_yield", "yield_curve"],                                                       "theme": "financials"},
+
+    # ── CONSUMER STAPLES ──────────────────────────────────────────────────────
+    "PG":   {"name": "Procter & Gamble Company",              "sector": "Consumer Staples",  "signals": ["consumer_sentiment", "food_cpi", "retail_sales", "layoffs_rate"],                            "theme": "consumer"},
+    "KO":   {"name": "Coca-Cola Company",                     "sector": "Consumer Staples",  "signals": ["consumer_sentiment", "retail_sales", "retail_gasoline"],                                     "theme": "consumer"},
+    "PEP":  {"name": "PepsiCo Inc.",                          "sector": "Consumer Staples",  "signals": ["consumer_sentiment", "food_cpi", "retail_sales"],                                            "theme": "consumer"},
+    "PM":   {"name": "Philip Morris International",           "sector": "Consumer Staples",  "signals": ["consumer_sentiment", "dollar_index"],                                                         "theme": "consumer"},
+    "CL":   {"name": "Colgate-Palmolive Company",             "sector": "Consumer Staples",  "signals": ["consumer_sentiment", "food_cpi"],                                                             "theme": "consumer"},
+    "GIS":  {"name": "General Mills Inc.",                    "sector": "Packaged Foods",    "signals": ["food_cpi", "consumer_sentiment"],                                                             "theme": "consumer"},
+
+    # ── CONSUMER DISCRETIONARY ────────────────────────────────────────────────
+    "DIS":  {"name": "Walt Disney Company",                   "sector": "Entertainment",     "signals": ["consumer_sentiment", "retail_sales", "ten_year_yield", "jobless_claims"],                    "theme": "consumer"},
+    "NKE":  {"name": "Nike Inc.",                             "sector": "Consumer Disc.",    "signals": ["consumer_sentiment", "retail_sales", "jobless_claims", "ata_trucking"],                      "theme": "consumer"},
+    "LULU": {"name": "Lululemon Athletica Inc.",              "sector": "Consumer Disc.",    "signals": ["consumer_sentiment", "retail_sales", "ten_year_yield"],                                      "theme": "consumer"},
+    "TJX":  {"name": "TJX Companies Inc.",                    "sector": "Retail",            "signals": ["consumer_sentiment", "retail_sales", "layoffs_rate"],                                        "theme": "consumer"},
+    "ROST": {"name": "Ross Stores Inc.",                      "sector": "Retail",            "signals": ["consumer_sentiment", "retail_sales", "layoffs_rate"],                                        "theme": "consumer"},
+    "BKNG": {"name": "Booking Holdings Inc.",                 "sector": "Travel",            "signals": ["consumer_sentiment", "retail_gasoline", "jobless_claims"],                                   "theme": "consumer"},
+    "MAR":  {"name": "Marriott International Inc.",           "sector": "Hotels",            "signals": ["consumer_sentiment", "jobless_claims"],                                                       "theme": "consumer"},
+    "CCL":  {"name": "Carnival Corporation",                  "sector": "Cruise Lines",      "signals": ["consumer_sentiment", "retail_gasoline", "jobless_claims", "hy_spread"],                     "theme": "consumer"},
+    "UBER": {"name": "Uber Technologies Inc.",                "sector": "Ride-Sharing",      "signals": ["consumer_sentiment", "retail_gasoline", "jobless_claims", "ten_year_yield"],                 "theme": "consumer"},
+    "F":    {"name": "Ford Motor Company",                    "sector": "Automotive",        "signals": ["ism_pmi", "consumer_sentiment", "copper", "hy_spread"],                                      "theme": "industrials"},
+    "GM":   {"name": "General Motors Company",                "sector": "Automotive",        "signals": ["ism_pmi", "consumer_sentiment", "copper", "hy_spread"],                                      "theme": "industrials"},
+
+    # ── HEALTHCARE ────────────────────────────────────────────────────────────
+    "JNJ":  {"name": "Johnson & Johnson",                     "sector": "Pharmaceuticals",   "signals": ["fda_approval_velocity", "consumer_sentiment", "ten_year_yield"],                             "theme": "healthcare"},
+    "UNH":  {"name": "UnitedHealth Group Inc.",               "sector": "Health Insurance",  "signals": ["credit_card_delinquency", "fda_approval_velocity", "layoffs_rate"],                          "theme": "healthcare"},
+    "CVS":  {"name": "CVS Health Corporation",                "sector": "Healthcare",        "signals": ["retail_sales", "fda_approval_velocity", "consumer_sentiment"],                               "theme": "healthcare"},
+    "CI":   {"name": "The Cigna Group",                       "sector": "Health Insurance",  "signals": ["bank_lending_standards", "credit_card_delinquency", "layoffs_rate"],                         "theme": "healthcare"},
+    "MDT":  {"name": "Medtronic plc",                         "sector": "Medical Devices",   "signals": ["fda_approval_velocity", "ten_year_yield", "ism_pmi"],                                        "theme": "healthcare"},
+    "SYK":  {"name": "Stryker Corporation",                   "sector": "Medical Devices",   "signals": ["fda_approval_velocity", "ten_year_yield", "ism_pmi"],                                        "theme": "healthcare"},
+    "ZTS":  {"name": "Zoetis Inc.",                           "sector": "Animal Health",     "signals": ["fda_approval_velocity", "consumer_sentiment"],                                                "theme": "healthcare"},
+    "TMO":  {"name": "Thermo Fisher Scientific Inc.",         "sector": "Life Sciences",     "signals": ["ism_pmi", "durable_goods", "hy_spread"],                                                     "theme": "healthcare"},
+    "DHR":  {"name": "Danaher Corporation",                   "sector": "Life Sciences",     "signals": ["ism_pmi", "durable_goods"],                                                                   "theme": "healthcare"},
+    "MRNA": {"name": "Moderna Inc.",                          "sector": "Biotechnology",     "signals": ["fda_approval_velocity", "ten_year_yield", "hy_spread"],                                      "theme": "healthcare"},
+    "BIIB": {"name": "Biogen Inc.",                           "sector": "Biotechnology",     "signals": ["fda_approval_velocity", "ten_year_yield"],                                                    "theme": "healthcare"},
+
+    # ── REITs ─────────────────────────────────────────────────────────────────
+    "O":    {"name": "Realty Income Corporation",             "sector": "REIT",              "signals": ["ten_year_yield", "retail_sales"],                                                              "theme": "macro"},
+    "SPG":  {"name": "Simon Property Group Inc.",             "sector": "REIT",              "signals": ["ten_year_yield", "retail_sales", "consumer_sentiment"],                                       "theme": "macro"},
+    "AMT":  {"name": "American Tower Corporation",            "sector": "REIT",              "signals": ["ten_year_yield", "hyperscaler_capex"],                                                         "theme": "ai_infrastructure"},
+    "CCI":  {"name": "Crown Castle Inc.",                     "sector": "REIT",              "signals": ["ten_year_yield", "hyperscaler_capex"],                                                         "theme": "ai_infrastructure"},
+    "PLD":  {"name": "Prologis Inc.",                         "sector": "REIT",              "signals": ["ata_trucking", "retail_sales", "ten_year_yield", "ecommerce_share"],                         "theme": "consumer"},
+    "WELL": {"name": "Welltower Inc.",                        "sector": "REIT",              "signals": ["ten_year_yield", "layoffs_rate"],                                                              "theme": "macro"},
+
+    # ── MATERIALS & CHEMICALS ─────────────────────────────────────────────────
+    "LIN":  {"name": "Linde plc",                             "sector": "Industrial Gases",  "signals": ["ism_pmi", "natural_gas", "copper", "durable_goods"],                                         "theme": "industrials"},
+    "APD":  {"name": "Air Products & Chemicals Inc.",         "sector": "Industrial Gases",  "signals": ["natural_gas", "ism_pmi", "hyperscaler_capex"],                                               "theme": "industrials"},
+    "SHW":  {"name": "Sherwin-Williams Company",              "sector": "Paints & Coatings", "signals": ["housing_starts", "consumer_sentiment", "ism_pmi"],                                           "theme": "industrials"},
+    "DOW":  {"name": "Dow Inc.",                              "sector": "Chemicals",         "signals": ["ism_pmi", "natural_gas", "crude_oil"],                                                        "theme": "industrials"},
+    "CF":   {"name": "CF Industries Holdings Inc.",           "sector": "Fertilizers",       "signals": ["food_cpi", "natural_gas", "dollar_index"],                                                    "theme": "industrials"},
+
+    # ── AEROSPACE & INDUSTRIAL ────────────────────────────────────────────────
+    "BA":   {"name": "Boeing Company",                        "sector": "Aerospace",         "signals": ["durable_goods", "ism_pmi", "ten_year_yield"],                                                 "theme": "defense_aerospace"},
+    "TDG":  {"name": "TransDigm Group Inc.",                  "sector": "Aerospace Parts",   "signals": ["durable_goods", "ism_pmi", "hy_spread"],                                                     "theme": "defense_aerospace"},
+    "CARR": {"name": "Carrier Global Corporation",            "sector": "HVAC",              "signals": ["housing_starts", "ism_pmi", "copper"],                                                        "theme": "industrials"},
+    "PCAR": {"name": "PACCAR Inc.",                           "sector": "Trucks",            "signals": ["ata_trucking", "ism_pmi", "durable_goods", "crude_oil"],                                      "theme": "industrials"},
+    "WM":   {"name": "Waste Management Inc.",                 "sector": "Waste Services",    "signals": ["ism_pmi", "construction_spending"],                                                            "theme": "industrials"},
+
+    # ── TELECOM & MEDIA ───────────────────────────────────────────────────────
+    "T":    {"name": "AT&T Inc.",                             "sector": "Telecom",           "signals": ["ten_year_yield", "consumer_sentiment", "layoffs_rate"],                                       "theme": "macro"},
+    "VZ":   {"name": "Verizon Communications Inc.",           "sector": "Telecom",           "signals": ["ten_year_yield", "consumer_sentiment"],                                                        "theme": "macro"},
+    "CMCSA":{"name": "Comcast Corporation",                   "sector": "Media/Telecom",     "signals": ["consumer_sentiment", "retail_sales", "ten_year_yield"],                                       "theme": "consumer"},
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
