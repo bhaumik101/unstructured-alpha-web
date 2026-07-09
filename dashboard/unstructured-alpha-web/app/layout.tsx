@@ -72,6 +72,42 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/logo.svg" />
         <meta name="theme-color" content="#0b0d12" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+        {/* WebApplication JSON-LD — helps Google understand product type and pricing */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              "name": "Unstructured Alpha",
+              "url": "https://unstructuredalpha.com",
+              "applicationCategory": "FinanceApplication",
+              "operatingSystem": "Web",
+              "description": "43 macro signals scored daily from FRED, SEC EDGAR, FINRA, EIA, and CBOE. Understand the macro environment behind your portfolio. Free dashboard for active investors.",
+              "offers": [
+                { "@type": "Offer", "name": "Free Plan", "price": "0", "priceCurrency": "USD", "description": "Signal Dashboard, Today's Brief, Ticker Deep Dive — free forever." },
+                { "@type": "Offer", "name": "Pro Plan", "price": "20", "priceCurrency": "USD", "description": "Score history, sector percentiles, watchlist alerts, morning digest.", "priceSpecification": { "@type": "UnitPriceSpecification", "price": "20", "priceCurrency": "USD", "unitCode": "MON" } }
+              ],
+              "featureList": ["43 macro signals from FRED, SEC EDGAR, FINRA, EIA, CBOE", "Confluence Score per ticker", "Today's Brief", "Signal Dashboard", "Sector Percentile Rankings", "Score History Charts", "Watchlist Alerts"],
+              "publisher": { "@type": "Organization", "name": "Unstructured Alpha", "url": "https://unstructuredalpha.com" }
+            })
+          }}
+        />
+        {/* FAQPage JSON-LD — eligible for Google FAQ rich results */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                { "@type": "Question", "name": "What is a macro signal?", "acceptedAnswer": { "@type": "Answer", "text": "A macro signal is a publicly available economic or financial data series — like the yield curve, credit spreads, or insider buying — that has historically moved before broad market prices responded. Unstructured Alpha tracks 43 such signals scored daily from FRED, SEC EDGAR, FINRA, EIA, and CBOE." } },
+                { "@type": "Question", "name": "How much does Unstructured Alpha cost?", "acceptedAnswer": { "@type": "Answer", "text": "The core Signal Dashboard, Today's Brief, and Ticker Deep Dive are free with an account — no credit card required. Pro is $20/month and adds score history charts, sector percentile rankings, watchlist alerts, and the morning email digest." } },
+                { "@type": "Question", "name": "How is Unstructured Alpha different from a Bloomberg Terminal?", "acceptedAnswer": { "@type": "Answer", "text": "Bloomberg Terminal costs approximately $27,000/year and is designed for institutional desks. Unstructured Alpha focuses on the macro signal layer at $20/month for active individual investors. Different scope, different audience, very different price." } }
+              ]
+            })
+          }}
+        />
       </head>
       <body>{children}</body>
     </html>
