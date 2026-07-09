@@ -78,12 +78,14 @@ pg = st.navigation(
         # ── Research (free) ──────────────────────────────────────────────────
         # Track Record absorbs Earnings Track Record (tab) + Signal Call Log.
         # Stock Screener absorbs Live Scoreboard + Short Squeeze Radar (tabs).
+        # Signal Strategy: rules-based backtest from home page CTA.
         "Research": [
             st.Page("pages/3_Ticker_Deep_Dive.py",    title="Ticker Deep Dive"),
             st.Page("pages/4_Power_Supercycle.py",    title="Power Supercycle"),
             st.Page("pages/5_Market_Overview.py",     title="Market Overview"),
             st.Page("pages/6_Stock_Screener.py",      title="Stock Screener"),
             st.Page("pages/30_Track_Record_Live.py",  title="Track Record"),
+            st.Page("pages/35_Signal_Strategy.py",    title="Signal Strategy"),
         ],
         # ── Pro Tools ────────────────────────────────────────────────────────
         # Stock Recommender: hero Pro page — ranked AI-driven stock ideas.
