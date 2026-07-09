@@ -271,9 +271,11 @@ def _compute_watchlist_scores(
     Quick per-ticker confluence for the digest. Uses already-cached
     get_all_signal_scores() so no extra API calls are needed.
     Adds a 7-day score delta from score_snapshots when available.
+    Adds signal alignment (conviction) — how many relevant signals
+    point the same direction as the score.
 
     Returns list of:
-        {ticker, name, score, case, delta}
+        {ticker, name, score, case, delta, aligned, total_relevant}
     """
     from utils.analysis import compute_confluence
     from datetime import datetime, timedelta, timezone
@@ -311,12 +313,27 @@ def _compute_watchlist_scores(
         except Exception:
             pass
 
+        # Signal alignment — count how many relevant signals agree with the score direction.
+        # Pure arithmetic on already-fetched data; no extra imports or API calls needed.
+        direction = (
+            "bullish" if score >= 55 else
+            "bearish" if score <= 45 else
+            "neutral"
+        )
+        aligned   = sum(
+            1 for sv in ticker_signals.values()
+            if sv.get("status") == direction
+        )
+        total_rel = len(ticker_signals)
+
         results.append({
-            "ticker": ticker,
-            "name":   meta.get("name", ticker),
-            "score":  round(score, 1),
-            "case":   case,
-            "delta":  delta,
+            "ticker":         ticker,
+            "name":           meta.get("name", ticker),
+            "score":          round(score, 1),
+            "case":           case,
+            "delta":          delta,
+            "aligned":        aligned,
+            "total_relevant": total_rel,
         })
 
     return results

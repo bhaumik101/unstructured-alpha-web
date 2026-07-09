@@ -425,7 +425,8 @@ def _build_article_html(
 def _build_watchlist_html(items: list[dict], narrative: str | None = None) -> str:
     """
     Build the personalised "Your Watchlist" section for the morning digest.
-    items:     [{ticker, name, score, case, delta}]  — max 3 items expected.
+    items:     [{ticker, name, score, case, delta, aligned, total_relevant}]
+               max 3 items expected.
     narrative: optional AI-generated 2-3 sentence plain-English summary.
     """
     CASE_COLOR = {"BULL": "#00875A", "BEAR": "#C53030", "NEUTRAL": "#5A6472"}
@@ -460,6 +461,25 @@ def _build_watchlist_html(items: list[dict], narrative: str | None = None) -> st
             if delta is not None else ""
         )
         name_short = item["name"][:22] + "…" if len(item["name"]) > 24 else item["name"]
+
+        # Conviction: signal alignment badge
+        aligned   = item.get("aligned", 0)
+        total_rel = item.get("total_relevant", 0)
+        if total_rel > 0:
+            align_pct   = aligned / total_rel
+            align_color = (
+                "#00875A" if align_pct >= 0.70 else
+                "#D97706" if align_pct >= 0.50 else
+                "#C53030"
+            )
+            conviction_str = (
+                f'<div style="font-size:0.62rem;color:{align_color};margin-top:4px;'
+                f'font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;">'
+                f'{aligned}/{total_rel} signals aligned</div>'
+            )
+        else:
+            conviction_str = ""
+
         cards += f"""
         <td style="width:{col_width};padding:0 6px;vertical-align:top;">
           <div style="background:{bg};border:1px solid {color}33;border-radius:6px;
@@ -486,6 +506,7 @@ def _build_watchlist_html(items: list[dict], narrative: str | None = None) -> st
               {sym} {case}
             </div>
             <div style="margin-top:4px;">{delta_str}</div>
+            {conviction_str}
           </div>
         </td>"""
 
