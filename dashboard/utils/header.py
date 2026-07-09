@@ -127,10 +127,12 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
 .market-status-badge {
     display: inline-flex; align-items: center; gap: 5px;
     font-size: 0.62rem; font-weight: 700; letter-spacing: 0.07em;
-    padding: 3px 8px; border-radius: 5px;
+    padding: 3px 9px; border-radius: 6px;
     font-family: 'Inter', sans-serif !important;
+    transition: filter 0.15s ease;
 }
-.market-status-dot { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+.market-status-badge:hover { filter: brightness(1.15); }
+.market-status-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
 .ua-header {
     display: flex; align-items: flex-end; justify-content: space-between;
     padding-bottom: 12px; margin-bottom: 0;
@@ -141,22 +143,27 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
     content: '';
     position: absolute;
     bottom: -1px; left: 0;
-    width: 140px; height: 2px;
-    background: linear-gradient(90deg, #00D566, #00C8E0, #7C3AED);
+    width: 200px; height: 2px;
+    background: linear-gradient(90deg, #00D566, #00C8E0 50%, #7C3AED 100%);
+    background-size: 300% 100%;
+    animation: ua_gradient_x 6s ease infinite;
     border-radius: 1px;
 }
 .ua-wordmark {
-    font-size: 1.75rem; font-weight: 800; color: #E8EEFF;
-    font-family: 'Inter', sans-serif; letter-spacing: -0.6px; line-height: 1.1;
+    font-size: 1.8rem; font-weight: 800; color: #E8EEFF;
+    font-family: 'Inter', sans-serif; letter-spacing: -0.8px; line-height: 1.05;
 }
 .ua-wordmark span {
-    background: linear-gradient(135deg, #00D566 0%, #00C8E0 100%);
+    background: linear-gradient(135deg, #00D566 0%, #00C8E0 60%, #7C3AED 100%);
+    background-size: 200% 200%;
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
     background-clip: text;
+    animation: ua_gradient_x 6s ease infinite;
 }
 .ua-tagline {
-    font-size: 0.73rem; color: #8892AA; font-family: 'Inter', sans-serif;
-    margin-top: 2px; letter-spacing: 0.01em;
+    font-size: 0.70rem; color: #6B7FBF; font-family: 'Inter', sans-serif;
+    margin-top: 3px; letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 6px;
 }
 .ua-header-right {
     text-align: right; font-size: 0.73rem; color: #8892AA; font-family: 'Inter', sans-serif;
@@ -174,23 +181,30 @@ section[data-testid="stSidebar"] .stButton > button p { color: #00D566 !importan
     border: 1px solid rgba(255,255,255,0.07);
     border-radius: 12px; padding: 16px 18px; margin-bottom: 10px;
     font-family: 'Inter', sans-serif;
-    transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+    transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
     position: relative; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 .metric-card::before {
     content: ''; position: absolute; left: 0; top: 0; bottom: 0;
     width: 3px; background: rgba(255,255,255,0.08);
     border-radius: 12px 0 0 12px;
+    transition: background 0.2s ease;
 }
-.metric-card.bull::before  { background: #00D566; }
-.metric-card.bear::before  { background: #FF4444; }
-.metric-card.neutral::before { background: #6B7FBF; }
+.metric-card.bull::before  { background: linear-gradient(180deg, #00D566, #00A847); }
+.metric-card.bear::before  { background: linear-gradient(180deg, #FF4444, #CC2222); }
+.metric-card.neutral::before { background: linear-gradient(180deg, #6B7FBF, #4A5280); }
+/* Subtle top glow when bull/bear */
+.metric-card.bull { box-shadow: 0 0 0 0 transparent, inset 0 1px 0 rgba(0,213,102,0.06); }
+.metric-card.bear { box-shadow: 0 0 0 0 transparent, inset 0 1px 0 rgba(255,68,68,0.06); }
 .metric-card, .page-card, .stat-box { will-change: transform; }
 .metric-card:hover {
-    border-color: rgba(0,213,102,0.22);
-    box-shadow: 0 0 24px rgba(0,213,102,0.07), 0 8px 24px rgba(0,0,0,0.4);
+    border-color: rgba(0,213,102,0.24);
+    box-shadow: 0 0 28px rgba(0,213,102,0.09), 0 8px 28px rgba(0,0,0,0.45);
     transform: translate3d(0,-2px,0);
 }
+.metric-card.bull:hover { border-color: rgba(0,213,102,0.32); }
+.metric-card.bear:hover { border-color: rgba(255,68,68,0.25); }
 .metric-card b { color: #E8EEFF; }
 .metric-card span { color: #8892AA; }
 
@@ -413,11 +427,11 @@ div[data-testid="stAlertContainer"][data-baseweb="notification"][kind="error"]  
 
 /* ── Page-entry animation ────────────────────────────────────────────────── */
 @keyframes ua_page_in {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 .block-container > div:first-child {
-    animation: ua_page_in 0.35s cubic-bezier(0.4,0,0.2,1) both;
+    animation: ua_page_in 0.4s cubic-bezier(0.4,0,0.2,1) both;
 }
 
 /* ── Selectbox / dropdown dark overlay ──────────────────────────────────── */
@@ -817,6 +831,291 @@ code, pre {
     .ua-header { flex-direction: column !important; gap: 8px !important; }
     .ua-header-right { text-align: left !important; font-size: 0.72rem !important; }
     #ua-scroll-top { bottom: 16px; right: 16px; }
+}
+
+/* ── Skeleton loader ─────────────────────────────────────────────────────── */
+@keyframes ua_shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+.ua-skeleton {
+    background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.09) 50%,
+        rgba(255,255,255,0.04) 75%
+    );
+    background-size: 800px 100%;
+    animation: ua_shimmer 1.8s ease-in-out infinite;
+    border-radius: 8px;
+}
+.ua-skeleton-line { height: 14px; margin-bottom: 10px; border-radius: 6px; }
+.ua-skeleton-line.sm { width: 40%; height: 11px; }
+.ua-skeleton-line.lg { width: 90%; }
+.ua-skeleton-line.md { width: 70%; }
+.ua-skeleton-block { height: 120px; border-radius: 12px; margin-bottom: 12px; }
+.ua-skeleton-chart { height: 220px; border-radius: 12px; }
+
+/* ── Chart container card ────────────────────────────────────────────────── */
+.ua-chart-card {
+    background: rgba(18,21,30,0.75);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 18px 20px 14px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+}
+.ua-chart-card:hover {
+    border-color: rgba(0,213,102,0.16);
+    box-shadow: 0 0 28px rgba(0,213,102,0.06), 0 12px 32px rgba(0,0,0,0.4);
+    transition: all 0.22s cubic-bezier(0.4,0,0.2,1);
+}
+.ua-chart-title {
+    font-size: 0.83rem;
+    font-weight: 700;
+    color: #E8EEFF;
+    letter-spacing: -0.1px;
+    margin-bottom: 3px;
+    font-family: 'Inter', sans-serif;
+}
+.ua-chart-subtitle {
+    font-size: 0.68rem;
+    color: #8892AA;
+    margin-bottom: 14px;
+    font-family: 'Inter', sans-serif;
+    line-height: 1.4;
+}
+.ua-chart-caption {
+    font-size: 0.63rem;
+    color: #4A5280;
+    margin-top: 8px;
+    font-family: 'Inter', sans-serif;
+    font-style: italic;
+    line-height: 1.45;
+}
+.ua-chart-source-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.60rem;
+    font-weight: 700;
+    color: #6B7FBF;
+    background: rgba(107,127,191,0.08);
+    border: 1px solid rgba(107,127,191,0.15);
+    border-radius: 4px;
+    padding: 2px 7px;
+    letter-spacing: 0.06em;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Pro upgrade CTA card ────────────────────────────────────────────────── */
+.ua-pro-cta {
+    background: linear-gradient(135deg, rgba(124,58,237,0.12) 0%, rgba(124,58,237,0.06) 100%);
+    border: 1px solid rgba(124,58,237,0.3);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+}
+.ua-pro-cta::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #7C3AED, #00C8E0, #7C3AED);
+    background-size: 200% 100%;
+    animation: ua_gradient_x 4s ease infinite;
+}
+.ua-pro-cta-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.60rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #A78BFA;
+    background: rgba(124,58,237,0.12);
+    border: 1px solid rgba(124,58,237,0.25);
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+.ua-pro-cta-title {
+    font-size: 0.94rem;
+    font-weight: 700;
+    color: #E8EEFF;
+    margin-bottom: 5px;
+    letter-spacing: -0.1px;
+}
+.ua-pro-cta-body {
+    font-size: 0.80rem;
+    color: #8892AA;
+    line-height: 1.55;
+    margin-bottom: 14px;
+}
+
+/* ── Better error state ──────────────────────────────────────────────────── */
+.ua-error {
+    text-align: center;
+    padding: 36px 24px;
+    background: rgba(255,68,68,0.04);
+    border: 1px dashed rgba(255,68,68,0.18);
+    border-radius: 14px;
+    font-family: 'Inter', sans-serif;
+    margin: 12px 0;
+}
+.ua-error-icon  { font-size: 2rem; margin-bottom: 10px; opacity: 0.6; }
+.ua-error-title { font-size: 0.88rem; font-weight: 600; color: #FF8888; margin-bottom: 4px; }
+.ua-error-body  { font-size: 0.76rem; color: #8892AA; line-height: 1.5; }
+
+/* ── Loading pulse state ─────────────────────────────────────────────────── */
+.ua-loading-card {
+    background: rgba(18,21,30,0.7);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 10px;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ── Score trend indicator ───────────────────────────────────────────────── */
+.ua-trend-up   { color: #00D566; font-weight: 700; font-size: 0.80rem; }
+.ua-trend-down { color: #FF4444; font-weight: 700; font-size: 0.80rem; }
+.ua-trend-flat { color: #6B7FBF; font-weight: 700; font-size: 0.80rem; }
+
+/* ── Inline score bar (for signal tables) ────────────────────────────────── */
+.ua-score-bar-track {
+    height: 4px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+.ua-score-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1);
+}
+.ua-score-bar-fill.bull { background: linear-gradient(90deg, #00D566, #00C8E0); }
+.ua-score-bar-fill.bear { background: linear-gradient(90deg, #FF4444, #FF7777); }
+.ua-score-bar-fill.neut { background: rgba(107,127,191,0.5); }
+
+/* ── Section eyebrow label ───────────────────────────────────────────────── */
+.ua-eyebrow {
+    font-size: 0.60rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ua-green);
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 4px;
+}
+
+/* ── Premium data table with sort indication ─────────────────────────────── */
+.ua-table-sortable th { cursor: pointer; user-select: none; }
+.ua-table-sortable th:hover { color: var(--ua-text-hi) !important; }
+.ua-table-sort-asc::after  { content: ' ▲'; font-size: 0.55rem; opacity: 0.6; }
+.ua-table-sort-desc::after { content: ' ▼'; font-size: 0.55rem; opacity: 0.6; }
+
+/* ── Category filter pills (signal dashboard, screener) ──────────────────── */
+.ua-filter-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.ua-filter-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    font-family: 'Inter', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    color: #8892AA;
+    white-space: nowrap;
+}
+.ua-filter-pill:hover {
+    border-color: rgba(0,213,102,0.3);
+    color: #E8EEFF;
+    background: rgba(0,213,102,0.06);
+}
+.ua-filter-pill.active {
+    border-color: rgba(0,213,102,0.4);
+    color: #00D566;
+    background: rgba(0,213,102,0.08);
+    font-weight: 700;
+}
+
+/* ── Ticker banner (at top of TDD, Watchlist rows) ───────────────────────── */
+.ua-ticker-banner {
+    background: rgba(18,21,30,0.9);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-family: 'Inter', sans-serif;
+    margin-bottom: 16px;
+}
+.ua-ticker-symbol {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #E8EEFF;
+    letter-spacing: -0.5px;
+}
+.ua-ticker-name {
+    font-size: 0.80rem;
+    color: #8892AA;
+}
+.ua-ticker-price {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #E8EEFF;
+    letter-spacing: -0.3px;
+}
+
+/* ── Improved content divider with label ─────────────────────────────────── */
+.ua-label-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 14px;
+    font-family: 'Inter', sans-serif;
+}
+.ua-label-divider span {
+    font-size: 0.60rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #8892AA;
+    white-space: nowrap;
+}
+.ua-label-divider::before,
+.ua-label-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.05);
+}
+
+/* ── Watchlist row hover ─────────────────────────────────────────────────── */
+.ua-watchlist-row {
+    transition: background 0.15s ease;
+}
+.ua-watchlist-row:hover {
+    background: rgba(0,213,102,0.04) !important;
 }
 </style>
 """
