@@ -12,6 +12,10 @@ Public-facing landing page. Psychological design goals:
 import streamlit as st
 import streamlit.components.v1 as _components
 
+# Analytics + onboarding — imported lazily inside their sections to avoid
+# circular-import risk on cold start (these modules themselves import from utils.db).
+# Direct imports below are safe because they don't import from pages/.
+
 st.set_page_config(
     page_title="Unstructured Alpha — Macro Signal Intelligence",
     layout="wide",
@@ -392,6 +396,193 @@ except Exception:
     pass
 
 st.markdown("<br>", unsafe_allow_html=True)
+
+# ── PERSONALIZATION — new user onboarding / return user "what changed" ────────
+try:
+    from utils.analytics import track, Event
+    from utils.onboarding import get_onboarding_state, mark_step
+
+    _sess_user = st.session_state.get("user")
+
+    if _sess_user:
+        _uid       = _sess_user.get("id")
+        _uname     = (_sess_user.get("display_name") or _sess_user.get("email", "").split("@")[0])[:24]
+        _created   = _sess_user.get("created_at")
+        _ob        = get_onboarding_state(_uid, _created)
+
+        if _ob["show_banner"]:
+            # ── NEW USER: "Start Here" checklist ──────────────────────────────
+            track(Event.ONBOARDING_STARTED, user_id=_uid, properties={"n_done": _ob["n_done"]})
+
+            _done_n  = _ob["n_done"]
+            _pct_int = int(_done_n / len(_ob["steps"]) * 100)
+            _steps   = _ob["steps"]
+
+            st.markdown(f"""
+<div style="background:rgba(0,197,102,0.05);border:1px solid rgba(0,213,102,0.22);
+     border-radius:16px;padding:22px 28px 20px;margin:0 auto 28px;max-width:860px;
+     font-family:Inter,sans-serif;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+    <div>
+      <div style="font-size:0.60rem;color:#00D566;letter-spacing:0.16em;font-weight:700;
+                  text-transform:uppercase;margin-bottom:5px;">👋 Welcome, {_h.escape(_uname)}</div>
+      <div style="font-size:1.05rem;font-weight:700;color:#E8EEFF;letter-spacing:-0.3px;">
+        Start here — 3 steps to your first macro read
+      </div>
+      <div style="font-size:0.76rem;color:#8892AA;margin-top:3px;">
+        {_done_n} of 3 steps complete
+      </div>
+    </div>
+    <div style="text-align:right;flex-shrink:0;">
+      <div style="font-size:1.4rem;font-weight:800;color:#00D566;">{_pct_int}%</div>
+      <div style="font-size:0.60rem;color:#6B7FBF;letter-spacing:0.08em;">DONE</div>
+    </div>
+  </div>
+  <div style="background:rgba(255,255,255,0.05);border-radius:4px;height:4px;margin-bottom:18px;overflow:hidden;">
+    <div style="width:{_pct_int}%;height:100%;background:linear-gradient(90deg,#00D566,#00C8E0);border-radius:4px;transition:width 0.6s ease;"></div>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+""", unsafe_allow_html=True)
+
+            for _step in _steps:
+                _sc  = "#00D566" if _step["done"] else "#4A5280"
+                _bg  = "rgba(0,213,102,0.07)" if _step["done"] else "rgba(255,255,255,0.02)"
+                _brd = "rgba(0,213,102,0.22)" if _step["done"] else "rgba(255,255,255,0.07)"
+                _chk = "✓" if _step["done"] else "○"
+                _op  = "opacity:0.55;" if _step["done"] else ""
+                st.markdown(f"""
+<div style="background:{_bg};border:1px solid {_brd};border-radius:10px;padding:14px;{_op}">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+    <span style="font-size:1.1rem;">{_step["icon"]}</span>
+    <span style="font-size:0.60rem;font-weight:800;color:{_sc};letter-spacing:0.1em;">{_chk} STEP</span>
+  </div>
+  <div style="font-size:0.82rem;font-weight:600;color:#E8EEFF;margin-bottom:3px;">{_h.escape(_step["label"])}</div>
+  <div style="font-size:0.70rem;color:#8892AA;line-height:1.55;">{_h.escape(_step["desc"])}</div>
+</div>""", unsafe_allow_html=True)
+
+            st.markdown("</div></div>", unsafe_allow_html=True)
+
+            # Step navigation buttons
+            _todo_steps = [s for s in _steps if not s["done"]]
+            if _todo_steps:
+                _next_step = _todo_steps[0]
+                _ncol1, _ncol2, _ncol3 = st.columns([2, 1.5, 2])
+                with _ncol2:
+                    if st.button(
+                        f'{_next_step["icon"]} {_next_step["label"]}',
+                        type="primary",
+                        use_container_width=True,
+                        key="onboarding_cta",
+                    ):
+                        track(Event.ONBOARDING_STEP, user_id=_uid,
+                              properties={"step": _next_step["id"]})
+                        st.switch_page(_next_step["page"])
+
+        else:
+            # ── RETURNING USER: Welcome back + what changed ────────────────────
+            track(Event.RETURNING_USER, user_id=_uid, properties={"page": "home"})
+
+            # Pull recent signal changes from signal_snapshots
+            @st.cache_data(ttl=1800, show_spinner=False, max_entries=1)
+            def _get_signal_changes_cached() -> list[dict]:
+                try:
+                    from utils.db import engine as _dbe
+                    import sqlalchemy as _sa
+                    with _dbe.connect() as _c:
+                        _rows = _c.execute(_sa.text("""
+                            SELECT signal_id, status, score, snapshot_date
+                            FROM signal_snapshots
+                            ORDER BY signal_id, snapshot_date DESC
+                        """)).mappings().all()
+                    _by_sig: dict = {}
+                    for _r in _rows:
+                        _by_sig.setdefault(_r["signal_id"], []).append(dict(_r))
+                    _changes = []
+                    from utils.config import SIGNALS as _SIG
+                    for _sid, _snaps in _by_sig.items():
+                        if len(_snaps) < 2:
+                            continue
+                        _latest, _prev = _snaps[0], _snaps[1]
+                        if _latest["status"] != _prev["status"]:
+                            _changes.append({
+                                "signal_id":   _sid,
+                                "name":        _SIG.get(_sid, {}).get("name", _sid),
+                                "to_status":   _latest["status"],
+                                "from_status": _prev["status"],
+                                "score":       _latest["score"],
+                                "date":        _latest["snapshot_date"],
+                            })
+                    _changes.sort(key=lambda x: abs(x["score"] - 50), reverse=True)
+                    return _changes[:4]
+                except Exception:
+                    return []
+
+            _changes = _get_signal_changes_cached()
+
+            # Return user greeting header
+            st.markdown(f"""
+<div style="background:rgba(18,21,30,0.55);border:1px solid rgba(255,255,255,0.07);
+     border-radius:16px;padding:20px 28px 18px;margin:0 auto 24px;max-width:860px;
+     font-family:Inter,sans-serif;">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+    <div>
+      <div style="font-size:0.60rem;color:#6B7FBF;letter-spacing:0.14em;font-weight:700;
+                  text-transform:uppercase;margin-bottom:4px;">Welcome back</div>
+      <div style="font-size:1.0rem;font-weight:700;color:#E8EEFF;">
+        {_h.escape(_uname)} · <span style="color:#8892AA;font-weight:400;font-size:0.88rem;">here's what's changed</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span style="font-size:0.70rem;background:rgba(0,213,102,0.09);border:1px solid rgba(0,213,102,0.22);
+            color:#00D566;padding:4px 12px;border-radius:100px;font-weight:600;">
+        {len(_changes)} signal{"s" if len(_changes) != 1 else ""} flipped recently
+      </span>
+    </div>
+  </div>
+""", unsafe_allow_html=True)
+
+            if _changes:
+                st.markdown('<div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">', unsafe_allow_html=True)
+                for _ch in _changes:
+                    _tc = "#00D566" if _ch["to_status"] == "bullish" else ("#FF4444" if _ch["to_status"] == "bearish" else "#6B7FBF")
+                    _fc = "#FF4444" if _ch["from_status"] == "bullish" else ("#00D566" if _ch["from_status"] == "bearish" else "#6B7FBF")
+                    _arrow = "↑" if _ch["to_status"] == "bullish" else ("↓" if _ch["to_status"] == "bearish" else "→")
+                    st.markdown(f"""
+<div style="background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);
+     border-radius:10px;padding:12px 14px;">
+  <div style="font-size:0.68rem;color:#8892AA;margin-bottom:4px;font-weight:500;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+    {_h.escape(_ch["name"][:36])}
+  </div>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span style="font-size:0.65rem;color:{_fc};font-weight:600;text-transform:uppercase;">
+      {_ch["from_status"][:4]}
+    </span>
+    <span style="font-size:1.1rem;color:{_tc};font-weight:700;">{_arrow}</span>
+    <span style="font-size:0.65rem;color:{_tc};font-weight:700;text-transform:uppercase;">
+      {_ch["to_status"][:4]}
+    </span>
+    <span style="margin-left:auto;font-size:0.72rem;font-weight:700;
+          background:rgba(255,255,255,0.05);border-radius:5px;padding:1px 7px;color:#B8C0D4;">
+      {_ch["score"]:.0f}
+    </span>
+  </div>
+</div>""", unsafe_allow_html=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.markdown(
+                    '<div style="margin-top:10px;font-size:0.78rem;color:#6B7FBF;">'
+                    'No signal direction changes detected in recent snapshots. '
+                    'Scores are stable — check Today\'s Brief for the full read.</div>',
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+except Exception:
+    pass  # Never let personalization break the home page
+
+st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
 
 # ── CREDIBILITY STRIP ─────────────────────────────────────────────────────────
 st.markdown("""

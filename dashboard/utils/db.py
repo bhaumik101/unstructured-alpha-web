@@ -412,6 +412,35 @@ referrals = Table(
 )
 
 
+# Analytics event log (added 2026-07-08). Keyed by event_name + user_id + ts.
+# user_id is nullable — anonymous page views before login are still tracked.
+# properties is a JSON string for arbitrary per-event context.
+# No unique constraint — duplicate events are legitimate (two page views = two rows).
+# Brand-new table, create_all() handles it — no ALTER TABLE migration needed.
+analytics_events = Table(
+    "analytics_events", metadata,
+    Column("id",         Integer, primary_key=True),
+    Column("event_name", String(64), nullable=False),
+    Column("user_id",    Integer),              # nullable — anonymous events
+    Column("session_id", String(64)),           # Streamlit session ID for anon stitching
+    Column("properties", Text),                 # JSON string
+    Column("created_at", String(64), nullable=False),
+)
+
+# User onboarding progress (added 2026-07-08). Tracks which of the 3 "Start Here"
+# steps each new user has completed: view_signals, search_ticker, add_to_watchlist.
+# Unique on (user_id, step_id) — a step can only be marked done once per user.
+# Brand-new table, create_all() handles it — no ALTER TABLE migration needed.
+onboarding_progress = Table(
+    "onboarding_progress", metadata,
+    Column("id",           Integer, primary_key=True),
+    Column("user_id",      Integer, ForeignKey("users.id"), nullable=False),
+    Column("step_id",      String(64), nullable=False),
+    Column("completed_at", String(64), nullable=False),
+    UniqueConstraint("user_id", "step_id", name="uq_onboarding_user_step"),
+)
+
+
 def _migrate_users_table() -> None:
     """
     metadata.create_all() only creates tables that don't exist yet -- it

@@ -96,11 +96,12 @@ pg = st.navigation(
         # ── Account ──────────────────────────────────────────────────────────
         # About absorbs Model Validation (tab). Export lives inside TDD.
         "Account": [
-            st.Page("pages/32_Profile.py",     title="My Profile"),
-            st.Page("pages/9_AI_Assistant.py", title="AI Research Assistant"),
-            st.Page("pages/8_About.py",        title="About & Methodology"),
-            st.Page("pages/37_Legal.py",       title="Privacy & Terms"),
-            st.Page("pages/38_Admin.py",       title="Admin"),
+            st.Page("pages/32_Profile.py",          title="My Profile"),
+            st.Page("pages/9_AI_Assistant.py",      title="AI Research Assistant"),
+            st.Page("pages/8_About.py",             title="About & Methodology"),
+            st.Page("pages/39_How_Signals_Work.py", title="How Signals Work"),
+            st.Page("pages/37_Legal.py",            title="Privacy & Terms"),
+            st.Page("pages/38_Admin.py",            title="Admin"),
         ],
     },
     position="sidebar",
