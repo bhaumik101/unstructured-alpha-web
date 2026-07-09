@@ -14,9 +14,11 @@ from utils.config import CATEGORIES, SIGNALS, TICKERS
 from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_synthetic_data_banner, render_footer
 from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
+from utils.analysis import compute_signal_confidence
 from utils.theme import (
     inject_skeleton_css, skeleton_cards, source_badge, inject_premium_css,
     PLOTLY_CONFIG, render_disclaimer, render_signal_legend, render_data_freshness,
+    signal_confidence_badge,
 )
 
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
@@ -516,26 +518,48 @@ with tab_signals:
             with col:
                 try:
                     if mode == "Simple":
-                        # ── SIMPLE card: big status + plain English ──────────────
+                        # ── SIMPLE card: big status + plain English + confidence ──
                         _dev_abs   = abs(dev) if dev == dev else 0.0   # guard NaN
                         _lbl_text  = lbl.split(" ", 1)[-1] if " " in lbl else lbl
                         _cat_icon  = cat.get("icon", "")
                         _cat_name  = cat.get("name", "")
                         _sig_name  = cfg["name"][:44]
 
+                        # Compute confidence level from z-score, momentum, PCS
+                        _conf = compute_signal_confidence(sv, pcs=sv.get("pcs"))
+                        _conf_badge = signal_confidence_badge(_conf["level"])
+
+                        # Better "what this means" note — uses signal description
+                        # if available, otherwise falls back to deviation phrasing
+                        _sig_desc = cfg.get("description", "")
                         if status == "bullish":
-                            _bottom_note = f"Running <b>{_dev_abs:.0f}% above</b> its 52-week average — positive signal."
+                            if _sig_desc:
+                                _bottom_note = (
+                                    f"<b>Bullish:</b> {_sig_desc[:120].rstrip('.')}. "
+                                    f"Currently <b>{_dev_abs:.0f}% above</b> its 52-week average."
+                                )
+                            else:
+                                _bottom_note = f"Running <b>{_dev_abs:.0f}% above</b> its 52-week average — positive signal."
                         elif status == "bearish":
-                            _bottom_note = f"Running <b>{_dev_abs:.0f}% below</b> its 52-week average — negative signal."
+                            if _sig_desc:
+                                _bottom_note = (
+                                    f"<b>Bearish:</b> {_sig_desc[:120].rstrip('.')}. "
+                                    f"Currently <b>{_dev_abs:.0f}% below</b> its 52-week average."
+                                )
+                            else:
+                                _bottom_note = f"Running <b>{_dev_abs:.0f}% below</b> its 52-week average — negative signal."
                         elif status == "insufficient_data":
                             _bottom_note = "Not enough data yet — check back as more history accumulates."
                         else:
-                            _bottom_note = "Within normal range — no clear directional edge right now."
+                            _bottom_note = (
+                                (f"{_sig_desc[:100].rstrip('.')}. " if _sig_desc else "")
+                                + "Within normal range — no clear directional edge right now."
+                            )
 
                         _lag_weeks = cfg.get("lag_weeks", 0)
                         _lag_html  = (
                             f"<br><span style='color:#6B7FBF;font-size:0.70rem;'>"
-                            f"~{_lag_weeks}w lead time</span>"
+                            f"~{_lag_weeks}w lead time to price</span>"
                             if _lag_weeks > 0 else ""
                         )
 
@@ -567,8 +591,12 @@ with tab_signals:
                             f'border:1px solid rgba({_bc_r},{_bc_g},{_bc_b},0.25);'
                             f'border-radius:6px;padding:2px 8px;white-space:nowrap;'
                             f'letter-spacing:0.02em;">{sym} {_lbl_text}</div>'
+                            f'<div style="display:flex;align-items:center;justify-content:flex-end;'
+                            f'gap:4px;margin-top:4px;">'
                             f'<div style="font-size:0.64rem;color:{border};opacity:0.80;'
-                            f'margin-top:3px;font-weight:600;letter-spacing:0.02em;">{score:.0f}/100</div>'
+                            f'font-weight:600;letter-spacing:0.02em;">{score:.0f}/100</div>'
+                            f'{_conf_badge}'
+                            f'</div>'
                             f'</div>'
                             f'</div>'
                             f'<div style="font-size:0.77rem;color:#B8C0D4;line-height:1.55;margin-bottom:8px;">'

@@ -384,6 +384,109 @@ def score_signal(signal: pd.Series, inverse: bool = False) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# SIGNAL CONFIDENCE
+# ─────────────────────────────────────────────────────────────────────────────
+
+def compute_signal_confidence(
+    score_result: dict,
+    pcs: Optional[int] = None,
+) -> dict:
+    """
+    Derive a human-readable confidence level from a score_signal() result.
+
+    Confidence measures *how strongly* the signal is speaking — independent of
+    direction. A High-confidence bearish signal is a clearer read than a
+    Low-confidence bullish one.
+
+    Factors considered:
+      - |z_score|      : how far the current reading is from its 52w mean.
+                         ≥ 1.5σ = meaningful deviation; ≥ 2.5σ = extreme.
+      - trend alignment: does the 4-week momentum agree with the status?
+                         Disagreement (e.g. bullish status but falling momentum)
+                         reduces confidence.
+      - pcs (1–10)     : backtested Predictive Confidence Score from lag scan.
+                         Higher PCS means the signal has historically led price.
+
+    Returns:
+        {
+          "level":  "High" | "Medium" | "Low",
+          "icon":   str,               # ◆ ◇ ○
+          "color":  str,               # hex for the badge
+          "note":   str,               # one plain-English sentence
+        }
+    """
+    if score_result.get("status") == "insufficient_data":
+        return {
+            "level": "Low",
+            "icon":  "○",
+            "color": "#6B7FBF",
+            "note":  "Not enough data history to score with confidence.",
+        }
+
+    z         = abs(score_result.get("z_score", 0.0))
+    status    = score_result.get("status", "neutral")
+    trend     = score_result.get("trend_4w_pct", 0.0)
+    pcs_score = pcs if pcs is not None else 5   # default to mid if unknown
+
+    # Trend alignment: does recent momentum agree with the signal direction?
+    trend_agrees = (
+        (status == "bullish" and trend > 0)
+        or (status == "bearish" and trend < 0)
+        or (status == "neutral")
+    )
+
+    # Score the three inputs: z, alignment, pcs
+    z_strong    = z >= 2.0
+    z_moderate  = z >= 1.0
+    pcs_strong  = pcs_score >= 7
+    pcs_moderate = pcs_score >= 4
+
+    if z_strong and trend_agrees and pcs_strong:
+        level = "High"
+        icon  = "◆"
+        color = "#00D566"
+        note  = (
+            f"Strong read — {z:.1f}σ from 52w mean, "
+            f"momentum aligns, historically predictive (PCS {pcs_score}/10)."
+        )
+    elif z_strong and trend_agrees:
+        level = "High"
+        icon  = "◆"
+        color = "#00D566"
+        note  = (
+            f"Strong deviation ({z:.1f}σ) with confirming momentum — "
+            f"PCS {pcs_score}/10."
+        )
+    elif z_moderate and (pcs_moderate or trend_agrees):
+        level = "Medium"
+        icon  = "◇"
+        color = "#F59E0B"
+        note  = (
+            f"Moderate read — {z:.1f}σ from 52w mean"
+            + (", momentum aligns" if trend_agrees else ", but momentum is mixed")
+            + f". PCS {pcs_score}/10."
+        )
+    elif z_moderate:
+        level = "Medium"
+        icon  = "◇"
+        color = "#F59E0B"
+        note  = (
+            f"{z:.1f}σ deviation but momentum is counter-trend — "
+            f"read with caution. PCS {pcs_score}/10."
+        )
+    else:
+        level = "Low"
+        icon  = "○"
+        color = "#6B7FBF"
+        note  = (
+            f"Within normal range ({z:.1f}σ) — "
+            f"no clear directional edge right now. PCS {pcs_score}/10."
+        )
+
+    return {"level": level, "icon": icon, "color": color, "note": note}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # COT POSITIONING SCORE
 # ─────────────────────────────────────────────────────────────────────────────
 

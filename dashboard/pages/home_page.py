@@ -397,6 +397,63 @@ except Exception:
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# ── ANONYMOUS "START HERE" GUIDE ─────────────────────────────────────────────
+# Shown to visitors with no account — gives them an immediate orientation so
+# they don't bounce because they don't know where to click first.
+# Logged-in users get the full personalized onboarding checklist below instead.
+_anon_user = not st.session_state.get("user")
+if _anon_user:
+    st.markdown("""
+<div style="background:rgba(18,21,30,0.72);border:1px solid rgba(255,255,255,0.09);
+     border-radius:16px;padding:24px 28px;margin-bottom:32px;font-family:Inter,sans-serif;
+     backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);">
+  <div style="font-size:0.62rem;font-weight:700;letter-spacing:0.14em;color:#6B7FBF;
+              text-transform:uppercase;margin-bottom:14px;">Where to start → 3 steps</div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;">
+
+    <div style="flex:1;min-width:200px;background:rgba(0,213,102,0.06);
+                border:1px solid rgba(0,213,102,0.18);border-radius:12px;padding:16px 18px;">
+      <div style="font-size:1.3rem;margin-bottom:8px;">📋</div>
+      <div style="font-size:0.84rem;font-weight:700;color:#E8EEFF;margin-bottom:5px;">
+        1 · Read Today's Brief
+      </div>
+      <div style="font-size:0.76rem;color:#8892AA;line-height:1.55;margin-bottom:10px;">
+        One page. What the macro machine sees right now — which signals flipped,
+        what the regime is, and what to watch.
+      </div>
+      <div style="font-size:0.70rem;color:#00D566;font-weight:600;">→ Free · No account needed</div>
+    </div>
+
+    <div style="flex:1;min-width:200px;background:rgba(124,58,237,0.06);
+                border:1px solid rgba(124,58,237,0.20);border-radius:12px;padding:16px 18px;">
+      <div style="font-size:1.3rem;margin-bottom:8px;">📡</div>
+      <div style="font-size:0.84rem;font-weight:700;color:#E8EEFF;margin-bottom:5px;">
+        2 · Browse the Signal Dashboard
+      </div>
+      <div style="font-size:0.76rem;color:#8892AA;line-height:1.55;margin-bottom:10px;">
+        See all 43 macro signals sorted by strength. Filter by category.
+        Each card explains what the signal means in plain English.
+      </div>
+      <div style="font-size:0.70rem;color:#A78BFA;font-weight:600;">→ Free · Signals update every 2 hours</div>
+    </div>
+
+    <div style="flex:1;min-width:200px;background:rgba(0,200,224,0.06);
+                border:1px solid rgba(0,200,224,0.20);border-radius:12px;padding:16px 18px;">
+      <div style="font-size:1.3rem;margin-bottom:8px;">🔍</div>
+      <div style="font-size:0.84rem;font-weight:700;color:#E8EEFF;margin-bottom:5px;">
+        3 · Look up a stock you own
+      </div>
+      <div style="font-size:0.76rem;color:#8892AA;line-height:1.55;margin-bottom:10px;">
+        Enter any ticker in Ticker Deep Dive — see which of the 43 signals
+        historically move that stock, and what the confluence score is today.
+      </div>
+      <div style="font-size:0.70rem;color:#00C8E0;font-weight:600;">→ Free · AAPL, NVDA, XOM and 200+ tickers</div>
+    </div>
+
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 # ── PERSONALIZATION — new user onboarding / return user "what changed" ────────
 try:
     from utils.analytics import track, Event

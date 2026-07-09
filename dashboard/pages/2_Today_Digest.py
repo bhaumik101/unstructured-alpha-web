@@ -151,24 +151,28 @@ with tab_today:
     # ── Section 1: Signal Pulse ───────────────────────────────────────────────────
 
     st.markdown(section_label("Signal Pulse", dot="#00D566"), unsafe_allow_html=True)
-    st.markdown(
-        render_educational_callout(
-            title="How to read these signals",
-            body=(
-                "Each signal is a 0–100 score derived from public macro data (FRED, EIA, SEC EDGAR). "
-                "A score ≥ 65 means the indicator is historically elevated in a direction that has "
-                "preceded strength in related assets. A score ≤ 35 indicates the opposite. "
-                "Scores between 36–64 are neutral — no strong tilt. "
-                "<strong>These are informational indicators, not buy/sell signals.</strong>"
-            ),
-            icon="📊",
-            accent="#00C8E0",
-        ),
-        unsafe_allow_html=True,
-    )
-    st.markdown(render_signal_legend(), unsafe_allow_html=True)
 
-    with st.spinner("Loading signal pulse (38 signals — cached 2 hours)…"):
+    # Educational callout collapsed by default — returning users don't need it
+    # taking up screen space every visit. New users can expand it.
+    with st.expander("ℹ️ How to read these signals", expanded=False):
+        st.markdown(
+            render_educational_callout(
+                title="How to read these signals",
+                body=(
+                    "Each signal is a 0–100 score derived from public macro data (FRED, EIA, SEC EDGAR). "
+                    "A score ≥ 65 means the indicator is historically elevated in a direction that has "
+                    "preceded strength in related assets. A score ≤ 35 indicates the opposite. "
+                    "Scores between 36–64 are neutral — no strong tilt. "
+                    "<strong>These are informational indicators, not buy/sell signals.</strong>"
+                ),
+                icon="📊",
+                accent="#00C8E0",
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(render_signal_legend(), unsafe_allow_html=True)
+
+    with st.spinner("Loading signal pulse (cached 2 hours)…"):
         _all_scores = get_all_signal_scores()
 
     # "as of" reflects when this page rendered, which is close enough — the data
@@ -275,14 +279,19 @@ with tab_today:
             _mover_section = (f'<div {_diff_lbl_move}>Biggest score movers</div>' + _mover_pills) if _mover_pills else ""
             _flip_word     = "signals" if _d_flip_total != 1 else "signal"
             st.markdown(
-                f'<div style="background:#12151E;border-radius:8px;padding:14px 18px;'
-                f'margin-bottom:18px;border:1px solid rgba(255,255,255,0.08);font-family:Inter,sans-serif;">'
-                f'<div style="font-size:0.68rem;font-weight:700;letter-spacing:0.10em;color:#8892AA;'
-                f'text-transform:uppercase;margin-bottom:8px;">WHAT CHANGED SINCE LAST WEEK</div>'
+                f'<div style="background:rgba(18,21,30,0.85);border-radius:12px;padding:18px 22px;'
+                f'margin-bottom:18px;border:1px solid rgba(255,255,255,0.10);'
+                f'border-left:4px solid #F59E0B;font-family:Inter,sans-serif;'
+                f'box-shadow:0 4px 20px rgba(0,0,0,0.30);">'
+                f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">'
+                f'<span style="font-size:1.1rem;">⚡</span>'
+                f'<div style="font-size:0.70rem;font-weight:700;letter-spacing:0.12em;color:#F59E0B;'
+                f'text-transform:uppercase;">What Changed Since Last Week</div>'
+                f'<div style="margin-left:auto;font-size:0.62rem;color:#6B7FBF;">'
+                f'{_d_flip_total} {_flip_word} flipped · vs 7 days ago</div>'
+                f'</div>'
                 f'{_regime_shift_html}'
                 f'{_bull_section}{_bear_section}{_mover_section}'
-                f'<div style="font-size:0.65rem;color:#6B7FBF;margin-top:8px;">'
-                f'vs 7 days ago · {_d_flip_total} {_flip_word} flipped direction</div>'
                 f'</div>',
                 unsafe_allow_html=True,
             )

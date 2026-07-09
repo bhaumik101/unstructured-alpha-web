@@ -1645,6 +1645,71 @@ def regime_pill(regime: str, score: float | None = None) -> str:
     )
 
 
+def signal_confidence_badge(level: str, compact: bool = False) -> str:
+    """
+    Render a small inline HTML badge showing signal confidence level.
+
+    Args:
+        level:   "High" | "Medium" | "Low"
+        compact: if True, show icon only (no text label) — for tight card layouts
+
+    Returns an HTML string. Inline-safe (no block elements).
+
+    Usage::
+        st.markdown(signal_confidence_badge("High"), unsafe_allow_html=True)
+    """
+    _cfg = {
+        "High":   {"icon": "◆", "color": "#00D566", "bg": "rgba(0,213,102,0.10)",
+                   "border": "rgba(0,213,102,0.28)", "label": "High confidence"},
+        "Medium": {"icon": "◇", "color": "#F59E0B", "bg": "rgba(245,158,11,0.10)",
+                   "border": "rgba(245,158,11,0.28)", "label": "Med confidence"},
+        "Low":    {"icon": "○", "color": "#6B7FBF", "bg": "rgba(107,127,191,0.10)",
+                   "border": "rgba(107,127,191,0.25)", "label": "Low confidence"},
+    }
+    c = _cfg.get(level, _cfg["Low"])
+    text = c["icon"] if compact else f'{c["icon"]} {c["label"]}'
+    return (
+        f'<span title="Signal confidence: {level}" '
+        f'style="display:inline-block;font-size:0.62rem;font-weight:700;'
+        f'letter-spacing:0.04em;color:{c["color"]};background:{c["bg"]};'
+        f'border:1px solid {c["border"]};border-radius:4px;padding:1px 6px;'
+        f'font-family:Inter,sans-serif;white-space:nowrap;">'
+        f'{text}</span>'
+    )
+
+
+def chart_insight_caption(text: str, icon: str = "💡", muted: bool = False) -> str:
+    """
+    Render a styled insight caption intended to appear directly below a Plotly chart.
+
+    Provides the user with a plain-English take on what the chart is showing —
+    the "so what" layer that raw data alone doesn't communicate.
+
+    Args:
+        text:  The caption text (one or two sentences max).
+        icon:  Emoji icon shown at the start (default 💡).
+        muted: If True, use a more subdued style (for secondary charts).
+
+    Returns an HTML string.
+
+    Usage::
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown(chart_insight_caption("HY spreads are narrowing — risk appetite is
+                    improving across credit markets."), unsafe_allow_html=True)
+    """
+    color   = "#8892AA" if muted else "#B8C0D4"
+    bg      = "rgba(18,21,30,0.0)" if muted else "rgba(18,21,30,0.55)"
+    border  = "rgba(255,255,255,0.04)" if muted else "rgba(255,255,255,0.07)"
+    return (
+        f'<div style="background:{bg};border:1px solid {border};border-radius:8px;'
+        f'padding:9px 14px;margin-top:-4px;margin-bottom:12px;'
+        f'font-family:Inter,sans-serif;display:flex;align-items:flex-start;gap:8px;">'
+        f'<span style="font-size:0.85rem;flex-shrink:0;margin-top:1px;">{icon}</span>'
+        f'<span style="font-size:0.78rem;color:{color};line-height:1.55;">{text}</span>'
+        f'</div>'
+    )
+
+
 def progress_ring(pct: float, size: int = 48, stroke: int = 4,
                   color: str = "#00D566", label: str = "") -> str:
     """
