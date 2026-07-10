@@ -407,7 +407,7 @@ services:
     plan: starter
     rootDir: dashboard
     buildCommand: pip install -r requirements.txt
-    startCommand: python seo_entry.py
+    startCommand: "sh -c 'PYTHONPATH=/opt/render/project/src/dashboard python -m uvicorn seo.main:app --host 0.0.0.0 --port $PORT'"
     envVars:
       - key: DATABASE_URL
         sync: false
