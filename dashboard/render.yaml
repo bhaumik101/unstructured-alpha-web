@@ -407,7 +407,7 @@ services:
     plan: starter
     rootDir: dashboard
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m uvicorn seo.main:app --host 0.0.0.0 --port $PORT
+    startCommand: python seo_entry.py
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -419,9 +419,3 @@ services:
         value: "https://seo.unstructuredalpha.com"
       - key: APP_URL
         value: "https://unstructuredalpha.com"
-      # Required: ensures seo/ is importable from Python. rootDir=dashboard sets CWD
-      # to /opt/render/project/src/dashboard, but spawned uvicorn worker processes
-      # (Python 3.14 spawn mode) don't inherit sys.path — PYTHONPATH is an OS env var
-      # that IS inherited by all subprocesses, so this fixes the import unconditionally.
-      - key: PYTHONPATH
-        value: "/opt/render/project/src/dashboard"
