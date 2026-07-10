@@ -407,7 +407,7 @@ services:
     plan: starter
     rootDir: dashboard
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn seo.main:app --host 0.0.0.0 --port $PORT --workers 2
+    startCommand: python -m uvicorn seo.main:app --host 0.0.0.0 --port $PORT --workers 2
     envVars:
       - key: DATABASE_URL
         sync: false
