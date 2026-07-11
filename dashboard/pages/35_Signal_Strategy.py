@@ -19,7 +19,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from utils.header import render_header
-from utils.theme import inject_all_css
+from utils.theme import inject_all_css, PLOTLY_CONFIG
 
 st.set_page_config(page_title="Signal Strategy | Unstructured Alpha", layout="wide")
 inject_all_css()
@@ -223,7 +223,7 @@ fig.update_yaxes(title_text="Value ($)", row=1, col=1)
 fig.update_yaxes(title_text="Score (0–100)", row=2, col=1, range=[0, 100])
 fig.update_yaxes(title_text="Exposure (%)", row=3, col=1, range=[0, 110])
 
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
 
 # ── Individual signal scores ──────────────────────────────────────────────────
 st.markdown("### Individual Signal Scores")

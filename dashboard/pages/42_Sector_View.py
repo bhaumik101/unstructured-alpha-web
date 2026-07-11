@@ -7,7 +7,7 @@ import streamlit as st
 st.set_page_config(page_title="Sector View — UA", layout="wide")
 
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import inject_premium_css, source_badge
+from utils.theme import inject_premium_css, source_badge, PLOTLY_CONFIG
 
 render_header("Sector View")
 render_sidebar_base()
@@ -122,7 +122,7 @@ with tab_sector:
             yaxis=dict(range=[0,100], showgrid=True, gridcolor="rgba(255,255,255,0.06)", color="#4A5568"),
             margin=dict(t=10, b=60, l=50, r=20), height=260,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
         source_badge("FRED · EIA · SEC EDGAR")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -176,7 +176,7 @@ with tab_heatmap:
             paper_bgcolor="rgba(0,0,0,0)", font=dict(color="#E8EEFF", family="Inter", size=11),
             margin=dict(t=10, b=10, l=0, r=0), height=480,
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True, config=PLOTLY_CONFIG)
         st.caption("Color = Confluence Score. Green ≥65 bullish · Red ≤35 bearish. Scores via macro signal cache (fast, no price fetch).")
         source_badge("FRED · EIA · UA Signals Cache")
 
@@ -245,7 +245,7 @@ with tab_supply:
         xaxis=dict(visible=False), yaxis=dict(visible=False),
         margin=dict(t=20, b=20, l=20, r=20), height=420,
     )
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(fig3, use_container_width=True, config=PLOTLY_CONFIG)
 
     st.markdown("#### Supply Chain Signal Scores")
     with st.spinner("Loading supply chain signals…"):

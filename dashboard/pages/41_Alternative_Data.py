@@ -8,7 +8,7 @@ import streamlit as st
 st.set_page_config(page_title="Alternative Data — UA", layout="wide")
 
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import inject_premium_css
+from utils.theme import inject_premium_css, PLOTLY_CONFIG
 
 render_header("Alternative Data")
 render_sidebar_base()
@@ -148,7 +148,7 @@ with tab_congress:
                 yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.06)", color="#4A5568"),
                 margin=dict(t=40, b=40, l=40, r=20), height=280,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
     else:
         st.info("No trades found for the selected filters.")
 

@@ -27,7 +27,7 @@ from sqlalchemy import select, func, text
 
 from utils.header import render_header, render_page_header, render_sidebar_base
 from utils.db import engine, users, referrals, watchlist
-from utils.theme import inject_premium_css
+from utils.theme import inject_premium_css, PLOTLY_CONFIG
 
 ADMIN_EMAIL = "bpgiri2005@gmail.com"
 
@@ -238,7 +238,7 @@ if m["total"] > 0:
         margin={"t": 20, "b": 20, "l": 0, "r": 0},
         height=280,
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
 else:
     st.info("No users yet — funnel will appear once signups arrive.")
 
@@ -269,7 +269,7 @@ if m["daily_counts"]:
         margin={"t": 10, "b": 40, "l": 40, "r": 10},
         height=240,
     )
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, use_container_width=True, config=PLOTLY_CONFIG)
 else:
     st.info("No signups in the last 30 days.")
 

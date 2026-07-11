@@ -29,7 +29,7 @@ from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from utils.header import render_header, render_sidebar_base, render_page_header, render_footer
-from utils.theme import inject_premium_css, source_badge
+from utils.theme import inject_premium_css, source_badge, PLOTLY_CONFIG
 from utils.config import SIGNALS, TICKERS
 from utils.billing import require_pro
 from utils.conviction import get_signal_alignment
@@ -574,7 +574,7 @@ else:
             margin=dict(t=20, b=80, l=50, r=20),
             height=280,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
 
     st.dataframe(
         tr_df[[c for c in ["Ticker", "Call Date", "Score", "Direction",
@@ -643,6 +643,6 @@ if all_rows:
                    color="#4A5568", title="# Tickers"),
         margin=dict(t=20, b=40, l=50, r=20), height=250, bargap=0.08,
     )
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig2, use_container_width=True, config=PLOTLY_CONFIG)
 
 render_footer()

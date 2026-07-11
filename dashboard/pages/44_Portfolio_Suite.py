@@ -9,7 +9,7 @@ import streamlit as st
 st.set_page_config(page_title="Portfolio Suite — UA", layout="wide")
 
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import inject_premium_css
+from utils.theme import inject_premium_css, PLOTLY_CONFIG
 from utils.billing import require_pro
 
 render_header("Portfolio Suite")
@@ -209,7 +209,7 @@ with tab_bt:
                 legend=dict(bgcolor="rgba(0,0,0,0)", borderwidth=0),
                 margin=dict(t=20, b=40, l=50, r=20), height=300,
             )
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
 
             if result["contributions"]:
                 import pandas as pd
@@ -412,7 +412,7 @@ with tab_sigbt:
                                            color="#4A5568", range=[0,100]),
                                 margin=dict(t=20, b=40, l=50, r=20), height=250,
                             )
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, use_container_width=True, config=PLOTLY_CONFIG)
                             st.caption("Accuracy = % of times the combined score ≥ threshold was followed by positive price return 4 weeks later.")
             except Exception as e:
                 st.error(f"Error running backtest: {e}")
@@ -572,6 +572,6 @@ with tab_basket:
                        range=[0,100], title="Score"),
             margin=dict(t=10, b=40, l=50, r=20), height=220,
         )
-        st.plotly_chart(fig_bk, use_container_width=True)
+        st.plotly_chart(fig_bk, use_container_width=True, config=PLOTLY_CONFIG)
     else:
         st.info("Select a theme or pick custom tickers above.")
