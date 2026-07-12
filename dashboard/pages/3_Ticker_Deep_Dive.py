@@ -56,7 +56,7 @@ from utils.analysis import (
 from utils.ticker_score import compute_full_ticker_score, resolve_ticker_meta
 from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, ticker_chips, ticker_label, render_synthetic_data_banner, render_footer
 from utils.analysis import compute_signal_confidence
-from utils.theme import confluence_gauge_svg, style_area_chart, source_badge, inject_premium_css, inject_skeleton_css, section_label, PLOTLY_CONFIG, PLOTLY_CONFIG_INTERACTIVE, render_disclaimer, render_educational_callout, signal_confidence_badge, chart_insight_caption
+from utils.theme import confluence_gauge_svg, style_area_chart, source_badge, inject_all_css, section_label, PLOTLY_CONFIG, PLOTLY_CONFIG_INTERACTIVE, render_disclaimer, render_educational_callout, signal_confidence_badge, chart_insight_caption
 from utils.card_generator import generate_signal_card
 from utils.audit_ui import render_evidence_expander
 from utils.lead_time_research import (
@@ -70,8 +70,7 @@ from utils.score_history import record_score_snapshot, get_score_history, comput
 st.set_page_config(page_title="Ticker Deep Dive — UA", layout="wide")
 render_header("Ticker Deep Dive")
 render_sidebar_base()
-inject_premium_css()
-inject_skeleton_css()
+inject_all_css()
 
 render_page_header(
     "Ticker Deep Dive",

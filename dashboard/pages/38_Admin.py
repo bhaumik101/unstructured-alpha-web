@@ -58,7 +58,7 @@ def _iso(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%dT%H:%M:%S")
 
 
-@st.cache_data(ttl=60)  # refresh every minute
+@st.cache_data(ttl=60, max_entries=1, show_spinner=False)  # refresh every minute
 def load_metrics() -> dict:
     """Pull all admin metrics in one DB trip bundle. Returns a flat dict."""
     now = _now_utc()

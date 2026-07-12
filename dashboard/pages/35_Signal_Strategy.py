@@ -72,7 +72,7 @@ This is not investment advice.
 """, unsafe_allow_html=True)
 
 # ── Run backtest (cached) ─────────────────────────────────────────────────────
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=50)
 def _run(start_year: int, long_t: float, reduce_t: float, reduce_w: float) -> dict:
     from utils.strategy import run_backtest
     return run_backtest(

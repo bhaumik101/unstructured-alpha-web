@@ -1233,8 +1233,12 @@ def render_header(page_subtitle: str = "") -> None:
                        (e.g. "Signal Dashboard", "Market Overview").
     """
     from datetime import datetime
+    from utils.theme import _MODERN_UI_CSS  # deferred to avoid circular import at module level
 
     st.markdown(_CSS, unsafe_allow_html=True)
+    # Inject modern UI system (pill tabs, glass buttons, metrics, etc.) globally
+    # so every page that calls render_header() gets it automatically.
+    st.markdown(_MODERN_UI_CSS, unsafe_allow_html=True)
 
     # ── OpenGraph / social meta tags (JS injection) ────────────────────────────
     # Reddit's link scraper is server-side and won't execute this JS, but
