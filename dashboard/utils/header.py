@@ -1381,6 +1381,7 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
       <div class="ua-tnav-drop">
         <a href="/signal-dashboard">Signal Dashboard</a>
         <a href="/sector-view">Sector View</a>
+        <a href="/model-validation">Model Validation</a>
       </div>
     </div>
 

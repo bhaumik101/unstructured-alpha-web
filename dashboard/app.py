@@ -77,6 +77,7 @@ pg = st.navigation(
         "Signals": [
             st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard"),
             st.Page("pages/42_Sector_View.py",       title="Sector View"),
+            st.Page("pages/11_Model_Validation.py",  title="Model Validation", url_path="model-validation"),
         ],
         # ── Research (free) ──────────────────────────────────────────────────
         # Track Record absorbs Earnings Track Record (tab) + Signal Call Log.
