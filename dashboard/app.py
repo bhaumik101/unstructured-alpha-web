@@ -59,47 +59,55 @@ pg = st.navigation(
         # every link 404s / bounces to Home — which is exactly what happened once
         # the top-nav became clickable. These slugs are the contract between the
         # nav and the router; keep them in sync with header.py.
+        # Consolidated 5-section IA (2026-07-13). Grouping mirrors the visible
+        # top-nav in utils/header.py. EVERY page stays registered here (so its
+        # url_path resolves) even if it's no longer a visible top-nav item —
+        # Stock Chart, Signal Strategy and Alternative Data were merged out of
+        # the visible nav but remain reachable by URL / cross-link.
         "": [
             st.Page("pages/home_page.py",      title="Home",             default=True),
             st.Page("pages/29_Upgrade.py",     title="⚡ Upgrade to Pro", url_path="upgrade-to-pro"),
         ],
-        # ── Watchlist ────────────────────────────────────────────────────────
-        "Watchlist": [
-            st.Page("pages/10_Watchlist.py",   title="My Watchlist", url_path="my-watchlist"),
-            st.Page("pages/14_Stock_Chart.py", title="Stock Chart",  url_path="stock-chart"),
-        ],
-        # ── Daily Intel ──────────────────────────────────────────────────────
-        "Daily Intel": [
+        # ── Today ─────────────────────────────────────────────────────────────
+        "Today": [
             st.Page("pages/2_Today_Digest.py",        title="Today's Brief",       url_path="today-s-brief"),
-            st.Page("pages/41_Alternative_Data.py",   title="Alternative Data",    url_path="alternative-data"),
-            st.Page("pages/43_Events_Forecasts.py",   title="Events & Forecasts",  url_path="events-forecasts"),
         ],
-        # ── Signals ──────────────────────────────────────────────────────────
-        "Signals": [
-            st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard", url_path="signal-dashboard"),
-            st.Page("pages/42_Sector_View.py",       title="Sector View",     url_path="sector-view"),
-            st.Page("pages/11_Model_Validation.py",  title="Model Validation", url_path="model-validation"),
+        # ── Portfolio ─────────────────────────────────────────────────────────
+        "Portfolio": [
+            st.Page("pages/10_Watchlist.py",          title="My Watchlist",        url_path="my-watchlist"),
+            st.Page("pages/44_Portfolio_Suite.py",    title="Portfolio Suite",     url_path="portfolio-suite"),
         ],
-        # ── Research (free) ──────────────────────────────────────────────────
+        # ── Research ──────────────────────────────────────────────────────────
         "Research": [
-            st.Page("pages/3_Ticker_Deep_Dive.py",    title="Ticker Deep Dive",  url_path="ticker-deep-dive"),
-            st.Page("pages/4_Power_Supercycle.py",    title="Power Supercycle",  url_path="power-supercycle"),
-            st.Page("pages/5_Market_Overview.py",     title="Market Overview",   url_path="market-overview"),
-            st.Page("pages/6_Stock_Screener.py",      title="Stock Screener",    url_path="stock-screener"),
-            st.Page("pages/30_Track_Record_Live.py",  title="Track Record",      url_path="track-record"),
-            st.Page("pages/35_Signal_Strategy.py",    title="Signal Strategy",   url_path="signal-strategy"),
+            st.Page("pages/3_Ticker_Deep_Dive.py",    title="Ticker Deep Dive",    url_path="ticker-deep-dive"),
+            st.Page("pages/6_Stock_Screener.py",      title="Stock Screener",      url_path="stock-screener"),
+            st.Page("pages/40_Stock_Recommender.py",  title="Stock Recommender",   url_path="stock-recommender"),
+            # merged out of visible nav (chart context now belongs on the ticker):
+            st.Page("pages/14_Stock_Chart.py",        title="Stock Chart",         url_path="stock-chart"),
         ],
-        # ── Pro Tools ────────────────────────────────────────────────────────
-        "⚡ Pro Tools": [
-            st.Page("pages/40_Stock_Recommender.py", title="Stock Recommender", url_path="stock-recommender"),
-            st.Page("pages/44_Portfolio_Suite.py",   title="Portfolio Suite",   url_path="portfolio-suite"),
+        # ── Signals & Methodology ─────────────────────────────────────────────
+        "Signals & Methodology": [
+            st.Page("pages/1_Signal_Dashboard.py",    title="Signal Dashboard",    url_path="signal-dashboard"),
+            st.Page("pages/42_Sector_View.py",        title="Sector View",         url_path="sector-view"),
+            st.Page("pages/5_Market_Overview.py",     title="Market Overview",     url_path="market-overview"),
+            st.Page("pages/4_Power_Supercycle.py",    title="Power Supercycle",    url_path="power-supercycle"),
+            st.Page("pages/11_Model_Validation.py",   title="Model Validation",    url_path="model-validation"),
+            st.Page("pages/30_Track_Record_Live.py",  title="Track Record",        url_path="track-record"),
+            st.Page("pages/39_How_Signals_Work.py",   title="How Signals Work",    url_path="how-signals-work"),
+            # merged out of visible nav (duplicate of Portfolio Suite's backtester):
+            st.Page("pages/35_Signal_Strategy.py",    title="Signal Strategy",     url_path="signal-strategy"),
         ],
-        # ── Account ──────────────────────────────────────────────────────────
+        # ── Monitoring ────────────────────────────────────────────────────────
+        "Monitoring": [
+            st.Page("pages/43_Events_Forecasts.py",   title="Events & Forecasts",  url_path="events-forecasts"),
+            # merged out of visible nav (external-feed data):
+            st.Page("pages/41_Alternative_Data.py",   title="Alternative Data",    url_path="alternative-data"),
+        ],
+        # ── Account ───────────────────────────────────────────────────────────
         "Account": [
-            st.Page("pages/32_Profile.py",          title="My Profile",          url_path="my-profile"),
             st.Page("pages/9_AI_Assistant.py",      title="AI Research Assistant", url_path="ai-research-assistant"),
+            st.Page("pages/32_Profile.py",          title="My Profile",          url_path="my-profile"),
             st.Page("pages/8_About.py",             title="About & Methodology", url_path="about-methodology"),
-            st.Page("pages/39_How_Signals_Work.py", title="How Signals Work",    url_path="how-signals-work"),
             st.Page("pages/37_Legal.py",            title="Privacy & Terms",     url_path="privacy-terms"),
             st.Page("pages/38_Admin.py",            title="Admin",               url_path="admin"),
         ],

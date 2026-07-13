@@ -1439,15 +1439,30 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
     <span></span><span></span><span></span>
   </label>
 
+  <!-- Consolidated 5-section IA (2026-07-13): Today · Portfolio · Research ·
+       Signals & Methodology · Monitoring, + a demoted More cluster and the
+       pinned Upgrade CTA. Stock Chart, Signal Strategy and Alternative Data were
+       merged out of the visible nav (still URL-reachable; Signal Strategy is
+       duplicated by Portfolio Suite's Signal Backtester tab). Every href here
+       must have a matching url_path in app.py — keep them in sync. -->
   <div class="ua-tnav-links">
     <a class="ua-tnav-item" href="/" data-paths="/,/home">Home</a>
+    <a class="ua-tnav-item" href="/today-s-brief">Today&#39;s Brief</a>
 
     <div class="ua-tnav-group">
-      <span class="ua-tnav-trigger">Daily Intel <span class="ua-tnav-caret">&#9660;</span></span>
+      <span class="ua-tnav-trigger">Portfolio <span class="ua-tnav-caret">&#9660;</span></span>
       <div class="ua-tnav-drop">
-        <a href="/today-s-brief">Today&#39;s Brief</a>
-        <a href="/alternative-data">Alternative Data</a>
-        <a href="/events-forecasts">Events &amp; Forecasts</a>
+        <a href="/my-watchlist">My Watchlist</a>
+        <a class="pro-link" href="/portfolio-suite">Portfolio Suite</a>
+      </div>
+    </div>
+
+    <div class="ua-tnav-group">
+      <span class="ua-tnav-trigger">Research <span class="ua-tnav-caret">&#9660;</span></span>
+      <div class="ua-tnav-drop">
+        <a href="/ticker-deep-dive">Ticker Deep Dive</a>
+        <a href="/stock-screener">Stock Screener</a>
+        <a class="pro-link" href="/stock-recommender">Stock Recommender</a>
       </div>
     </div>
 
@@ -1456,45 +1471,28 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
       <div class="ua-tnav-drop">
         <a href="/signal-dashboard">Signal Dashboard</a>
         <a href="/sector-view">Sector View</a>
-        <a href="/model-validation">Model Validation</a>
-      </div>
-    </div>
-
-    <div class="ua-tnav-group">
-      <span class="ua-tnav-trigger">Research <span class="ua-tnav-caret">&#9660;</span></span>
-      <div class="ua-tnav-drop">
-        <a href="/ticker-deep-dive">Ticker Deep Dive</a>
         <a href="/market-overview">Market Overview</a>
-        <a href="/stock-screener">Stock Screener</a>
         <a href="/power-supercycle">Power Supercycle</a>
+        <a href="/model-validation">Model Validation</a>
         <a href="/track-record">Track Record</a>
-        <a href="/signal-strategy" class="ua-tnav-hide-sm">Signal Strategy</a>
+        <a href="/how-signals-work">How Signals Work</a>
       </div>
     </div>
 
     <div class="ua-tnav-group">
-      <span class="ua-tnav-trigger">Watchlist <span class="ua-tnav-caret">&#9660;</span></span>
+      <span class="ua-tnav-trigger">Monitoring <span class="ua-tnav-caret">&#9660;</span></span>
       <div class="ua-tnav-drop">
-        <a href="/my-watchlist">My Watchlist</a>
-        <a href="/stock-chart">Stock Chart</a>
-      </div>
-    </div>
-
-    <div class="ua-tnav-group">
-      <span class="ua-tnav-trigger" style="color:#A78BFA;">&#9889; Pro <span class="ua-tnav-caret" style="color:#A78BFA;">&#9660;</span></span>
-      <div class="ua-tnav-drop">
-        <a class="pro-link" href="/stock-recommender">Stock Recommender</a>
-        <a class="pro-link" href="/portfolio-suite">Portfolio Suite</a>
+        <a href="/my-watchlist">Watchlist Alerts</a>
+        <a href="/events-forecasts">Events &amp; Forecasts</a>
       </div>
     </div>
 
     <div class="ua-tnav-group ua-tnav-hide-sm">
       <span class="ua-tnav-trigger">More <span class="ua-tnav-caret">&#9660;</span></span>
       <div class="ua-tnav-drop">
-        <a href="/my-profile">My Profile</a>
         <a href="/ai-research-assistant">AI Assistant</a>
+        <a href="/my-profile">My Profile</a>
         <a href="/about-methodology">About &amp; Methodology</a>
-        <a href="/how-signals-work">How Signals Work</a>
         <div class="ua-tnav-drop-rule"></div>
         <a href="/privacy-terms" style="font-size:0.68rem;color:#6B7FBF;">Privacy &amp; Terms</a>
       </div>
