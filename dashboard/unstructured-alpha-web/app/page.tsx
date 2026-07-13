@@ -8,7 +8,7 @@ const APP_URL = "https://app.unstructuredalpha.com";
 
 // Stats: specific, honest, and differentiated
 const STATS = [
-  { value: "43",     label: "Macro signals tracked" },
+  { value: "47",     label: "Macro signals tracked" },
   { value: "7+",     label: "Trusted data sources" },
   { value: "4–16w",  label: "Typical signal lead time" },
   { value: "$0",     label: "To start — no card" },
@@ -40,7 +40,7 @@ const PREVIEW_SIGNALS = [
 const FEATURES = [
   {
     icon: "⚡", title: "Signal Dashboard", accent: "#00d566", pro: false,
-    body: "All 43 macro signals in one view — categorized by macro, credit, energy, sentiment, inflation, and growth. Spot regime shifts before they hit price.",
+    body: "All 47 macro signals in one view — categorized by macro, credit, energy, sentiment, inflation, and growth. Spot regime shifts before they hit price.",
     detail: "Updated every ~2h from FRED, SEC, FINRA, EIA, CBOE.",
   },
   {
@@ -107,7 +107,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What does 'free forever' mean in practice?",
-    a: "The Signal Dashboard (all 43 signals), Today's Brief, and Ticker Deep Dive are free with an account. No time limits, no trial expiry. Pro ($20/mo) adds email alerts, score history, sector percentile rankings, and full digest history. You can stay on free indefinitely.",
+    a: "The Signal Dashboard (all 47 signals), Today's Brief, and Ticker Deep Dive are free with an account. No time limits, no trial expiry. Pro ($20/mo) adds email alerts, score history, sector percentile rankings, and full digest history. You can stay on free indefinitely.",
   },
   {
     q: "Do I need a finance or coding background?",
@@ -120,7 +120,7 @@ const FAQ_ITEMS = [
 ];
 
 const FREE_FEATURES = [
-  "Signal Dashboard — all 43 macro signals",
+  "Signal Dashboard — all 47 macro signals",
   "Today's Brief — daily macro summary",
   "Ticker Deep Dive — Confluence Score + signal breakdown",
   "Market Overview — rates, commodities, sector performance",
@@ -198,7 +198,21 @@ export default function Home() {
 
   // Scroll-reveal: IntersectionObserver watches every [data-reveal] element
   // and adds .revealed once it enters the viewport. Unobserved after first trigger.
+  //
+  // FAIL-SAFE (added after the hero was found frozen invisible in production):
+  // content must NEVER stay hidden. If the browser lacks IntersectionObserver,
+  // reveal everything immediately. And regardless, a short safety timeout reveals
+  // anything still hidden, so a mis-fired observer can't blank the page.
   useEffect(() => {
+    const revealAll = () =>
+      document.querySelectorAll('[data-reveal]:not(.revealed)')
+        .forEach((el) => el.classList.add('revealed'));
+
+    if (typeof IntersectionObserver === 'undefined') {
+      revealAll();
+      return;
+    }
+
     const obs = new IntersectionObserver(
       (entries) =>
         entries.forEach((e) => {
@@ -210,7 +224,12 @@ export default function Home() {
       { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
     );
     document.querySelectorAll('[data-reveal]').forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
+
+    // Safety net: if anything above the fold hasn't revealed shortly after mount
+    // (observer edge cases, layout races), force it visible.
+    const t = setTimeout(revealAll, 1200);
+
+    return () => { obs.disconnect(); clearTimeout(t); };
   }, []);
 
   const proPrice    = annual ? 16 : 20;
@@ -222,15 +241,15 @@ export default function Home() {
 
       {/* ── Ambient background glows (fixed so they don't scroll) ── */}
       <div aria-hidden style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
-        <div aria-hidden style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)",
+        <div aria-hidden className="aurora-1" style={{ position: "absolute", top: -100, left: "50%", transform: "translateX(-50%)",
                                    width: 900, height: 600,
-                                   background: "radial-gradient(ellipse at center, rgba(0,213,102,0.07) 0%, transparent 65%)",
+                                   background: "radial-gradient(ellipse at center, rgba(0,213,102,0.09) 0%, transparent 65%)",
                                    filter: "blur(40px)" }} />
-        <div aria-hidden style={{ position: "absolute", top: 200, right: -100, width: 500, height: 400,
-                                   background: "radial-gradient(ellipse at center, rgba(124,58,237,0.06) 0%, transparent 65%)",
+        <div aria-hidden className="aurora-2" style={{ position: "absolute", top: 200, right: -100, width: 500, height: 400,
+                                   background: "radial-gradient(ellipse at center, rgba(124,58,237,0.08) 0%, transparent 65%)",
                                    filter: "blur(60px)" }} />
-        <div aria-hidden style={{ position: "absolute", bottom: "20%", left: -80, width: 400, height: 300,
-                                   background: "radial-gradient(ellipse at center, rgba(0,200,224,0.05) 0%, transparent 65%)",
+        <div aria-hidden className="aurora-3" style={{ position: "absolute", bottom: "20%", left: -80, width: 400, height: 300,
+                                   background: "radial-gradient(ellipse at center, rgba(0,200,224,0.07) 0%, transparent 65%)",
                                    filter: "blur(60px)" }} />
       </div>
 
@@ -289,31 +308,32 @@ export default function Home() {
 
         {/* Grid overlay — subtle depth layer */}
         <div className="hero-grid" aria-hidden />
+        {/* Scanning sweep — subtle "live terminal" motion */}
+        <div className="hero-scan" aria-hidden />
 
-        {/* Trust pill */}
-        <div data-reveal
-             style={{ display: "inline-flex", alignItems: "center", gap: 7,
+        {/* Trust pill — glass, glowing, with live signal bars */}
+        <div data-reveal className="trust-pill"
+             style={{ display: "inline-flex", alignItems: "center", gap: 10,
                       background: "rgba(0,213,102,0.08)", border: "1px solid rgba(0,213,102,0.25)",
-                      borderRadius: 100, padding: "5px 14px", fontSize: 12, color: T.green,
+                      borderRadius: 100, padding: "6px 16px", fontSize: 12, color: T.green,
                       fontWeight: 600, marginBottom: 28, letterSpacing: "0.04em" }}>
-          <span className="live-dot" />
-          Data from FRED · SEC EDGAR · FINRA · EIA · CBOE
+          <span className="sigbars" aria-hidden>
+            <i /><i /><i /><i /><i /><i />
+          </span>
+          Live from FRED · SEC EDGAR · FINRA · EIA · CBOE
         </div>
 
         <h1 data-reveal data-delay="1"
             className="hero-h1"
-            style={{ fontSize: "clamp(38px, 5.5vw, 64px)", fontWeight: 800,
-                     lineHeight: 1.07, letterSpacing: "-0.04em", marginBottom: 22 }}>
+            style={{ fontSize: "clamp(40px, 6vw, 72px)", fontWeight: 800,
+                     lineHeight: 1.05, letterSpacing: "-0.045em", marginBottom: 22 }}>
           Know what the macro<br />
-          <span style={{ background: "linear-gradient(90deg, #00d566 0%, #00c8e0 60%, #7c3aed 100%)",
-                         WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            is doing to your stocks.
-          </span>
+          <span className="grad">is doing to your stocks.</span>
         </h1>
 
         <p data-reveal data-delay="2"
            style={{ fontSize: 18, color: T.muted, maxWidth: 560, margin: "0 auto 16px", lineHeight: 1.75 }}>
-          43 macro signals — credit spreads, insider flows, energy positioning, Fed indicators —
+          47 macro signals — credit spreads, insider flows, energy positioning, Fed indicators —
           scored daily from public data. Free dashboard for active investors.
         </p>
 
@@ -504,7 +524,7 @@ export default function Home() {
           <div className="grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 20 }}>
             {[
               {
-                n: "01", title: "43 signals scored daily",
+                n: "01", title: "47 signals scored daily",
                 body: "We pull from FRED, SEC EDGAR, FINRA, EIA, and CBOE. Each signal gets a 0–100 percentile score against its trailing 1-year history. A score of 72 means the current reading is more bullish than 72% of the past year's readings — no arbitrary thresholds.",
                 src: "Source: FRED, SEC EDGAR, FINRA, EIA, CBOE",
                 delay: "3",
@@ -850,7 +870,7 @@ export default function Home() {
           <p data-reveal data-delay="1"
              style={{ fontSize: 17, color: T.muted, marginBottom: 40, lineHeight: 1.7,
                       maxWidth: 460, margin: "0 auto 40px" }}>
-            Free to start. No credit card. 43 live signals, updated every ~2 hours,
+            Free to start. No credit card. 47 live signals, updated every ~2 hours,
             from the same public data sources institutional desks use.
           </p>
           <div data-reveal data-delay="2">
@@ -860,7 +880,7 @@ export default function Home() {
               Open the Dashboard — Free →
             </a>
             <div style={{ marginTop: 16, fontSize: 13, color: T.dimmer }}>
-              Free · No card · 43 signals · Updated every ~2h · Cancel Pro anytime
+              Free · No card · 47 signals · Updated every ~2h · Cancel Pro anytime
             </div>
           </div>
 
@@ -935,7 +955,7 @@ export default function Home() {
                 Unstructured Alpha
               </div>
               <div style={{ fontSize: 13, color: T.dimmer, lineHeight: 1.65, marginBottom: 14 }}>
-                Macro signal intelligence for active investors. 43 signals scored daily
+                Macro signal intelligence for active investors. 47 signals scored daily
                 from FRED, SEC EDGAR, FINRA, EIA, and CBOE.
               </div>
               <div style={{ fontSize: 11, color: T.dimmer }}>
