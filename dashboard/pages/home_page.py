@@ -1059,12 +1059,13 @@ st.markdown("""
 st.markdown("""
 <div style="font-size:1.1rem;font-weight:800;color:#E8EEFF;text-align:center;
             margin:32px 0 6px;font-family:Inter,sans-serif;letter-spacing:-0.3px;">
-    The signals called it before price did.
+    When these patterns showed up in past cycles
 </div>
 <div style="font-size:0.80rem;color:#8892AA;text-align:center;margin-bottom:20px;
-            font-family:Inter,sans-serif;">
-    Historical cases where the same macro patterns tracked live today appeared
-    weeks before major price moves.
+            font-family:Inter,sans-serif;max-width:620px;margin-left:auto;margin-right:auto;line-height:1.6;">
+    A few illustrative cases where similar readings preceded notable moves.
+    These are selected examples for context — not a track record, and not evidence
+    the signals predict returns. Past patterns don't repeat reliably.
 </div>
 """, unsafe_allow_html=True)
 
@@ -1075,14 +1076,14 @@ _PROOFS = [
         "signal": "HY Credit Spreads",
         "what": "ICE BofA OAS widened 60+ bps in 6 weeks — spread signal turned bearish Jan 4.",
         "outcome": "QQQ fell 32.6% by May. Nasdaq growth stocks down 40–70%.",
-        "timing": "6 weeks early",
+        "timing": "~6 weeks before",
     },
     {
         "icon": "📈", "date": "March 18–25, 2020", "color": "#00D566",
         "signal": "Insider Buying Cluster",
         "what": "Surge in Form 4 insider buys across 40+ companies in the same week.",
-        "outcome": "Exact COVID market bottom. S&P 500 +47% over the following 6 months.",
-        "timing": "At the exact low",
+        "outcome": "Preceded the March 2020 low. S&P 500 +47% over the following 6 months.",
+        "timing": "near the low",
     },
     {
         "icon": "⚡", "date": "June–July 2023", "color": "#F59E0B",

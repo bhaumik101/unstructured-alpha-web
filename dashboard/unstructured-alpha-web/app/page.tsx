@@ -99,7 +99,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "How is this different from a Bloomberg Terminal?",
-    a: "Bloomberg costs ~$27,000/year, requires institutional onboarding, and is designed for professional desks. Unstructured Alpha is $20/month, designed for individual active investors, and focuses specifically on the macro signal layer — not on real-time prices or news. Different audience, different purpose.",
+    a: "Different problem entirely. A terminal is built for professional desks that need real-time prices, news, and execution. Unstructured Alpha isn't competing with that — the real alternative is tracking the macro backdrop yourself across FRED, SEC EDGAR, FINRA, EIA and CBOE in a dozen tabs and a spreadsheet. We aggregate those public sources, score them against their own history, and explain what they mean for the stocks you hold. It's the interpretation layer, at $20/month.",
   },
   {
     q: "What is the Confluence Score and is it predictive?",
@@ -337,10 +337,10 @@ export default function Home() {
           scored daily from public data. Free dashboard for active investors.
         </p>
 
-        {/* Objection-killer subline */}
+        {/* Positioning subline — lead with what it is; compliance stays secondary */}
         <p data-reveal data-delay="3"
            style={{ fontSize: 14, color: T.dimmer, marginBottom: 44 }}>
-          Not financial advice. No trade signals. No guaranteed returns. Just context.
+          Macro context for the stocks you already hold — educational intelligence, not personalized advice.
         </p>
 
         {/* CTA row */}
@@ -806,10 +806,10 @@ export default function Home() {
 
           </div>
 
-          {/* Bloomberg comparison anchor */}
-          <p data-reveal style={{ textAlign: "center", fontSize: 13, color: T.dimmer, marginTop: 28 }}>
-            Bloomberg Terminal costs ~$27,000/year for similar raw data.
-            Unstructured Alpha focuses it into what active investors actually need, at $20/month.
+          {/* Real-competitor anchor: fragmented research, not a terminal */}
+          <p data-reveal style={{ textAlign: "center", fontSize: 13, color: T.dimmer, marginTop: 28, maxWidth: 640, marginLeft: "auto", marginRight: "auto", lineHeight: 1.7 }}>
+            You could track all of this yourself — across FRED, SEC EDGAR, FINRA, EIA and CBOE,
+            in a dozen browser tabs and a spreadsheet. We built the interpretation layer, for $20/month.
           </p>
         </div>
       </div>
