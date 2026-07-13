@@ -1229,8 +1229,15 @@ def _render_topnav() -> None:
     Hides the native sidebar + Streamlit chrome via CSS, then renders a fixed bar
     with CSS-only hover dropdowns that mirror app.py's navigation groups.
     Called as the very first thing in render_header().
+
+    Rendered via st.html() (NOT st.markdown) on purpose: the nav markup is
+    multi-line and indented, and Streamlit's markdown parser treats blank-line-
+    then-4-space-indented HTML as an indented CODE BLOCK — which was dumping the
+    raw <div class="ua-tnav-group">… source as literal text in the middle of
+    every page. st.html injects raw HTML with no markdown processing, so the
+    indentation is harmless.
     """
-    st.markdown("""
+    st.html("""
 <style>
 /* ── Hide native sidebar + Streamlit chrome ──────────────────────────────── */
 section[data-testid="stSidebar"]          { display: none !important; }
@@ -1440,7 +1447,7 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
   } catch(e){}
 })();
 </script>
-""", unsafe_allow_html=True)
+""")
 
 
 def render_header(page_subtitle: str = "") -> None:
@@ -1700,13 +1707,18 @@ def render_header(page_subtitle: str = "") -> None:
 def _fetch_ticker_strip():
     """Fetch live prices for the header ticker strip. 60s TTL, one set of symbols."""
     import yfinance as yf
+    # Well-known large-cap stocks everyone recognizes — a market anchor (SPY)
+    # plus the mega-cap names, rather than commodity/crypto futures symbols.
     _SYMBOLS = [
-        ("SPY",    "S&P 500"),
-        ("QQQ",    "Nasdaq"),
-        ("BTC-USD","Bitcoin"),
-        ("GC=F",   "Gold"),
-        ("CL=F",   "WTI Oil"),
-        ("^VIX",   "VIX"),
+        ("SPY",  "S&P 500"),
+        ("AAPL", "Apple"),
+        ("MSFT", "Microsoft"),
+        ("NVDA", "Nvidia"),
+        ("AMZN", "Amazon"),
+        ("GOOGL","Alphabet"),
+        ("META", "Meta"),
+        ("TSLA", "Tesla"),
+        ("AMD",  "AMD"),
     ]
     results = []
     try:
@@ -1740,8 +1752,8 @@ def _render_live_ticker_strip() -> None:
     for sym, label, price, chg in items:
         arrow = "▲" if chg >= 0 else "▼"
         color = "#00D566" if chg >= 0 else "#FF4444"
-        # Format price (crypto needs more decimals)
-        p_fmt = f"${price:,.0f}" if price >= 100 else f"${price:,.2f}"
+        # Always show two decimal places for every price (e.g. $225.34, $1,234.56).
+        p_fmt = f"${price:,.2f}"
         chips.append(
             f'<span style="display:inline-flex;align-items:center;gap:6px;'
             f'padding:0 14px;border-right:1px solid rgba(255,255,255,0.06);">'
