@@ -452,11 +452,12 @@ if "upgrade_plan" not in st.session_state:
 st.markdown("""
 <div style="height:8px"></div>
 <div class="hero-eyebrow">Unstructured Alpha Pro</div>
-<div class="hero-headline">Know what the market knows<br>before price reflects it.</div>
+<div class="hero-headline">Never miss when the macro<br>around your holdings turns.</div>
 <div class="hero-sub">
-    Most investors react to price. Pro members see the signals that move price —
-    from SEC insider filings to Congressional trades to EIA inventory draws —
-    up to 12 weeks before mainstream coverage catches up.
+    Free shows you the macro backdrop right now. Pro watches it for you —
+    continuously monitoring every holding and alerting you the moment a
+    Confluence Score materially moves or a signal flips, so a shift in the
+    backdrop around one of your stocks never slips by while you're not looking.
 </div>
 """, unsafe_allow_html=True)
 
@@ -585,14 +586,14 @@ FREE_FEATS = [
 ]
 
 PRO_FEATS = [
-    "Everything in Free, no ticker limits",
-    "Morning digest email — personalized to your watchlist",
-    "Factor Exposure — Fama-French 3-factor regression",
+    "Continuous watchlist monitoring — we watch the macro around your holdings when you're not there",
+    "Alerts when a Confluence Score materially moves or a signal flips — email + Discord + Slack",
+    "Portfolio macro-exposure shifts, flagged as they happen",
+    "Personalized 7 AM morning digest on your holdings",
+    "Score history + 30-day sparklines + factor exposure",
     "Signal Backtester — long/short returns for any signal combo",
-    "Portfolio Analyzer — macro tilt across your holdings",
-    "Unusual Options Activity feed — flow vs. open interest",
-    "Unlimited watchlist tickers + 30-day score sparklines",
-    "Priority support via email",
+    "Unlimited watchlist tickers",
+    "Everything in Free · priority support",
 ]
 
 with col_free:

@@ -52,62 +52,56 @@ import streamlit as st
 pg = st.navigation(
     {
         # ── Top-level ────────────────────────────────────────────────────────
+        # NOTE: url_path is set EXPLICITLY on every page so it matches the
+        # hardcoded hrefs in the custom horizontal top-nav (utils/header.py's
+        # _render_topnav). Without this, Streamlit derives its own url_paths from
+        # the filenames, the top-nav links point at slugs that don't exist, and
+        # every link 404s / bounces to Home — which is exactly what happened once
+        # the top-nav became clickable. These slugs are the contract between the
+        # nav and the router; keep them in sync with header.py.
         "": [
             st.Page("pages/home_page.py",      title="Home",             default=True),
-            st.Page("pages/29_Upgrade.py",     title="⚡ Upgrade to Pro"),
+            st.Page("pages/29_Upgrade.py",     title="⚡ Upgrade to Pro", url_path="upgrade-to-pro"),
         ],
         # ── Watchlist ────────────────────────────────────────────────────────
-        # Shared watchlist + watchlist stress test live as tabs inside My Watchlist
         "Watchlist": [
-            st.Page("pages/10_Watchlist.py",   title="My Watchlist"),
-            st.Page("pages/14_Stock_Chart.py", title="Stock Chart"),
+            st.Page("pages/10_Watchlist.py",   title="My Watchlist", url_path="my-watchlist"),
+            st.Page("pages/14_Stock_Chart.py", title="Stock Chart",  url_path="stock-chart"),
         ],
         # ── Daily Intel ──────────────────────────────────────────────────────
-        # Today's Brief absorbs Weekly Brief (tab).
-        # Alternative Data combines Congress Tracker + Options Flow.
-        # Events combines Macro Calendar + Event Forecaster.
         "Daily Intel": [
-            st.Page("pages/2_Today_Digest.py",        title="Today's Brief"),
-            st.Page("pages/41_Alternative_Data.py",   title="Alternative Data"),
-            st.Page("pages/43_Events_Forecasts.py",   title="Events & Forecasts"),
+            st.Page("pages/2_Today_Digest.py",        title="Today's Brief",       url_path="today-s-brief"),
+            st.Page("pages/41_Alternative_Data.py",   title="Alternative Data",    url_path="alternative-data"),
+            st.Page("pages/43_Events_Forecasts.py",   title="Events & Forecasts",  url_path="events-forecasts"),
         ],
         # ── Signals ──────────────────────────────────────────────────────────
-        # Signal Dashboard absorbs Regime Playbook (tab).
-        # Sector View combines Sector Map + Market Heatmap + Supply Chain.
         "Signals": [
-            st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard"),
-            st.Page("pages/42_Sector_View.py",       title="Sector View"),
+            st.Page("pages/1_Signal_Dashboard.py",  title="Signal Dashboard", url_path="signal-dashboard"),
+            st.Page("pages/42_Sector_View.py",       title="Sector View",     url_path="sector-view"),
             st.Page("pages/11_Model_Validation.py",  title="Model Validation", url_path="model-validation"),
         ],
         # ── Research (free) ──────────────────────────────────────────────────
-        # Track Record absorbs Earnings Track Record (tab) + Signal Call Log.
-        # Stock Screener absorbs Live Scoreboard + Short Squeeze Radar (tabs).
-        # Signal Strategy: rules-based backtest from home page CTA.
         "Research": [
-            st.Page("pages/3_Ticker_Deep_Dive.py",    title="Ticker Deep Dive"),
-            st.Page("pages/4_Power_Supercycle.py",    title="Power Supercycle"),
-            st.Page("pages/5_Market_Overview.py",     title="Market Overview"),
-            st.Page("pages/6_Stock_Screener.py",      title="Stock Screener"),
-            st.Page("pages/30_Track_Record_Live.py",  title="Track Record"),
-            st.Page("pages/35_Signal_Strategy.py",    title="Signal Strategy"),
+            st.Page("pages/3_Ticker_Deep_Dive.py",    title="Ticker Deep Dive",  url_path="ticker-deep-dive"),
+            st.Page("pages/4_Power_Supercycle.py",    title="Power Supercycle",  url_path="power-supercycle"),
+            st.Page("pages/5_Market_Overview.py",     title="Market Overview",   url_path="market-overview"),
+            st.Page("pages/6_Stock_Screener.py",      title="Stock Screener",    url_path="stock-screener"),
+            st.Page("pages/30_Track_Record_Live.py",  title="Track Record",      url_path="track-record"),
+            st.Page("pages/35_Signal_Strategy.py",    title="Signal Strategy",   url_path="signal-strategy"),
         ],
         # ── Pro Tools ────────────────────────────────────────────────────────
-        # Stock Recommender: hero Pro page — ranked AI-driven stock ideas.
-        # Portfolio Suite: Backtest + Stress Tester + Signal Backtester +
-        #   Portfolio Analyzer + Basket Builder — all portfolio-level tools.
         "⚡ Pro Tools": [
-            st.Page("pages/40_Stock_Recommender.py", title="Stock Recommender"),
-            st.Page("pages/44_Portfolio_Suite.py",   title="Portfolio Suite"),
+            st.Page("pages/40_Stock_Recommender.py", title="Stock Recommender", url_path="stock-recommender"),
+            st.Page("pages/44_Portfolio_Suite.py",   title="Portfolio Suite",   url_path="portfolio-suite"),
         ],
         # ── Account ──────────────────────────────────────────────────────────
-        # About absorbs Model Validation (tab). Export lives inside TDD.
         "Account": [
-            st.Page("pages/32_Profile.py",          title="My Profile"),
-            st.Page("pages/9_AI_Assistant.py",      title="AI Research Assistant"),
-            st.Page("pages/8_About.py",             title="About & Methodology"),
-            st.Page("pages/39_How_Signals_Work.py", title="How Signals Work"),
-            st.Page("pages/37_Legal.py",            title="Privacy & Terms"),
-            st.Page("pages/38_Admin.py",            title="Admin"),
+            st.Page("pages/32_Profile.py",          title="My Profile",          url_path="my-profile"),
+            st.Page("pages/9_AI_Assistant.py",      title="AI Research Assistant", url_path="ai-research-assistant"),
+            st.Page("pages/8_About.py",             title="About & Methodology", url_path="about-methodology"),
+            st.Page("pages/39_How_Signals_Work.py", title="How Signals Work",    url_path="how-signals-work"),
+            st.Page("pages/37_Legal.py",            title="Privacy & Terms",     url_path="privacy-terms"),
+            st.Page("pages/38_Admin.py",            title="Admin",               url_path="admin"),
         ],
     },
     position="hidden",  # Nav UI is the custom horizontal topnav in utils/header.py
