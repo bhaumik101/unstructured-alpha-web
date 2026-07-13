@@ -58,6 +58,15 @@ def add_to_watchlist(
     with db.engine.begin() as conn:
         conn.execute(stmt)
 
+    # Grow the tracked universe: any ticker a real user cares enough to watchlist
+    # joins the universe so it's pre-warmed, counted, and screenable. Best-effort
+    # and fully isolated — a universe write must never break the watchlist add.
+    try:
+        from utils.universe import add_to_universe
+        add_to_universe(ticker, source="watchlist")
+    except Exception:
+        pass
+
 
 def remove_from_watchlist(user_id: int, ticker: str) -> None:
     ticker = ticker.upper().strip()

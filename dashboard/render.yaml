@@ -164,6 +164,25 @@ services:
       - key: EIA_API_KEY
         sync: false
 
+  # Daily universe growth — seeds big-cap names across covered industries into
+  # the dynamic_universe table and pre-warms each one's Confluence Score snapshot
+  # so common tickers load instantly. Runs at 03:00 UTC (after resolve-predictions,
+  # still off-peak). Watchlist adds also grow the universe live (utils/universe.py).
+  - type: cron
+    name: unstructured-alpha-grow-universe
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 3 * * *"   # 03:00 UTC = 11:00 PM ET (off-peak)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.grow_universe
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+
   # Score-movement email cron — runs once daily at 15:30 UTC (11:30 AM ET).
   # For every verified watchlist user, computes current Confluence Score for each
   # watched ticker and compares against last_score_emailed in alert_state. Any

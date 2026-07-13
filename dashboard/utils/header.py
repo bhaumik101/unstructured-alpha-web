@@ -1298,7 +1298,7 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
   display: inline-flex; align-items: center; gap: 3px;
   padding: 4px 9px; border-radius: 6px; height: 30px;
   font-size: 0.74rem; font-weight: 500; color: #8892AA;
-  cursor: default; white-space: nowrap; user-select: none;
+  cursor: pointer; white-space: nowrap; user-select: none;
   transition: color .12s ease, background .12s ease;
 }
 .ua-tnav-group:hover > .ua-tnav-trigger { color: #E8EEFF; background: rgba(255,255,255,0.06); }
@@ -1321,9 +1321,21 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
   backdrop-filter: blur(24px);
   display: flex; flex-direction: column; gap: 1px;
   z-index: 100001;
-  transition: opacity .12s ease, visibility .12s ease;
+  /* Close only after a short grace period, so moving the cursor from the trigger
+     down into the menu doesn't snap it shut mid-transit. Opens instantly (the
+     hover rule below zeroes the delay). This is the fix for "the dropdown
+     disappears before I can click a sub-page." */
+  transition: opacity .14s ease .28s, visibility .14s ease .28s;
 }
-.ua-tnav-group:hover .ua-tnav-drop { visibility: visible; opacity: 1; pointer-events: auto; }
+/* Invisible bridge that fills the 4px gap between the trigger and the menu, so
+   the cursor never crosses an un-hovered dead zone on its way to the items. */
+.ua-tnav-drop::before {
+  content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px;
+}
+.ua-tnav-group:hover .ua-tnav-drop,
+.ua-tnav-drop:hover {
+  visibility: visible; opacity: 1; pointer-events: auto; transition-delay: 0s;
+}
 .ua-tnav-drop a {
   display: block; padding: 7px 10px; border-radius: 6px;
   font-size: 0.74rem; font-weight: 500; color: #B8C0D4;
