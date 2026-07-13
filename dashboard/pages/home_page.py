@@ -730,8 +730,9 @@ if _data_loaded:
     <div style="font-size:1.0rem;font-weight:800;color:#E8EEFF;margin-bottom:4px;
                 letter-spacing:-0.2px;">What does the macro say about your stocks right now?</div>
     <div style="font-size:0.77rem;color:#8892AA;line-height:1.55;">
-        Enter any tickers below — we score 47 live signals against each one in seconds.
-        Same data, same analysis, zero extra API calls.
+        Enter 3–5 tickers you actually hold — we score each against 47 live signals, then map
+        them as a portfolio: shared macro risks, your most-exposed holding, and hidden
+        correlations. No account needed.
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -785,6 +786,57 @@ if _data_loaded:
                         f'</div>',
                         unsafe_allow_html=True,
                     )
+
+            # ── Onboarding "aha": these tickers SEEN AS A PORTFOLIO (Point 11) ─
+            # The activation moment — a visitor seeing their own names mapped to
+            # shared macro exposure, hidden correlations and the most-exposed
+            # holding is when the product clicks. Reuses the Portfolio Macro
+            # X-Ray engine; per-ticker reads cached so repeat loads are instant.
+            # Fully defensive; framed as context, never advice.
+            _ob_tickers = [r["ticker"] for r in _pf_results]
+            if len(_ob_tickers) >= 2:
+                try:
+                    from utils.portfolio_xray import build_portfolio_xray, render_portfolio_xray_html
+                    from utils.ticker_score import compute_full_ticker_score as _ob_score
+                    from utils.config import TICKERS as _OB_TK
+
+                    @st.cache_data(ttl=1800, show_spinner=False, max_entries=256)
+                    def _ob_holding_read(_t: str):
+                        r = _ob_score(_t)
+                        return {
+                            "ticker": _t,
+                            "score": r["confluence"]["overall_score"],
+                            "corr_info": {k: {"weight": v.get("weight"), "significant": v.get("significant")}
+                                          for k, v in r["corr_info"].items()},
+                            "signal_scores": {k: {"score": v.get("score"), "status": v.get("status")}
+                                              for k, v in r["signal_scores"].items()},
+                            "sector": (_OB_TK.get(_t, {}) or {}).get("sector", ""),
+                        }
+
+                    _ob_inputs = []
+                    with st.spinner("Mapping these as a portfolio…"):
+                        for _t in _ob_tickers[:8]:
+                            try:
+                                _ob_inputs.append(_ob_holding_read(_t))
+                            except Exception:
+                                continue
+                    if len(_ob_inputs) >= 2:
+                        st.markdown(
+                            '<div style="font-size:0.60rem;letter-spacing:0.16em;font-weight:700;'
+                            'color:#A78BFA;margin:16px 0 6px;font-family:Inter,sans-serif;">'
+                            '⬡ NOW SEEN AS A PORTFOLIO</div>',
+                            unsafe_allow_html=True,
+                        )
+                        st.html(render_portfolio_xray_html(build_portfolio_xray(_ob_inputs)))
+                        st.markdown(
+                            '<div style="font-size:0.68rem;color:#8892AA;margin-top:8px;'
+                            'font-family:Inter,sans-serif;">👁 Want us to watch these for you? Save them to a '
+                            'free watchlist and we\'ll flag the moment the macro around any of them '
+                            'materially changes.</div>',
+                            unsafe_allow_html=True,
+                        )
+                except Exception:
+                    pass
 
             st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
             _pf_cta1, _pf_cta2, _pf_cta3 = st.columns([1.5, 1.5, 1])
