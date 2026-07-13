@@ -268,6 +268,33 @@ services:
       - key: RENDER_EXTERNAL_URL
         sync: false
 
+  # Free subscriber brief cron — runs every Sunday at 16:00 UTC (12:00 PM ET).
+  # Fetches the latest macro_narratives row and emails every active contact in
+  # the Resend audience (landing page free subscribers). First 3 paragraphs
+  # in the email as a preview; full brief lives at stocks.unstructuredalpha.com/brief.
+  # Runs one hour after the Pro brief (15:00 UTC) to avoid overlapping DB load.
+  # Requires RESEND_AUDIENCE_ID set to the Resend audience ID for the landing page.
+  - type: cron
+    name: unstructured-alpha-brief-subscribers
+    runtime: python
+    rootDir: dashboard
+    schedule: "0 16 * * 0"   # 16:00 UTC Sunday = 12:00 PM ET
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.send_brief_subscribers
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: RESEND_AUDIENCE_ID
+        sync: false
+      - key: SEO_BASE_URL
+        value: "https://stocks.unstructuredalpha.com"
+      - key: APP_BASE_URL
+        value: "https://unstructuredalpha.com"
+
   # Day-7 retention email cron — runs daily at 15:00 UTC (11:00 AM ET).
   # Sends "one week in — what the machine is seeing" to users who verified
   # their email 7–8 days ago. Covers: current regime, top 3 tickers by

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 
 const APP_URL = "https://app.unstructuredalpha.com";
 
@@ -178,6 +178,23 @@ export default function Home() {
   const [annual,     setAnnual]     = useState(false);
   const [openFaq,    setOpenFaq]    = useState<number | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [email,      setEmail]      = useState("");
+  const [subStatus,  setSubStatus]  = useState<"idle"|"loading"|"success"|"error">("idle");
+
+  const handleSubscribe = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    setSubStatus("loading");
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) { setSubStatus("success"); setEmail(""); }
+      else { setSubStatus("error"); }
+    } catch { setSubStatus("error"); }
+  };
 
   // Scroll-reveal: IntersectionObserver watches every [data-reveal] element
   // and adds .revealed once it enters the viewport. Unobserved after first trigger.
@@ -321,6 +338,47 @@ export default function Home() {
                       fontWeight: 600, display: "inline-block" }}>
             See How It Works
           </a>
+        </div>
+
+        {/* ── Email capture — below-hero ── */}
+        <div data-reveal data-delay="4"
+             style={{ maxWidth: 460, margin: "0 auto 48px", textAlign: "center" }}>
+          <p style={{ fontSize: 12, color: T.dimmer, marginBottom: 10 }}>
+            Or get the free weekly macro brief by email — no account needed
+          </p>
+          <form onSubmit={handleSubscribe}
+                style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              required
+              disabled={subStatus === "success"}
+              style={{ flex: "1 1 200px", padding: "10px 14px", borderRadius: 8, minWidth: 0,
+                       background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+                       color: T.bright, fontSize: 14, outline: "none" }}
+            />
+            <button
+              type="submit"
+              disabled={subStatus === "loading" || subStatus === "success"}
+              style={{ padding: "10px 18px", borderRadius: 8, cursor: "pointer",
+                       background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.14)",
+                       color: T.bright, fontSize: 14, fontWeight: 600, whiteSpace: "nowrap",
+                       opacity: subStatus === "loading" ? 0.6 : 1 }}>
+              {subStatus === "loading" ? "..." : subStatus === "success" ? "✓ You're in" : "Subscribe"}
+            </button>
+          </form>
+          {subStatus === "success" && (
+            <p style={{ fontSize: 12, color: T.green, marginTop: 8 }}>
+              Done. First brief arrives Sunday.
+            </p>
+          )}
+          {subStatus === "error" && (
+            <p style={{ fontSize: 12, color: "#ff4444", marginTop: 8 }}>
+              Something went wrong — try again.
+            </p>
+          )}
         </div>
 
         {/* Stat strip */}
@@ -804,6 +862,48 @@ export default function Home() {
             <div style={{ marginTop: 16, fontSize: 13, color: T.dimmer }}>
               Free · No card · 43 signals · Updated every ~2h · Cancel Pro anytime
             </div>
+          </div>
+
+          {/* ── Closing email capture ── */}
+          <div data-reveal data-delay="3"
+               style={{ marginTop: 40, padding: "24px 28px",
+                        background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)",
+                        borderRadius: 12, maxWidth: 480, margin: "40px auto 0" }}>
+            <p style={{ fontSize: 14, fontWeight: 600, color: T.mid, marginBottom: 6 }}>
+              Not ready to sign up? Get the weekly brief.
+            </p>
+            <p style={{ fontSize: 13, color: T.dimmer, marginBottom: 16, lineHeight: 1.6 }}>
+              Sunday morning: which signals moved, what changed, what to watch.
+              Free. No account. Unsubscribe anytime.
+            </p>
+            <form onSubmit={handleSubscribe}
+                  style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                required
+                disabled={subStatus === "success"}
+                style={{ flex: "1 1 180px", padding: "10px 14px", borderRadius: 8, minWidth: 0,
+                         background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)",
+                         color: T.bright, fontSize: 14, outline: "none" }}
+              />
+              <button
+                type="submit"
+                disabled={subStatus === "loading" || subStatus === "success"}
+                style={{ padding: "10px 18px", borderRadius: 8, cursor: "pointer",
+                         background: T.purple, border: "none",
+                         color: "#fff", fontSize: 14, fontWeight: 700,
+                         opacity: subStatus === "loading" ? 0.6 : 1 }}>
+                {subStatus === "loading" ? "..." : subStatus === "success" ? "✓ Subscribed" : "Get Brief"}
+              </button>
+            </form>
+            {subStatus === "success" && (
+              <p style={{ fontSize: 12, color: T.green, marginTop: 10 }}>
+                You're subscribed. See you Sunday.
+              </p>
+            )}
           </div>
 
           {/* Disclaimer */}

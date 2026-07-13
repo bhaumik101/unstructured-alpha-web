@@ -309,6 +309,46 @@ def _get_all_latest_scores() -> list[dict]:
     return result
 
 
+def _get_latest_narrative() -> Optional[dict]:
+    """Return the most recent macro narrative (all notes are published)."""
+    cache_key = "latest_narrative"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+    if not _engine:
+        return None
+    with _engine.connect() as conn:
+        row = conn.execute(sa.text(
+            "SELECT id, headline AS title, body, created_at, note_date AS published_at "
+            "FROM macro_narratives "
+            "WHERE note_date IS NOT NULL "
+            "ORDER BY note_date DESC LIMIT 1"
+        )).fetchone()
+    result = dict(row._mapping) if row else None
+    _cache_set(cache_key, result, ttl=3600)
+    return result
+
+
+def _get_narrative_archive(limit: int = 8) -> list[dict]:
+    """Return the most recent narratives (excluding the latest)."""
+    cache_key = f"narrative_archive:{limit}"
+    cached = _cache_get(cache_key)
+    if cached is not None:
+        return cached
+    if not _engine:
+        return []
+    with _engine.connect() as conn:
+        rows = conn.execute(sa.text(
+            "SELECT id, headline AS title, body, created_at, note_date AS published_at "
+            "FROM macro_narratives "
+            "WHERE note_date IS NOT NULL "
+            "ORDER BY note_date DESC LIMIT :limit"
+        ), {"limit": limit}).fetchall()
+    result = [dict(r._mapping) for r in rows]
+    _cache_set(cache_key, result, ttl=3600)
+    return result
+
+
 def _get_weekly_movers() -> dict:
     """Return biggest score changes in the last 7 days."""
     cache_key = "weekly_movers"
@@ -371,6 +411,17 @@ def case_label(case: Optional[str]) -> str:
     return m.get((case or "").upper(), "Unknown")
 
 
+def _fmt_date(d, fmt: str = "%b %-d, %Y") -> str:
+    """Format a YYYY-MM-DD string (or date object) for display."""
+    if not d:
+        return ""
+    try:
+        from datetime import datetime as _dt
+        return _dt.strptime(str(d)[:10], "%Y-%m-%d").strftime(fmt)
+    except Exception:
+        return str(d)[:10]
+
+
 # Register helpers in Jinja2 environment
 templates.env.globals["case_color"] = case_color
 templates.env.globals["case_label"] = case_label
@@ -378,6 +429,7 @@ templates.env.globals["APP_BASE_URL"] = APP_BASE_URL
 templates.env.globals["SEO_BASE_URL"] = SEO_BASE_URL
 templates.env.globals["json"] = json
 templates.env.globals["now_year"] = datetime.now(timezone.utc).year
+templates.env.filters["fmtdate"] = _fmt_date
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -401,6 +453,7 @@ def sitemap():
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     urls = [
         f"  <url><loc>{SEO_BASE_URL}/</loc><lastmod>{today}</lastmod><changefreq>daily</changefreq><priority>1.0</priority></url>",
+        f"  <url><loc>{SEO_BASE_URL}/brief</loc><lastmod>{today}</lastmod><changefreq>weekly</changefreq><priority>0.9</priority></url>",
         f"  <url><loc>{SEO_BASE_URL}/signals/report</loc><lastmod>{today}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>",
     ]
     for sym in sorted(TICKERS.keys()):
@@ -504,6 +557,50 @@ def ticker_page(request: Request, symbol: str):
         "chart_cases": json.dumps(chart_cases),
         "similar": similar,
         "has_data": latest is not None,
+    })
+
+
+@app.get("/brief", response_class=HTMLResponse)
+def brief_latest(request: Request):
+    narrative = _get_latest_narrative()
+    archive = _get_narrative_archive(limit=8)
+    # Drop the latest from archive to avoid duplicate
+    latest_id = narrative.get("id") if narrative else None
+    archive = [r for r in archive if r.get("id") != latest_id]
+    return templates.TemplateResponse("brief.html", {
+        "request": request,
+        "narrative": narrative,
+        "archive": archive[:6],
+        "as_of": datetime.now(timezone.utc).strftime("%B %d, %Y"),
+    })
+
+
+@app.get("/brief/{narrative_id:int}", response_class=HTMLResponse)
+def brief_by_id(request: Request, narrative_id: int):
+    if not _engine:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    with _engine.connect() as conn:
+        row = conn.execute(sa.text(
+            "SELECT id, headline AS title, body, created_at, note_date AS published_at "
+            "FROM macro_narratives WHERE id = :id AND note_date IS NOT NULL"
+        ), {"id": narrative_id}).fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Brief not found")
+    narrative = dict(row._mapping)
+    # note_date is stored as a "YYYY-MM-DD" string — format for display
+    published_str = ""
+    raw_date = narrative.get("published_at") or ""
+    if raw_date:
+        try:
+            from datetime import datetime as _dt
+            published_str = _dt.strptime(str(raw_date)[:10], "%Y-%m-%d").strftime("%B %d, %Y")
+        except Exception:
+            published_str = str(raw_date)[:10]
+    return templates.TemplateResponse("brief.html", {
+        "request": request,
+        "narrative": narrative,
+        "archive": [],
+        "as_of": published_str,
     })
 
 

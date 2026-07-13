@@ -1,6 +1,114 @@
-# Reddit Posts — Unstructured Alpha
-# STRATEGY: Post one at a time, spread 5–7 days apart.
+# Reddit Posts — Unstructured Alpha (Updated 2026-07-12)
+# STRATEGY: Post one at a time, spread 1–2 days apart.
+# Respond to every comment within 2 hours. Stay educational — no Pro pitching in comments.
 # Build karma in each sub by commenting on 3–5 posts BEFORE you post.
+
+---
+
+# NEW BATCH (Post this week)
+
+## Post A — r/algotrading
+**Title:** I built a 38-signal macro scoring system with full out-of-sample validation published — what I learned about which signals actually hold up
+
+**Body:**
+
+Been at this for about 8 months. 38 independent macro and alternative data signals scored daily on a 0–100 percentile scale: HY credit spreads, FINRA short interest, SEC Form 4 insider clusters, CBOE put/call, EIA energy inventories, copper/gold ratio, TIPS breakeven, VIX term structure, ISM PMI, yield curve slope, and more.
+
+Platform: unstructuredalpha.com
+
+What survived Bonferroni-corrected lag scans against 12-week forward returns:
+- HY credit spreads: consistent 4–8 week lead on broad market direction
+- Insider buy clusters (SEC Form 4): strong for individual names when 2+ officers buy within 21 days
+- Yield curve slope: good for sector rotation, not individual stock prediction
+- CBOE put/call ratio: best as contrarian indicator at extremes
+
+What did not:
+- Short interest alone: too noisy without a catalyst
+- 13F institutional positioning: 90-day reporting lag kills timeliness
+- Social sentiment (Google Trends): high variance, easily contaminated by news cycles
+
+Bonferroni killed ~30% of initially significant lag relationships. The Model Validation page publishes all of this including the failures — which is not something you see on most financial platforms.
+
+Curious if anyone has done similar lag analysis and whether you found Bonferroni too conservative for macro signal work.
+
+---
+
+## Post B — r/investing
+**Title:** I got tired of quant scores with no methodology, so I built a free macro signal dashboard that shows exactly what drives the score
+
+**Body:**
+
+TipRanks Smart Score, Seeking Alpha Quant Rating — composite scores with zero visibility into how they are computed or how they have actually performed.
+
+Spent 8 months building what I wanted: 38 macro and alternative data signals scored daily from FRED, SEC EDGAR, FINRA, EIA, CBOE. Every signal explained. Out-of-sample validation published on the Model Validation page — including the ones that failed.
+
+Signal Dashboard is free. Ticker Deep Dive is free. Model Validation is free.
+
+When a signal does not hold up out-of-sample, the platform labels it clearly. A score you cannot interrogate is not a signal, it is a number with a gradient background.
+
+Not buy/sell recommendations. Macro context for your own research.
+
+unstructuredalpha.com — happy to answer methodology questions.
+
+---
+
+## Post C — r/stocks
+**Title:** How I think about macro backdrop before sizing into a position — systematized it, here is what it is showing this week
+
+**Body:**
+
+The gap between "credit spreads are widening" and "what does that mean for my NVDA position" has always frustrated me. Built something to bridge it.
+
+For any ticker: lag scan finds which macro signals historically correlate with that sector's forward returns. Weight by correlation strength and significance. Score 0–100. Above 65 = multiple bullish signals aligned. Below 35 = headwinds stacked.
+
+What it is showing this week:
+- AI Infrastructure: Elevated (copper/gold bullish, insider activity positive, credit spreads tight)
+- Energy: Neutral to Bullish transition (EIA draws supportive, watching rig count)
+- Homebuilders: Mixed (Michigan Sentiment at 67 is a watch level)
+- Nuclear/Utilities: Still bullish (grid buildout thesis supported)
+
+Validation published for every signal including failures. Not investment advice.
+
+Free: unstructuredalpha.com
+
+---
+
+## Post D — r/SecurityAnalysis
+**Title:** Systematic macro framework to complement fundamental analysis — full methodology and validation published
+
+**Body:**
+
+Built something meant to complement fundamental work: a systematic read on whether macro backdrop supports a sector thesis.
+
+Premise: strong fundamentals do not guarantee returns if the macro environment is hostile to the sector. Most valuation models treat macro as sentiment, not as a systematic input.
+
+Signals from public primary sources only:
+- FRED: yield curve, HY/IG credit spreads, TIPS breakeven, ISM PMI, Michigan sentiment
+- SEC EDGAR: Form 4 insider transactions (direct XML parsing, not third-party aggregates)
+- FINRA: biweekly short interest normalized by float
+- EIA: weekly crude/gas storage, rig count
+- CBOE: put/call ratio, VIX term structure (VIX9D vs VIX30)
+- Congressional disclosures (45-day lag acknowledged and labeled)
+
+Validation: lag scans vs 4–12 week forward returns on 150+ tickers. Bonferroni corrected. Second-half holdout. Failures labeled on Model Validation page — not buried.
+
+Can do: tell you whether macro backdrop is structurally supportive of a sector thesis.
+Cannot do: replace fundamental research or tell you whether a company is cheap.
+
+Platform: unstructuredalpha.com
+
+---
+
+## Timing
+
+- r/algotrading: Monday morning
+- r/investing: Wednesday afternoon
+- r/stocks: Thursday morning
+- r/SecurityAnalysis: Friday morning
+
+---
+
+
 # Reply to every comment within the first hour — this is what drives distribution.
 
 ---
