@@ -64,9 +64,9 @@ const FEATURES = [
     detail: "Relative ranking updated daily from snapshot history.",
   },
   {
-    icon: "🔔", title: "Watchlist Alerts", accent: "#7c3aed", pro: true,
-    body: "Set thresholds per ticker. Get emailed when a Confluence Score crosses your level — hourly checks, morning digest, or Discord/Slack webhooks.",
-    detail: "No logging in required once configured.",
+    icon: "🔔", title: "Continuous Monitoring", accent: "#7c3aed", pro: true,
+    body: "We watch the macro backdrop around your holdings when you're not there. Get alerted the moment a Confluence Score materially moves or a signal flips — email, Discord, or Slack.",
+    detail: "So you never miss when the macro around a holding turns.",
   },
 ];
 
@@ -133,15 +133,15 @@ const FREE_LOCKED = [
   "Full digest archive (90 days)",
 ];
 const PRO_FEATURES = [
-  "Everything in Free",
-  "Score history charts (30/60/90 days)",
-  "Sector percentile rankings",
-  "Watchlist alerts — email + Discord + Slack",
+  "Continuous watchlist monitoring — we watch, so you don't have to",
+  "Alerts when a Confluence Score materially moves — email, Discord, Slack",
+  "Portfolio & sector macro-exposure shifts, flagged as they happen",
+  "Personalized 7 AM macro digest on your holdings",
+  "Score history & regime context (30/60/90 days)",
   "Full digest archive (90 days)",
-  "Morning email digest at 7 AM ET",
-  "Signal Backtester — test strategy from 2010",
-  "Factor exposure dashboard",
+  "Signal Backtester + factor-exposure dashboard",
   "Early access to new signals",
+  "Everything in Free",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -702,7 +702,7 @@ export default function Home() {
           </h2>
           <p className="section-body" data-reveal data-delay="2"
              style={{ textAlign: "center", margin: "0 auto 36px" }}>
-            The core signal dashboard is free with an account. Pro adds alerts, history, and delivery.
+            Free tells you what the macro is doing now. Pro watches it for you — and tells you the moment the backdrop around one of your holdings materially changes.
           </p>
 
           {/* Billing toggle */}
@@ -779,10 +779,14 @@ export default function Home() {
                   <div style={{ fontSize: 44, fontWeight: 800, letterSpacing: "-0.05em" }}>${proPrice}</div>
                   <span style={{ fontSize: 14, color: T.dimmer }}>/ month</span>
                 </div>
-                <div style={{ fontSize: 13, color: T.dimmer, marginBottom: 28 }}>
+                <div style={{ fontSize: 13, color: T.dimmer, marginBottom: 16 }}>
                   {annual
                     ? `Billed $${annualTotal}/year · cancel anytime`
                     : "Per month · cancel anytime · 7-day free trial"}
+                </div>
+                <div style={{ fontSize: 13, color: T.bright, lineHeight: 1.6, marginBottom: 22,
+                              paddingLeft: 12, borderLeft: "2px solid #7c3aed" }}>
+                  Don&apos;t miss the moment the macro backdrop around one of your holdings materially changes.
                 </div>
                 <ul className="checklist" style={{ marginBottom: 28 }}>
                   {PRO_FEATURES.map((f) => (
