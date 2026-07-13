@@ -1363,8 +1363,63 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
   box-shadow: 0 0 18px rgba(124,58,237,0.45);
 }
 
+/* ── Mobile hamburger (JS-free checkbox toggle) ───────────────────────────── */
+.ua-tnav-toggle { display: none; }            /* the open/closed state checkbox */
+.ua-tnav-burger {
+  display: none;                              /* hidden on desktop */
+  flex-direction: column; justify-content: center; gap: 4px;
+  width: 34px; height: 30px; padding: 6px; margin-left: 6px;
+  border-radius: 7px; cursor: pointer; flex-shrink: 0;
+}
+.ua-tnav-burger span {
+  display: block; height: 2px; width: 20px; border-radius: 2px;
+  background: #C3CBE0; transition: background .18s ease;
+}
+.ua-tnav-burger:hover span { background: #E8EEFF; }
+
+/* Tap-to-open / keyboard-open dropdowns without needing hover (touch + a11y). */
+.ua-tnav-group:focus-within > .ua-tnav-drop { visibility: visible; opacity: 1; pointer-events: auto; transition-delay: 0s; }
+
 /* ── Responsive ───────────────────────────────────────────────────────────── */
-@media (max-width: 860px) { .ua-tnav-hide-sm { display: none !important; } }
+@media (max-width: 860px) {
+  /* The horizontal links become a full-width vertical menu revealed by the
+     burger, with EVERY group expanded so all sub-pages are reachable by tap —
+     the desktop hover dropdowns don't work on touch. This is what makes the
+     whole app navigable on a phone. */
+  .ua-tnav-burger { display: flex; }
+  .ua-tnav-right  { order: 2; margin-left: auto; }
+  .ua-tnav-burger { order: 3; }
+  .ua-tnav-links {
+    display: none; order: 4;
+    position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; gap: 1px;
+    background: rgba(9,11,17,0.99);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.75);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    padding: 6px 10px 16px; max-height: 84vh; overflow-y: auto;
+  }
+  .ua-tnav-toggle:checked ~ .ua-tnav-links { display: flex; }
+  .ua-tnav-item { width: 100%; height: auto; padding: 11px 8px; font-size: 0.86rem; }
+  .ua-tnav-group { display: block; width: 100%; }
+  .ua-tnav-trigger {
+    width: 100%; height: auto; padding: 12px 8px 4px; font-size: 0.62rem;
+    font-weight: 700; letter-spacing: 0.10em; text-transform: uppercase;
+    color: #6B7FBF; cursor: default;
+  }
+  .ua-tnav-caret { display: none; }
+  .ua-tnav-drop {
+    position: static; visibility: visible; opacity: 1; pointer-events: auto;
+    box-shadow: none; background: transparent; border: none; min-width: 0;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    padding: 0 0 6px 8px; transition: none; z-index: auto;
+  }
+  .ua-tnav-drop::before { display: none; }
+  .ua-tnav-drop a { padding: 10px 10px; font-size: 0.84rem; }
+  /* Now that the vertical menu has room, reveal the items that were hidden to
+     fit the horizontal bar. */
+  .ua-tnav-hide-sm { display: block !important; }
+}
 @media (max-width: 640px) {
   .ua-topnav { padding: 0 10px; }
   .ua-tnav-brand-text { font-size: 0.70rem; }
@@ -1375,6 +1430,14 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
   <a class="ua-tnav-brand" href="/">
     <span class="ua-tnav-brand-text">UNSTRUCTURED <em>ALPHA</em></span>
   </a>
+
+  <!-- Mobile menu toggle (JS-free): the checkbox holds open/closed state, the
+       label is the hamburger button. Placed before .ua-tnav-links so the
+       `.ua-tnav-toggle:checked ~ .ua-tnav-links` sibling selector reveals it. -->
+  <input type="checkbox" id="ua-tnav-toggle" class="ua-tnav-toggle" aria-hidden="true" />
+  <label for="ua-tnav-toggle" class="ua-tnav-burger" aria-label="Toggle navigation menu" role="button" tabindex="0">
+    <span></span><span></span><span></span>
+  </label>
 
   <div class="ua-tnav-links">
     <a class="ua-tnav-item" href="/" data-paths="/,/home">Home</a>
