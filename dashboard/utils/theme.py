@@ -1331,25 +1331,43 @@ def skeleton_chart_block(height: int = 300, title_lines: int = 1) -> str:
     )
 
 
-def empty_state(icon: str, title: str, body: str = "") -> str:
+def empty_state(icon: str = "", title: str = "", body: str = "", action: str = "") -> str:
     """
-    Return HTML for a tasteful empty-state block.
+    Return HTML for a tasteful, emoji-free empty-state block.
+
+    `icon` is accepted for backwards compatibility but is NOT rendered as an
+    emoji — the de-emoji pass applies here too, so it's replaced by a neutral
+    monochrome mark. `action` is an optional "what to do next" line; every empty
+    state should point the user somewhere rather than dead-ending them.
 
     Usage::
 
-        st.markdown(empty_state("📭", "No alerts yet",
-                                "Set a threshold on any ticker to get started."),
+        st.markdown(empty_state(title="No alerts yet",
+                                body="Set a threshold on any ticker to get started.",
+                                action="Open the Watchlist to add one →"),
                     unsafe_allow_html=True)
     """
     body_html = (
         f'<div style="font-size:0.82rem;color:#8892AA;margin-top:4px;line-height:1.55;">'
         f'{body}</div>'
     ) if body else ""
+    action_html = (
+        f'<div style="font-size:0.8rem;color:#7C9CFF;font-weight:600;margin-top:10px;">'
+        f'{action}</div>'
+    ) if action else ""
+    # Neutral, monochrome "nothing here yet" mark — a hollow ring with a dash.
+    mark = (
+        '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" '
+        'xmlns="http://www.w3.org/2000/svg" style="opacity:0.55;">'
+        '<circle cx="12" cy="12" r="9" stroke="#5B6478" stroke-width="1.5"/>'
+        '<path d="M8 12h8" stroke="#5B6478" stroke-width="1.5" stroke-linecap="round"/></svg>'
+    )
     return (
         f'<div class="ua-empty">'
-        f'<div class="ua-empty-icon">{icon}</div>'
+        f'<div class="ua-empty-icon">{mark}</div>'
         f'<div class="ua-empty-title">{title}</div>'
         f'{body_html}'
+        f'{action_html}'
         f'</div>'
     )
 

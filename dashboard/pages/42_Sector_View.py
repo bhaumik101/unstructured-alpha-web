@@ -7,7 +7,7 @@ import streamlit as st
 st.set_page_config(page_title="Sector View — UA", layout="wide")
 
 from utils.header import render_header, render_sidebar_base, render_page_header
-from utils.theme import inject_premium_css, source_badge, PLOTLY_CONFIG
+from utils.theme import inject_premium_css, source_badge, PLOTLY_CONFIG, empty_state
 
 render_header("Sector View")
 render_sidebar_base()
@@ -145,7 +145,15 @@ with tab_heatmap:
             all_tickers_scores = {}
 
     if not all_tickers_scores:
-        st.info("Score data not available yet.")
+        st.markdown(
+            empty_state(
+                title="Sector scores are still warming up",
+                body="Scores are computed from the latest signal snapshot. This view fills "
+                     "in once today's scores have been written — usually within the hour after refresh.",
+                action="Browse the Signal Dashboard for the live signal reads →",
+            ),
+            unsafe_allow_html=True,
+        )
     else:
         by_sector: dict[str, list] = {}
         for t, score in all_tickers_scores.items():
