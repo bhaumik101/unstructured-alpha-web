@@ -645,7 +645,7 @@ with tab_track:
             high-confidence call is detected — so you don't have to check this page manually.
           </div>
         </div>
-        <a href="/Upgrade_to_Pro" target="_self"
+        <a href="/upgrade-to-pro" target="_self"
            style="background:linear-gradient(135deg,#7C3AED,#5B21B6);color:#fff;
                   font-weight:700;font-size:0.88rem;padding:10px 22px;border-radius:8px;
                   text-decoration:none;white-space:nowrap;flex-shrink:0;">

@@ -1854,7 +1854,7 @@ def render_pro_cta(
             '<span style="font-size:0.68rem;color:#A78BFA;font-weight:700;'
             'letter-spacing:0.06em;">⚡ PRO</span>'
             f'<span style="font-size:0.8rem;color:#8892AA;">{feature_name}</span>'
-            '<a href="/Upgrade" style="font-size:0.78rem;color:#7C3AED;font-weight:600;'
+            '<a href="/upgrade-to-pro" style="font-size:0.78rem;color:#7C3AED;font-weight:600;'
             'text-decoration:none;margin-left:4px;white-space:nowrap;">Unlock →</a>'
             '</div>'
         )
@@ -1868,11 +1868,12 @@ def render_pro_cta(
         '<div style="font-size:0.82rem;font-weight:700;color:#A78BFA;margin-bottom:3px;">'
         f'Pro — {feature_name}</div>'
         f'<div style="font-size:0.78rem;color:#8892AA;line-height:1.5;">{description}</div>'
+        '<div style="font-size:0.68rem;color:#6B7280;margin-top:5px;">7-day free trial · cancel anytime</div>'
         '</div>'
-        '<a href="/Upgrade" style="font-size:0.8rem;color:#7C3AED;font-weight:700;'
-        'text-decoration:none;white-space:nowrap;padding:6px 14px;'
-        'background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.25);'
-        'border-radius:6px;align-self:center;">Unlock →</a>'
+        '<a href="/upgrade-to-pro" style="font-size:0.8rem;color:#fff;font-weight:700;'
+        'text-decoration:none;white-space:nowrap;padding:8px 16px;'
+        'background:linear-gradient(135deg,#7C3AED,#6D28D9);'
+        'border-radius:7px;align-self:center;">Get Pro →</a>'
         '</div>'
     )
 

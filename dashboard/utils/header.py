@@ -2003,19 +2003,22 @@ def render_footer(page: str = "") -> None:
                     © {_year} Unstructured Alpha. All rights reserved.
                 </div>
             </div>
-            <div style="display:flex;gap:14px;flex-shrink:0;">
-                <a href="/8_About" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
+            <div style="display:flex;gap:14px;align-items:center;flex-shrink:0;">
+                <a href="/about-methodology" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
                                            font-weight:500;" onmouseover="this.style.color='#00C8E0'"
                    onmouseout="this.style.color='#6B7FBF'">About</a>
-                <a href="/36_Privacy_Policy" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
+                <a href="/privacy-terms" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
                                                      font-weight:500;" onmouseover="this.style.color='#00C8E0'"
-                   onmouseout="this.style.color='#6B7FBF'">Privacy Policy</a>
-                <a href="/37_Terms_of_Service" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
+                   onmouseout="this.style.color='#6B7FBF'">Privacy</a>
+                <a href="/privacy-terms" style="font-size:0.68rem;color:#6B7FBF;text-decoration:none;
                                                        font-weight:500;" onmouseover="this.style.color='#00C8E0'"
-                   onmouseout="this.style.color='#6B7FBF'">Terms of Service</a>
-                <a href="/Upgrade" style="font-size:0.68rem;color:#7C3AED;text-decoration:none;
-                                          font-weight:600;" onmouseover="this.style.color='#A78BFA'"
-                   onmouseout="this.style.color='#7C3AED'">Pro ⚡</a>
+                   onmouseout="this.style.color='#6B7FBF'">Terms</a>
+                <!-- Upgrade: fixed dead /Upgrade slug -> /upgrade-to-pro, and made it a real CTA. -->
+                <a href="/upgrade-to-pro" style="font-size:0.68rem;color:#fff;text-decoration:none;
+                                          font-weight:700;background:linear-gradient(135deg,#7C3AED,#6D28D9);
+                                          padding:5px 12px;border-radius:6px;white-space:nowrap;"
+                   onmouseover="this.style.opacity='0.88'"
+                   onmouseout="this.style.opacity='1'">&#9889; Upgrade to Pro</a>
             </div>
         </div>
     </div>
