@@ -381,12 +381,12 @@ if section == "Markets":
             spread = tnx["last"] - irx["last"]
             sc = "#00D566" if spread > 0 else "#FF4444"
             sl = "Normal (positive)" if spread > 0 else "Inverted (recession signal)"
-            st.markdown(f"""
+            st.html(f"""
             <div class="ua-spotlight ua-kpi-animate" style="--ua-spotlight-accent:{sc};margin-top:10px;padding:14px 18px;">
                 <div style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;margin-bottom:4px;">10Y–3M Yield Curve Spread</div>
                 <div style="font-size:2.0rem;font-weight:900;color:{sc};text-shadow:0 0 24px {sc}45;">{spread:+.2f}%</div>
                 <div style="font-size:0.78rem;color:#8892AA;margin-top:2px;">{sl}</div>
-            </div>""", unsafe_allow_html=True)
+            </div>""")
 
     with right_col:
         st.markdown(section_label("Commodities & Currencies", color="#00D566", dot="#00D566"), unsafe_allow_html=True)
@@ -606,14 +606,14 @@ if section == "Markets":
         pct    = bull_n / total * 100
         bc     = "#00D566" if pct >= 60 else ("#FF4444" if pct <= 30 else "#6B7FBF")
         blabel = "Risk-On Environment" if pct >= 60 else ("Risk-Off Environment" if pct <= 30 else "Mixed Signals")
-        st.markdown(f"""
+        st.html(f"""
         <div class="ua-spotlight" style="--ua-spotlight-accent:{bc};margin-top:14px;padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
             <span style="font-size:0.60rem;font-weight:700;color:#8892AA;text-transform:uppercase;letter-spacing:0.10em;">Market Breadth</span>
             <span style="font-size:0.90rem;font-weight:800;color:{bc};text-shadow:0 0 16px {bc}40;">{blabel}</span>
             <span style="font-size:0.78rem;color:#8892AA;margin-left:4px;">
                 <span style="color:#00D566;">▲ {bull_n}</span> · <span style="color:#6B7FBF;">● {neut_n}</span> · <span style="color:#FF4444;">▼ {bear_n}</span>
             </span>
-        </div>""", unsafe_allow_html=True)
+        </div>""")
 
     st.caption(
         f"Signals from live yfinance data · Period shown: {period_label(period_sel)} · "
@@ -879,11 +879,13 @@ elif section == "Macro Indicators":
         </tr>
         """
 
-    st.markdown(f"""
+    # st.html (not st.markdown): the leading-indented <table> was being parsed as
+    # a markdown code block and dumped as raw text near the bottom of Macro Indicators.
+    st.html(f"""
     <table class="ua-data-table">
     <thead><tr><th>Frequency</th><th>Timing</th><th>Release</th><th>Source</th></tr></thead>
     <tbody>{cal_rows}</tbody>
     </table>
-    """, unsafe_allow_html=True)
+    """)
 
 render_footer()

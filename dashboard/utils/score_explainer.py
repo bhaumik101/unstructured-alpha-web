@@ -342,34 +342,32 @@ def confidence(corr_info: dict, score_history: Optional[list] = None) -> dict:
 
     Returns {level, color, reasons[]} where level ∈ {High, Moderate, Limited}.
     """
+    # Delegate to the shared, COVERAGE-DOMINATED methodology in utils.coverage so
+    # a score built on a couple of signals can never present as "High" (the
+    # non-negotiable rule). Returns the same level/color/reasons keys the
+    # renderer already uses, plus the coverage tier and a 0-100 confidence score.
+    from utils.coverage import coverage_tier, assess_confidence
+
     ci = corr_info or {}
     tested = len(ci)
     n_sig = sum(1 for c in ci.values() if c.get("significant"))
     n_sample = sum(1 for c in ci.values() if int(c.get("n", 0) or 0) >= 20)
-    hist_pts = len([h for h in (score_history or []) if h.get("score") is not None])
 
-    reasons = []
-    if n_sig >= 6 and n_sample >= 6:
-        level, color = "High", "#00C853"
-    elif n_sig >= 3:
-        level, color = "Moderate", "#FF9800"
-    else:
-        level, color = "Limited", "#FF4444"
-
-    reasons.append(
-        f"{n_sig} of {tested} tested signals show a statistically significant "
-        f"correlation with this ticker"
+    tier = coverage_tier(n_sig)
+    conf = assess_confidence(
+        n_significant=n_sig,
+        n_available=n_sample,
+        n_expected=max(tested, n_sig, 1),
+        n_stale=0,               # per-signal staleness not tracked here yet
+        agreement_ratio=0.5,     # neutral; agreement shown separately in the panel
     )
-    if n_sample < 6:
-        reasons.append(
-            f"only {n_sample} signal{'s' if n_sample != 1 else ''} had a full sample "
-            f"(20+ observations) — the rest are down-weighted"
-        )
-    if hist_pts < 3:
-        reasons.append("limited stored score history to compare against")
 
-    return {"level": level, "color": color, "reasons": reasons,
-            "n_significant": n_sig, "n_tested": tested, "n_sample": n_sample}
+    return {
+        "level": conf["level"], "color": conf["color"], "score": conf.get("score"),
+        "reasons": conf["reasons"], "components": conf["components"],
+        "coverage": tier,
+        "n_significant": n_sig, "n_tested": tested, "n_sample": n_sample,
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────

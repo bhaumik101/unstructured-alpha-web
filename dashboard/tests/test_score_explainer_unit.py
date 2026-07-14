@@ -161,13 +161,17 @@ def test_agreement_excludes_nonsignificant_and_neutral():
 
 # ── 6. Confidence tiers ──────────────────────────────────────────────────────
 def test_confidence_tiers():
-    hi = se.confidence({f"s{i}": {"significant": True, "n": 90} for i in range(6)}, [{"score": 1}] * 3)
+    # Coverage-capped methodology (utils.coverage): High needs >=8 significant.
+    hi = se.confidence({f"s{i}": {"significant": True, "n": 90} for i in range(8)}, [{"score": 1}] * 3)
     assert hi["level"] == "High"
     mod = se.confidence({f"s{i}": {"significant": True, "n": 90} for i in range(4)}, [])
     assert mod["level"] == "Moderate"
-    lim = se.confidence({"a": {"significant": True, "n": 5}, "b": {"significant": False, "n": 90}}, [])
-    assert lim["level"] == "Limited"
-    assert lim["reasons"]
+    # 2 significant -> capped at Limited even when fresh
+    lim = se.confidence({"a": {"significant": True, "n": 90}, "b": {"significant": True, "n": 90}}, [])
+    assert lim["level"] == "Limited" and lim["reasons"]
+    # 1 significant -> Insufficient, no score (the non-negotiable rule)
+    ins = se.confidence({"a": {"significant": True, "n": 90}, "b": {"significant": False, "n": 90}}, [])
+    assert ins["level"] == "Insufficient" and ins["score"] is None
 
 
 # ── 7. Factor breakdown shares sum to ~100% ──────────────────────────────────
