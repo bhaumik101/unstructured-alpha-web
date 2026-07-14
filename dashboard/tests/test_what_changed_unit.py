@@ -93,8 +93,13 @@ def test_threshold_dedupe_and_ranking():
     assert "vix" not in ids                      # |4| < 8 → noise
     assert ids.count("hy_spread") == 1           # mover-dup collapsed into the flip
     assert next(c for c in p["changes"] if c["sig_id"] == "hy_spread")["kind"] == "flip"
-    # holdings-first, then |delta|: crude (hit,23) > hy (hit,16) > insider (no hit,9)
-    assert ids == ["crude_inventories", "hy_spread", "insider_x"]
+    # ranked by MATERIALITY = |delta| + 12·holdings-hit + 8·flip-bonus:
+    #   hy (flip,16,+JPM = 36) > crude (23,+XOM = 35) > insider (9,no hit = 9)
+    assert ids == ["hy_spread", "crude_inventories", "insider_x"]
+    hy = next(c for c in p["changes"] if c["sig_id"] == "hy_spread")
+    assert hy["materiality"] == 36.0 and hy["materiality_tier"] == "high"
+    ins = next(c for c in p["changes"] if c["sig_id"] == "insider_x")
+    assert ins["materiality"] == 9.0 and ins["materiality_tier"] == "low"
     assert p["noise_count"] == 44                # 47 - 3
     assert p["most_exposed"] in {"JPM", "XOM"}
     assert p["regime_shift"] == "RISK-ON → MIXED"
@@ -126,8 +131,9 @@ def test_threshold_boundary():
 def test_no_watchlist_path():
     p = wc.build_what_changed(_diff(), watchlist=None, total_signals=47)
     assert p["most_exposed"] is None and p["has_watchlist"] is False
-    # falls back to pure |delta| ranking → crude (23) first
-    assert [c["sig_id"] for c in p["changes"]][0] == "crude_inventories"
+    # no holdings term → materiality = |delta| (+ flip bonus):
+    #   hy (16 + 8 flip = 24) > crude (23) > insider (9)
+    assert [c["sig_id"] for c in p["changes"]][0] == "hy_spread"
 
 
 def test_empty_and_render():

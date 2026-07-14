@@ -228,13 +228,18 @@ def build_what_changed(
     for sid, e in entries.items():
         e["watchlist_hits"] = affected_watchlist(sid, watchlist)
         e["sectors"] = affected_sectors(sid)
+        # Materiality (Phase 15): score-move magnitude + how many of the user's
+        # OWN holdings it hits (dominant term) + a bonus for a regime-relevant
+        # status flip. This is what lets the feed say "2 meaningful changes"
+        # instead of "38 signals updated" — it ranks by information, not activity.
+        _m = abs(float(e.get("delta") or 0)) + 12.0 * len(e["watchlist_hits"])
+        if e.get("kind") == "flip":
+            _m += 8.0
+        e["materiality"] = round(_m, 1)
+        e["materiality_tier"] = "high" if _m >= 30 else ("medium" if _m >= 12 else "low")
 
-    # 4) Rank: holdings-affecting first, then by absolute score move.
-    ranked = sorted(
-        entries.values(),
-        key=lambda e: (len(e["watchlist_hits"]) > 0, abs(e["delta"] or 0)),
-        reverse=True,
-    )[:max_items]
+    # 4) Rank by materiality (magnitude + holdings affected + regime flip).
+    ranked = sorted(entries.values(), key=lambda e: e["materiality"], reverse=True)[:max_items]
 
     # 5) Noise = everything in the universe that did NOT meaningfully change.
     noise_count = max(0, total_signals - meaningful_total)
@@ -344,10 +349,22 @@ def render_what_changed_html(payload: dict) -> str:
         impact_bits.append(f'<span style="color:#8892AA;">Affects: {label}</span>')
         impact = ' &nbsp;·&nbsp; '.join(impact_bits)
 
+        # High-materiality changes (big move + hits holdings and/or a regime flip)
+        # get a subtle pill so the eye lands on what actually matters.
+        badge = ""
+        if e.get("materiality_tier") == "high":
+            badge = (
+                '<span style="font-size:0.6rem;font-weight:700;letter-spacing:0.05em;'
+                'color:#B79CFF;background:rgba(124,58,237,0.16);'
+                'border:1px solid rgba(124,58,237,0.35);border-radius:4px;'
+                'padding:1px 7px;margin-left:9px;vertical-align:middle;'
+                'text-transform:uppercase;">High impact</span>'
+            )
+
         rows.append(
             f'<div style="border-left:3px solid {accent};background:#12162400;'
             f'padding:10px 0 10px 14px;margin-top:12px;">'
-            f'<div style="font-size:0.95rem;font-weight:700;color:#E8EEFF;">{e["headline"]}</div>'
+            f'<div style="font-size:0.95rem;font-weight:700;color:#E8EEFF;">{e["headline"]}{badge}</div>'
             f'<div style="font-size:0.82rem;margin-top:3px;">{move}</div>'
             f'<div style="font-size:0.78rem;margin-top:5px;">{impact}</div>'
             + (f'<div style="font-size:0.75rem;color:#6B7280;margin-top:5px;line-height:1.5;">{e["why"]}</div>'
