@@ -85,12 +85,6 @@ const FOR_WHO = [
   },
 ];
 
-// Not for everyone — builds trust through honesty
-const NOT_FOR = [
-  "Day traders who need sub-second data",
-  "Purely technical chartists — we're macro-first",
-  "Anyone looking for stock tips or guaranteed returns",
-];
 
 const FAQ_ITEMS = [
   {
@@ -421,6 +415,52 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ─────────────── PRODUCT DEMO — a realistic portfolio change ─────────── */}
+      {/* Lead with the ANSWER (what changed around your holdings), not an
+          inventory of features. This is the product in one glance. */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "64px 24px" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto" }} data-reveal>
+          <p className="eyebrow" style={{ textAlign: "center" }}>What you&apos;d see</p>
+          <h2 className="section-title" data-reveal data-delay="1"
+              style={{ textAlign: "center", maxWidth: "100%", marginBottom: 28 }}>
+            2 things changed around your watchlist
+          </h2>
+          <div style={{ background: T.card, border: "1px solid rgba(255,255,255,0.08)",
+                        borderRadius: 16, padding: "6px 22px" }}>
+            <div style={{ padding: "18px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: T.bright }}>NVDA</span>
+                <span style={{ fontFamily: "monospace", color: T.muted }}>
+                  71 &rarr; <span style={{ color: "#ff5a5a", fontWeight: 700 }}>54</span></span>
+                <span style={{ fontSize: 14, color: "#ff8080", fontWeight: 600 }}>Macro support weakened</span>
+              </div>
+              <div style={{ fontSize: 13, color: T.dimmer, marginTop: 6 }}>
+                Real yields &minus;8 &nbsp;·&nbsp; Liquidity &minus;5 &nbsp;·&nbsp; AI capex &minus;3</div>
+            </div>
+            <div style={{ padding: "18px 0" }}>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 18, fontWeight: 800, color: T.bright }}>JPM</span>
+                <span style={{ fontFamily: "monospace", color: T.muted }}>
+                  58 &rarr; <span style={{ color: T.green, fontWeight: 700 }}>67</span></span>
+                <span style={{ fontSize: 14, color: T.green, fontWeight: 600 }}>Credit backdrop improved</span>
+              </div>
+              <div style={{ fontSize: 13, color: T.dimmer, marginTop: 6 }}>
+                HY spreads +6 &nbsp;·&nbsp; Financial conditions +3</div>
+            </div>
+          </div>
+          <p style={{ textAlign: "center", fontSize: 14, color: T.dimmer, marginTop: 16 }}>
+            Everything else was noise.
+          </p>
+          <div style={{ textAlign: "center", marginTop: 22 }}>
+            <a href={APP_URL} className="btn-primary"
+               style={{ background: T.green, color: "#000", padding: "13px 30px",
+                        borderRadius: 10, fontSize: 15, fontWeight: 700, display: "inline-block" }}>
+              Analyze my watchlist
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* ─────────────────── SIGNAL PREVIEW ──────────────────────────────────── */}
       <div style={{ borderTop: "1px solid rgba(0,213,102,0.14)",
                     background: "linear-gradient(180deg, rgba(0,213,102,0.035) 0%, transparent 100%)",
@@ -658,34 +698,19 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Honest "not for" section — builds trust */}
-            <div style={{ borderLeft: "1px solid rgba(255,255,255,0.06)", paddingLeft: 40 }}>
-              <p className="eyebrow" style={{ color: T.label }}>Honest disclaimer</p>
-              <h2 className="section-title" style={{ marginBottom: 12, fontSize: "clamp(18px, 2vw, 24px)" }}>
-                Not for everyone
+            {/* Honest positioning — one confident line, not a wall of negatives. */}
+            <div style={{ borderLeft: "1px solid rgba(255,255,255,0.06)", paddingLeft: 40,
+                          display: "flex", flexDirection: "column", justifyContent: "center" }}>
+              <p className="eyebrow" style={{ color: T.label }}>What it is</p>
+              <h2 className="section-title" style={{ marginBottom: 14, fontSize: "clamp(18px, 2vw, 24px)" }}>
+                A macro context layer — not stock tips
               </h2>
-              <p style={{ fontSize: 14, color: T.muted, lineHeight: 1.7, marginBottom: 24 }}>
-                We'd rather you know upfront. Unstructured Alpha is <em>not</em> useful if you're looking for:
+              <p style={{ fontSize: 15, color: T.muted, lineHeight: 1.75 }}>
+                Unstructured Alpha maps the economic environment around the stocks you hold and tells you
+                when it materially changes. It&apos;s the interpretation layer between raw macro data and
+                your own decisions &mdash; educational and informational, not personalized advice, price
+                targets, or trade signals.
               </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {NOT_FOR.map((item) => (
-                  <div key={item} style={{ display: "flex", alignItems: "flex-start", gap: 10,
-                                          fontSize: 14, color: T.muted }}>
-                    <span style={{ color: "#ff4444", flexShrink: 0, fontSize: 13, marginTop: 1 }}>✕</span>
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-              <div style={{ marginTop: 28, padding: "16px 18px", background: "rgba(255,255,255,0.02)",
-                            border: "1px solid rgba(255,255,255,0.06)", borderRadius: 10 }}>
-                <div style={{ fontSize: 12, color: T.dimmer, lineHeight: 1.7 }}>
-                  <strong style={{ color: T.label, display: "block", marginBottom: 4 }}>
-                    What we actually are:
-                  </strong>
-                  A macro signal layer for investors who want to understand the economic environment
-                  around their portfolio. Educational and informational only.
-                </div>
-              </div>
             </div>
 
           </div>
