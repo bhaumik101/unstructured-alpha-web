@@ -1675,19 +1675,19 @@ st.markdown("""
 
 _t1, _t2, _t3, _t4, _t5 = st.columns(5)
 with _t1:
-    if st.button("📡 Signal Dashboard", use_container_width=True, key="cta_signals"):
+    if st.button("Signal Dashboard", use_container_width=True, key="cta_signals"):
         st.switch_page("pages/1_Signal_Dashboard.py")
 with _t2:
-    if st.button("📊 Market Overview", use_container_width=True, key="cta_market"):
+    if st.button("Market Overview", use_container_width=True, key="cta_market"):
         st.switch_page("pages/5_Market_Overview.py")
 with _t3:
-    if st.button("🔍 Stock Screener", use_container_width=True, key="cta_screener"):
+    if st.button("Stock Screener", use_container_width=True, key="cta_screener"):
         st.switch_page("pages/6_Stock_Screener.py")
 with _t4:
-    if st.button("✅ Model Validation", use_container_width=True, key="cta_validation"):
+    if st.button("Model Validation", use_container_width=True, key="cta_validation"):
         st.switch_page("pages/11_Model_Validation.py")
 with _t5:
-    if st.button("📈 Signal Strategy", use_container_width=True, key="cta_strategy"):
+    if st.button("Signal Strategy", use_container_width=True, key="cta_strategy"):
         st.switch_page("pages/35_Signal_Strategy.py")
 
 st.divider()

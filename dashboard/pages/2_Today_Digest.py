@@ -942,7 +942,7 @@ with tab_weekly:
     _wb_user = st.session_state.get("user", {})
     if _wb_user.get("is_admin") or _wb_user.get("subscription_tier") == "pro":
         st.markdown("---")
-        if st.button("⚙️ Generate new note now", key="wb_gen_now"):
+        if st.button("Generate new note now", key="wb_gen_now"):
             with st.spinner("Generating via Anthropic API…"):
                 try:
                     _gen_note(force=True)

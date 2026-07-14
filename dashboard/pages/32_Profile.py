@@ -205,7 +205,7 @@ with right:
         else:
             st.caption("Subscription managed outside Stripe (admin access).")
     else:
-        if st.button("⚡ Upgrade to Pro", type="primary", use_container_width=True):
+        if st.button("Upgrade to Pro", type="primary", use_container_width=True):
             st.switch_page("pages/29_Upgrade.py")
         st.caption("Unlock Factor Exposure, PDF reports, Signal Backtester, and more.")
 

@@ -726,12 +726,12 @@ if section == "Overview":
             use_container_width=True,
         )
     with _share_c2:
-        if st.button("📤 Share Link", key="share_btn",
+        if st.button("Share Link", key="share_btn",
                      help="Copy a direct link to this ticker's analysis",
                      use_container_width=True):
             st.session_state["_tdd_show_share"] = True
     with _share_c3:
-        if st.button("⭐ Watchlist", key="add_wl_btn",
+        if st.button("Watchlist", key="add_wl_btn",
                      help="Track this ticker with score + price alerts",
                      use_container_width=True):
             st.session_state["chart_ticker"] = ticker_input
@@ -740,7 +740,7 @@ if section == "Overview":
         _share_url = f"https://app.unstructuredalpha.com/Ticker_Deep_Dive?ticker={ticker_input}"
         st.code(_share_url, language=None)
         st.caption("Share this link — it loads directly to this ticker's full analysis.")
-        if st.button("✕ Dismiss", key="share_dismiss"):
+        if st.button("Dismiss", key="share_dismiss"):
             st.session_state.pop("_tdd_show_share", None)
             st.rerun()
 
@@ -2013,11 +2013,11 @@ if section == "Overview":
                 """, unsafe_allow_html=True)
                 _gu_c1, _gu_c2, _ = st.columns([1.2, 1.2, 3])
                 with _gu_c1:
-                    if st.button("🔓 Start Free Trial →", type="primary", key="tdd_upgrade_cta",
+                    if st.button("Start Free Trial →", type="primary", key="tdd_upgrade_cta",
                                  use_container_width=True):
                         st.switch_page("pages/29_Upgrade.py")
                 with _gu_c2:
-                    if st.button("⭐ Add to Watchlist", key="tdd_wl_cta2",
+                    if st.button("Add to Watchlist", key="tdd_wl_cta2",
                                  use_container_width=True):
                         st.session_state["chart_ticker"] = ticker_input
                         st.switch_page("pages/10_Watchlist.py")
@@ -2039,7 +2039,7 @@ if section == "Overview":
                 """, unsafe_allow_html=True)
                 _au_c1, _au_c2, _ = st.columns([1.2, 1.2, 3])
                 with _au_c1:
-                    if st.button("📬 Create Free Account", type="primary", key="tdd_signup_cta",
+                    if st.button("Create Free Account", type="primary", key="tdd_signup_cta",
                                  use_container_width=True):
                         st.switch_page("pages/home_page.py")
                 with _au_c2:
