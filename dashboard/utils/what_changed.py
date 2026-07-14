@@ -32,7 +32,8 @@ from __future__ import annotations
 
 from typing import Optional
 
-from utils.config import SIGNALS, TICKERS, CATEGORIES
+from utils.config import SIGNALS, TICKERS, CATEGORIES  # noqa: F401 (CATEGORIES kept for compat)
+from utils import taxonomy
 
 # A "mover" must move at least this many score points to count as meaningful.
 # Status flips are always meaningful regardless of magnitude (a flip is, by
@@ -51,13 +52,15 @@ def _signal_name(sig_id: str) -> str:
 
 
 def _signal_category(sig_id: str) -> str:
-    return (SIGNALS.get(sig_id) or {}).get("category", "macro")
+    # Real macro-factor FAMILY (Rates/Credit/…) — "Affects: Rates" reads as a
+    # macro exposure, not a sector tag.
+    return taxonomy.factor_family_of(sig_id)
 
 
 def _category_name(cat_id: Optional[str]) -> str:
     if not cat_id:
         return "Macro"
-    return (CATEGORIES.get(cat_id) or {}).get("name", cat_id.replace("_", " ").title())
+    return taxonomy.factor_family_name(cat_id)
 
 
 def _signal_why(sig_id: str, limit: int = 160) -> str:

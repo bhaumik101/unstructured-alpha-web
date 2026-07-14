@@ -40,6 +40,16 @@ _stub.TICKERS = {
 }
 sys.modules.setdefault("utils.config", _stub)
 
+# stub utils.taxonomy — what_changed now groups "affects" by macro-factor family
+_tax = types.ModuleType("utils.taxonomy")
+_TAXMAP = {"hy_spread": "credit", "crude_inventories": "energy", "insider_x": "growth",
+           "vix": "volatility", "semiconductor_etf": "capex_tech"}
+_TAXNAMES = {"credit": "Credit", "energy": "Energy", "growth": "Growth",
+             "volatility": "Volatility & Positioning", "capex_tech": "Capex & Technology"}
+_tax.factor_family_of = lambda s: _TAXMAP.get(s, "growth")
+_tax.factor_family_name = lambda f: _TAXNAMES.get(f, f.replace("_", " ").title())
+sys.modules["utils.taxonomy"] = _tax
+
 from utils import what_changed as wc  # noqa: E402
 
 
