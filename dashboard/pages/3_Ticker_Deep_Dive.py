@@ -3673,7 +3673,7 @@ elif section == "Earnings Track Record":
 
     st.divider()
     if st.button("View full Track Record page →", key="goto_track_record_from_tdd"):
-        st.switch_page("pages/13_Track_Record.py")
+        st.switch_page("pages/30_Track_Record_Live.py")
 
 elif section == "Earnings Sentiment":
     # ── Earnings Transcript Sentiment (SEC EDGAR 8-K Item 2.02 + LM lexicon) ──

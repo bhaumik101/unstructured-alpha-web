@@ -1062,7 +1062,7 @@ try:
             unsafe_allow_html=True,
         )
         if st.button("Read Full Note →", key="home_note_cta", use_container_width=False):
-            st.switch_page("pages/18_Weekly_Brief.py")
+            st.switch_page("pages/2_Today_Digest.py")
 except Exception:
     pass
 
@@ -1270,10 +1270,10 @@ try:
 
     _smc, _ = st.columns([1, 3])
     with _smc:
-        if st.button("Full Sector Map →", use_container_width=True, key="cta_sector"):
-            st.switch_page("pages/12_Sector_Map.py")
+        if st.button("Full Sector View →", use_container_width=True, key="cta_sector"):
+            st.switch_page("pages/42_Sector_View.py")
 except Exception:
-    st.caption("Sector preview unavailable. Open the Sector Map page directly.")
+    st.caption("Sector preview unavailable. Open the Sector View page directly.")
 
 st.divider()
 
