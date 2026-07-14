@@ -36,6 +36,7 @@ if str(_here) not in sys.path:
 # Canonical category display — fixes the "Ai_Infrastructure" raw-enum leak on
 # public pages (was `category.title()`). taxonomy is dependency-light.
 from utils.taxonomy import category_display  # noqa: E402
+from utils.coverage import coverage_tier      # noqa: E402  (honest coverage states, no "—/100 Unknown")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
@@ -499,34 +500,41 @@ def ticker_page(symbol: str):
     bear = sum(1 for s in rel_statuses.values() if s == "bearish")
     neut = len(rel_statuses) - bull - bear
 
-    # Score display
-    if score is not None:
+    # Coverage-aware, HONEST score states — never a "—/100 Unknown" box.
+    # Distinguishes: enough relevant signals + a score (show it) · too few
+    # relevant signals (no composite, say so) · enough signals but no snapshot
+    # yet (score updating).
+    cov       = coverage_tier(len(rel_statuses))
+    has_score = cov["generates_score"] and score is not None
+    if has_score:
         case       = _case_label(score)
         score_col  = _score_color(score)
         score_disp = f"{score:.0f}"
+    elif not cov["generates_score"]:
+        case       = "Insufficient macro coverage"
+        score_col  = "#8892AA"
+        score_disp = None
     else:
-        case       = "Unknown"
-        score_col  = "#4A5280"
-        score_disp = "—"
+        case       = "Score updating"
+        score_col  = "#8892AA"
+        score_disp = None
 
-    # SEO metadata
-    if score is not None:
+    # SEO metadata — honest about coverage, no over-claimed source list.
+    if has_score:
         seo_desc = (
-            f"{symbol} ({name}) currently scores {score_disp}/100 on the Unstructured Alpha "
-            f"Confluence Score — a macro-driven signal that aggregates {len(rel_statuses)} "
-            f"data sources including FRED, EIA, SEC insider filings, and FINRA short interest. "
-            f"{bull} of {len(rel_statuses)} signals are currently bullish."
+            f"{symbol} ({name}) scores {score_disp}/100 on the Unstructured Alpha Confluence "
+            f"Score — a macro-context read from {len(rel_statuses)} relevant macro signals "
+            f"({cov['label']}). {bull} of {len(rel_statuses)} are currently supportive."
         )
     else:
         seo_desc = (
-            f"Unstructured Alpha tracks {symbol} ({name}) across {len(rel_ids)} macro signals "
-            f"including FRED economic data, EIA energy inventories, SEC insider filings, and FINRA "
-            f"short interest. Sign up to see the live Confluence Score."
+            f"Unstructured Alpha maps {len(rel_ids)} macro factors relevant to {symbol} ({name}). "
+            f"Coverage: {cov['label']}. See the live macro context on the app."
         )
 
     page_title = (
         f"{symbol} Confluence Score: {score_disp}/100 — {SITE_NAME}"
-        if score is not None else
+        if has_score else
         f"{symbol} ({name}) Macro Signal Analysis — {SITE_NAME}"
     )
 
@@ -577,6 +585,28 @@ def ticker_page(symbol: str):
 
     updated_str = f"Updated {snap_date}" if snap_date else "No snapshot data yet"
 
+    # Coverage-aware score card — shows a real number only when there's coverage
+    # AND a snapshot; otherwise an honest state (never "—/100 Unknown").
+    if score_disp is not None:
+        score_card_html = (
+            '<div class="score-card">'
+            '<div class="score-label">Confluence Score</div>'
+            f'<div class="score-value" style="color:{score_col};">{score_disp}'
+            '<span class="score-denom">/100</span></div>'
+            f'<div class="score-case" style="color:{score_col};">{case}</div>'
+            f'<div class="score-updated">{updated_str} · {cov["label"]}</div>'
+            '</div>'
+        )
+    else:
+        score_card_html = (
+            '<div class="score-card">'
+            '<div class="score-label">Macro Coverage</div>'
+            f'<div class="score-case" style="color:{score_col};font-size:1.3rem;margin:8px 0 2px;">{case}</div>'
+            f'<div class="score-updated">{len(rel_statuses)} relevant macro signal(s) tracked</div>'
+            f'<div class="score-updated" style="margin-top:8px;color:#8892AA;">{cov["note"]}</div>'
+            '</div>'
+        )
+
     html = _html_head(page_title, seo_desc, canonical, json_ld)
     html += f"""
 <div class="container">
@@ -587,12 +617,7 @@ def ticker_page(symbol: str):
     <div class="hero-name">{name}</div>
   </div>
 
-  <div class="score-card">
-    <div class="score-label">Confluence Score</div>
-    <div class="score-value" style="color:{score_col};">{score_disp}<span class="score-denom">/100</span></div>
-    <div class="score-case" style="color:{score_col};">{case}</div>
-    <div class="score-updated">{updated_str}</div>
-  </div>
+  {score_card_html}
 
   <div class="signal-grid">
     <div class="signal-stat">
@@ -624,14 +649,14 @@ def ticker_page(symbol: str):
   </table>
 
   <div class="cta-block">
-    <h2>See the Full Analysis for {symbol}</h2>
+    <h2>See {symbol}'s live macro context</h2>
     <p>
-      Unstructured Alpha tracks {len(rel_statuses)} data sources in real time — from EIA crude
-      inventories to Congressional stock trades to SEC Form 4 insider filings. The Confluence Score
-      combines them into a single 0–100 number updated as new data arrives.
+      Unstructured Alpha maps the {len(rel_ids)} macro factors that actually matter for {symbol}
+      and flags when the backdrop around it changes — with per-signal contribution and honest
+      coverage, not a black-box number.
     </p>
-    <a class="cta-btn" href="{APP_URL}/Ticker_Deep_Dive?ticker={symbol}">
-      Open {symbol} Deep Dive →
+    <a class="cta-btn" href="{APP_URL}/ticker-deep-dive?ticker={symbol}">
+      See why {symbol}'s factors moved &rarr;
     </a>
   </div>
 """
@@ -750,7 +775,7 @@ def signal_page(signal_id: str):
       sources to compute a real-time Confluence Score for each equity. See how this signal
       is currently affecting the tickers you care about.
     </p>
-    <a class="cta-btn" href="{APP_URL}/Signal_Dashboard">
+    <a class="cta-btn" href="{APP_URL}/signal-dashboard">
       Open Signal Dashboard →
     </a>
   </div>
@@ -856,7 +881,7 @@ def signals_report():
       Unstructured Alpha's Confluence Score aggregates {len(SIGNALS)} data sources
       into a single 0–100 number, updated as FRED, EIA, and SEC data arrives.
     </p>
-    <a class="cta-btn" href="{APP_URL}/Today%27s_Brief">
+    <a class="cta-btn" href="{APP_URL}/today-s-brief">
       Open Today's Brief →
     </a>
   </div>
