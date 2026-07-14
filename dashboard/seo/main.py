@@ -35,8 +35,9 @@ if str(_here) not in sys.path:
 
 # Canonical category display — fixes the "Ai_Infrastructure" raw-enum leak on
 # public pages (was `category.title()`). taxonomy is dependency-light.
-from utils.taxonomy import category_display  # noqa: E402
+from utils.taxonomy import category_display, factor_family_name_of  # noqa: E402
 from utils.coverage import coverage_tier      # noqa: E402  (honest coverage states, no "—/100 Unknown")
+from utils.product_metrics import ACTIVE_SIGNAL_COUNT  # noqa: E402  (metrics SSOT)
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse, Response
@@ -677,6 +678,14 @@ def signal_page(signal_id: str):
     description= cfg.get("description", "")
     lag_weeks  = cfg.get("lag_weeks", 0)
     relevant_t = cfg.get("relevant_tickers", [])
+    # model-card metadata (Phase 10)
+    factor_fam = factor_family_name_of(signal_id)
+    mechanism  = cfg.get("causal_mechanism", "")
+    freq       = (cfg.get("frequency", "") or "").title()
+    tier       = cfg.get("tier", 2)
+    weight_lbl = {1: "Core", 2: "Supporting", 3: "Experimental"}.get(tier, "Supporting")
+    src        = (cfg.get("source", "") or "").upper()
+    src_url    = cfg.get("source_url", "")
 
     engine, _, signal_snapshots = _get_engine()
 
@@ -743,6 +752,37 @@ def signal_page(signal_id: str):
           <td>{b}</td>
         </tr>"""
 
+    # ── Model-card sections (Phase 10). Honest about modeling CHOICE vs
+    # validated finding — the old "leads price by ~N weeks based on historical
+    # correlation analysis" overstated the evidence; the lead is a design
+    # assumption and is labelled as such.
+    _why = (
+        '<div class="section-head" style="margin-top:24px;">Why the model watches it</div>'
+        f'<p style="color:#B8C0D4;line-height:1.8;font-size:0.92rem;">{mechanism}</p>'
+    ) if mechanism else ""
+    _rows = [("Factor family", factor_fam), ("Relative weight", weight_lbl)]
+    if freq:
+        _rows.append(("Update cadence", freq))
+    if lag_weeks:
+        _rows.append(("Modeled lead", f"~{lag_weeks} weeks (a modeling assumption, not a validated finding)"))
+    if src:
+        _rows.append(("Data source", f'<a href="{src_url}">{src}</a>' if src_url else src))
+    _treat_rows = "".join(
+        f'<tr><td style="color:#6B7A95;font-size:0.82rem;width:38%;">{k}</td>'
+        f'<td style="color:#E8EEFF;">{v}</td></tr>'
+        for k, v in _rows
+    )
+    model_treatment_html = (
+        _why +
+        '<div class="section-head" style="margin-top:24px;">How the model treats this signal</div>'
+        f'<table class="signal-table"><tbody>{_treat_rows}</tbody></table>'
+        '<div class="section-head" style="margin-top:24px;">Known limitations</div>'
+        '<p style="color:#8892AA;line-height:1.75;font-size:0.88rem;">'
+        f'The lead time above is a design assumption, not an out-of-sample-validated relationship '
+        f'for a specific security or index. This is one {factor_fam} input among '
+        f'{ACTIVE_SIGNAL_COUNT}; it measures macro context, not a full investment thesis.</p>'
+    )
+
     html = _html_head(page_title, seo_desc, canonical, json_ld)
     html += f"""
 <div class="container">
@@ -762,7 +802,7 @@ def signal_page(signal_id: str):
   <div class="section-head">About This Signal</div>
   <p style="color:#B8C0D4;line-height:1.8;font-size:0.92rem;">{description}</p>
 
-  {"<div class='section-head' style='margin-top:24px;'>Lead Time</div><p style='color:#B8C0D4;font-size:0.92rem;'>This signal leads relevant price moves by approximately <strong style='color:#E8EEFF;'>" + str(lag_weeks) + " weeks</strong> based on historical correlation analysis.</p>" if lag_weeks else ""}
+  {model_treatment_html}
 
   {"<div class='section-head'>Relevant Tickers</div><p style='color:#B8C0D4;font-size:0.88rem;'>" + ticker_links + "</p>" if ticker_links else ""}
 
@@ -771,9 +811,9 @@ def signal_page(signal_id: str):
   <div class="cta-block">
     <h2>Track This Signal in Real Time</h2>
     <p>
-      Unstructured Alpha aggregates {sig_name} alongside {len(SIGNALS) - 1} other macro data
-      sources to compute a real-time Confluence Score for each equity. See how this signal
-      is currently affecting the tickers you care about.
+      Unstructured Alpha weighs {sig_name} alongside {ACTIVE_SIGNAL_COUNT - 1} other macro
+      signals to build a Confluence Score for each stock. See how this signal is currently
+      shaping the macro backdrop for the tickers you follow.
     </p>
     <a class="cta-btn" href="{APP_URL}/signal-dashboard">
       Open Signal Dashboard →
