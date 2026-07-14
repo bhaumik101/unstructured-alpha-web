@@ -84,6 +84,10 @@ pg = st.navigation(
             st.Page("pages/40_Stock_Recommender.py",  title="Stock Recommender",   url_path="stock-recommender"),
             # merged out of visible nav (chart context now belongs on the ticker):
             st.Page("pages/14_Stock_Chart.py",        title="Stock Chart",         url_path="stock-chart"),
+            # Pro-gated tools — registered for routing (reached via in-page CTAs /
+            # URL), intentionally not surfaced in the visible top-nav:
+            st.Page("pages/27_Factor_Exposure.py",    title="Factor Exposure",     url_path="factor-exposure"),
+            st.Page("pages/28_Export.py",             title="Export Report",       url_path="export-report"),
         ],
         # ── Signals & Methodology ─────────────────────────────────────────────
         "Signals & Methodology": [
