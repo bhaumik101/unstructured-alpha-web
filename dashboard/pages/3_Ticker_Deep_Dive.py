@@ -541,19 +541,21 @@ if section == "Overview":
     _cv_label   = (f'<span style="color:{_score_color(_contract_vel["score"])}">{_contract_vel["score"]:.0f}/100</span>'
                    if _has_contract_signal else '<span style="color:#4A5568;">no data</span>')
 
-    _opt_wt_display = f"{round(_opt_slice * 100)}%"
+    # weight_pct here is just the number — _attr_card appends the "%" itself
+    # (previously this included a "%", producing the "12%%" display bug).
+    _opt_wt_display = f"{round(_opt_slice * 100)}"
 
     st.markdown(f"""
     <div style="margin-bottom:14px;">
       <div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
                   text-transform:uppercase;margin-bottom:8px;">Score Attribution</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        {_attr_card("📊 Macro Signals", _mac_label, _macro_wt)}
-        {_attr_card("⚡ Momentum", _mom_label, _mom_wt)}
-        {_attr_card("🏛 Insiders", _ins_label, _opt_wt_display if _has_insider_signal else "—", _has_insider_signal)}
-        {_attr_card("📉 Short Int.", _si_label, _opt_wt_display if _has_short_interest_signal else "—", _has_short_interest_signal)}
-        {_attr_card("🏦 13F Funds", _tf_label, _opt_wt_display if _has_13f_signal else "—", _has_13f_signal)}
-        {_attr_card("📋 Contracts", _cv_label, _opt_wt_display if _has_contract_signal else "—", _has_contract_signal)}
+        {_attr_card("Macro Signals", _mac_label, _macro_wt)}
+        {_attr_card("Momentum", _mom_label, _mom_wt)}
+        {_attr_card("Insiders", _ins_label, _opt_wt_display if _has_insider_signal else "—", _has_insider_signal)}
+        {_attr_card("Short Int.", _si_label, _opt_wt_display if _has_short_interest_signal else "—", _has_short_interest_signal)}
+        {_attr_card("13F Funds", _tf_label, _opt_wt_display if _has_13f_signal else "—", _has_13f_signal)}
+        {_attr_card("Contracts", _cv_label, _opt_wt_display if _has_contract_signal else "—", _has_contract_signal)}
       </div>
     </div>
     """, unsafe_allow_html=True)
