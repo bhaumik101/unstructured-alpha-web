@@ -460,6 +460,21 @@ else:
             except Exception:
                 pass
 
+            # Explain the Move — attribution for a material score shift on this
+            # watched ticker, reusing the shared engine. Cheap path (genuine
+            # snapshots only, no per-ticker history scan across the whole list);
+            # silent when there's no material move or no recorded breakdown yet.
+            try:
+                from utils.score_history import explain_move
+                from utils.score_attribution import render_attribution_html
+                _wl_attr = explain_move(ticker, days_back=7, allow_reconstruction=False)
+                if (_wl_attr.get("state") in ("ok", "insufficient_coverage")
+                        and abs(_wl_attr.get("total_change", 0.0)) >= 3.0):
+                    with st.expander(f"Why {ticker} moved {abs(_wl_attr['total_change']):.0f} pts"):
+                        st.html(render_attribution_html(_wl_attr))
+            except Exception:
+                pass
+
         with wc2:
             # Regular-session price + daily change
             if price is not None:
