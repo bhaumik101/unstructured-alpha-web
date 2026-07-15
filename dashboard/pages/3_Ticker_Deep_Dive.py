@@ -545,7 +545,7 @@ if section == "Overview":
     # (previously this included a "%", producing the "12%%" display bug).
     _opt_wt_display = f"{round(_opt_slice * 100)}"
 
-    st.markdown(f"""
+    st.html(f"""
     <div style="margin-bottom:14px;">
       <div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;
                   text-transform:uppercase;margin-bottom:8px;">Score Attribution</div>
@@ -558,7 +558,7 @@ if section == "Overview":
         {_attr_card("Contracts", _cv_label, _opt_wt_display if _has_contract_signal else "—", _has_contract_signal)}
       </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # ── Score Velocity Banner ─────────────────────────────────────────────────
     # Shows when the score is moving at an unusual rate-of-change compared to
