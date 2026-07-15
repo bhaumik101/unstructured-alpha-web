@@ -295,6 +295,28 @@ signal_snapshots = Table(
     UniqueConstraint("signal_id", "snapshot_date", name="uq_signal_snapshot_sig_date"),
 )
 
+# Confluence Score COMPONENT snapshots (added 2026-07-14). Powers "Explain the
+# Move": stores the full reconciling breakdown (per-signal contribution/weight/
+# factor + momentum + positioning + coverage) that produced a ticker's score on a
+# given day, plus the model version it was computed under. Keyed by (ticker,
+# snapshot_date) like score_snapshots, same organic traffic-driven coverage
+# model, upserted at Ticker Deep Dive view time. `components_json` is the JSON
+# blob from utils.score_components.build_components — a Text column so the schema
+# stays dialect-portable (SQLite + Postgres) and the breakdown can evolve without
+# an ALTER TABLE. Brand-new table — plain create_all() is sufficient.
+score_components = Table(
+    "score_components", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("ticker", String(16), nullable=False),
+    Column("snapshot_date", String(10), nullable=False),   # YYYY-MM-DD
+    Column("model_version", String(32)),
+    Column("signal_registry_version", String(32)),
+    Column("final_score", Float),
+    Column("components_json", Text, nullable=False),
+    Column("created_at", String(64), nullable=False),
+    UniqueConstraint("ticker", "snapshot_date", name="uq_score_components_ticker_date"),
+)
+
 # Signal Flip Alert Log (added 2026-07-07). One row per (signal_id, flip_date)
 # — deduplicates the signal_flip_alerts cron so users receive at most one email
 # per signal flip per calendar day, even if the cron runs every 2 hours.

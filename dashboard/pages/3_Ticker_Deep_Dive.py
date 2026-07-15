@@ -295,6 +295,32 @@ try:
 except Exception:
     pass
 
+# Component snapshot for "Explain the Move" — the reconciling per-signal / factor
+# breakdown behind today's score, upserted opportunistically like the score
+# snapshot above. This is what a future A/B comparison attributes the change to.
+try:
+    from utils.score_components import build_components
+    from utils.score_history import record_score_components
+    record_score_components(ticker_input, build_components(_full))
+except Exception:
+    pass
+
+# ── Explain the Move: contextual attribution command ─────────────────────────
+# Appears near the score whenever there's a material move AND a prior snapshot to
+# compare against. Silent (nothing to explain) until this ticker has ≥2 days of
+# history. Smart window auto-selects 1D vs 7D vs 30D by where the move happened.
+try:
+    from utils.score_history import explain_move_smart
+    from utils.score_attribution import render_attribution_html
+    _move = explain_move_smart(ticker_input)
+    if _move.get("state") in ("ok", "insufficient_coverage") and abs(_move.get("total_change", 0.0)) >= 0.5:
+        _mv_chg = _move.get("total_change", 0.0)
+        _mv_lbl = (_move.get("window_label") or "recent").strip()
+        with st.expander(f"Explain the {abs(_mv_chg):.0f}-point move · {_mv_lbl}", expanded=False):
+            st.html(render_attribution_html(_move))
+except Exception:
+    pass
+
 # ── Prediction Log: auto-log score crossings + resolve pending predictions ────
 # Runs on every TDD page load. Two jobs:
 #   1. Log today's score if it crossed 70+ (bull) or 35- (bear) for the first

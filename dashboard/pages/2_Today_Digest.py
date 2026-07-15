@@ -715,6 +715,21 @@ with tab_today:
                     unsafe_allow_html=True,
                 )
 
+            # Explain the Move — deterministic attribution of this score change,
+            # reusing the shared engine. Cheap path (genuine component snapshots
+            # only, no per-ticker history scan); silent when a ticker has no
+            # component breakdown recorded yet. Fully defensive.
+            try:
+                from utils.score_history import explain_move
+                from utils.score_attribution import render_attribution_html
+                _attr = explain_move(ticker, days_back=7, allow_reconstruction=False)
+                if _attr.get("state") in ("ok", "insufficient_coverage") and _attr.get("summary"):
+                    _mover_box.caption(_attr["summary"])
+                    with _mover_box.expander(f"Explain the {abs(delta):.0f}-point move"):
+                        st.html(render_attribution_html(_attr))
+            except Exception:
+                pass
+
     st.divider()
 
     # ── Section 3: Watchlist Activity ─────────────────────────────────────────────

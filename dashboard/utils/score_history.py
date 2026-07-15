@@ -25,7 +25,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from utils import db
-from utils.db import score_snapshots, signal_snapshots, upsert_stmt
+from utils.db import score_snapshots, signal_snapshots, score_components, upsert_stmt
 from utils.lead_time_research import get_sector_peers
 
 
@@ -52,6 +52,195 @@ def record_score_snapshot(ticker: str, score: float, case: str, conviction: str)
     )
     with db.engine.begin() as conn:
         conn.execute(stmt)
+
+
+def record_score_components(ticker: str, components: dict) -> None:
+    """
+    Upsert today's COMPONENT snapshot for `ticker` — the reconciling score
+    breakdown from utils.score_components.build_components. Powers "Explain the
+    Move". Same (ticker, snapshot_date) upsert semantics as record_score_snapshot:
+    a later view the same day overwrites with the latest computation. Best-effort;
+    any DB/JSON error is swallowed so a snapshot failure never breaks the page.
+    """
+    import json
+    try:
+        ticker = ticker.upper().strip()
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        now_iso = datetime.now(timezone.utc).isoformat()
+        blob = json.dumps(components, separators=(",", ":"))
+        vals = dict(
+            ticker=ticker, snapshot_date=today,
+            model_version=components.get("model_version"),
+            signal_registry_version=components.get("signal_registry_version"),
+            final_score=float(components.get("final_score", 0.0) or 0.0),
+            components_json=blob, created_at=now_iso,
+        )
+        stmt = upsert_stmt(score_components, ["ticker", "snapshot_date"]).values(**vals)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["ticker", "snapshot_date"],
+            set_={k: vals[k] for k in
+                  ("model_version", "signal_registry_version", "final_score",
+                   "components_json", "created_at")},
+        )
+        with db.engine.begin() as conn:
+            conn.execute(stmt)
+    except Exception:
+        pass
+
+
+def _parse_components_row(row) -> dict | None:
+    import json
+    if not row:
+        return None
+    try:
+        c = json.loads(row["components_json"])
+        c["snapshot_date"] = row["snapshot_date"]
+        return c
+    except Exception:
+        return None
+
+
+def get_signal_scores_asof(cutoff_date: str) -> dict:
+    """
+    Latest recorded percentile score per signal on/before `cutoff_date`, from
+    signal_snapshots (global, not ticker-scoped). Used to RECONSTRUCT a prior
+    component snapshot when no genuine one has accrued yet — so "Explain the Move"
+    works on day 1 from real historical signal readings rather than returning an
+    empty state. Returns {signal_id: score}.
+    """
+    try:
+        with db.engine.begin() as conn:
+            rows = conn.execute(
+                select(signal_snapshots)
+                .where(signal_snapshots.c.snapshot_date <= cutoff_date)
+                .order_by(signal_snapshots.c.signal_id, signal_snapshots.c.snapshot_date.desc())
+            ).mappings().all()
+    except Exception:
+        return {}
+    out: dict[str, float] = {}
+    for r in rows:
+        sid = str(r["signal_id"])
+        if sid not in out:  # desc-ordered → first seen is the latest on/before cutoff
+            try:
+                out[sid] = float(r["score"])
+            except Exception:
+                pass
+    return out
+
+
+def get_latest_components(ticker: str) -> dict | None:
+    """Most recent component snapshot for `ticker`, or None."""
+    ticker = ticker.upper().strip()
+    try:
+        with db.engine.begin() as conn:
+            row = conn.execute(
+                select(score_components)
+                .where(score_components.c.ticker == ticker)
+                .order_by(score_components.c.snapshot_date.desc())
+                .limit(1)
+            ).mappings().first()
+        return _parse_components_row(row)
+    except Exception:
+        return None
+
+
+def get_components_on_or_before(ticker: str, cutoff_date: str) -> dict | None:
+    """
+    The component snapshot with the latest snapshot_date <= cutoff_date (i.e. the
+    best available "Time A" for a comparison window). None if none exists yet.
+    """
+    ticker = ticker.upper().strip()
+    try:
+        with db.engine.begin() as conn:
+            row = conn.execute(
+                select(score_components)
+                .where(score_components.c.ticker == ticker)
+                .where(score_components.c.snapshot_date <= cutoff_date)
+                .order_by(score_components.c.snapshot_date.desc())
+                .limit(1)
+            ).mappings().first()
+        return _parse_components_row(row)
+    except Exception:
+        return None
+
+
+def explain_move(ticker: str, days_back: int = 7, allow_reconstruction: bool = True) -> dict:
+    """
+    Orchestrate an "Explain the Move" attribution for `ticker` over the last
+    `days_back` days. Fetches the latest component snapshot (Time B) and the best
+    snapshot on/before the cutoff (Time A), then runs the pure attribution engine.
+    Returns the engine's structured result; state == "no_comparison" when there
+    isn't a usable prior snapshot yet (honest, never synthesized).
+
+    allow_reconstruction: when True (default), if no genuine prior snapshot exists,
+    reconstruct Time A from historical signal_snapshots (one broad scan). Hot
+    surfaces that call this for many tickers per page load (digest, watchlist)
+    should pass False to stay on the cheap genuine-snapshot path only.
+    """
+    from utils import score_attribution as sa
+
+    b = get_latest_components(ticker)
+    if not b:
+        return {"state": "no_comparison",
+                "reason": "No score snapshot has been recorded for this ticker yet."}
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime("%Y-%m-%d")
+    a = get_components_on_or_before(ticker, cutoff)
+
+    # No genuine prior component snapshot yet → RECONSTRUCT one from the real
+    # historical per-signal scores in signal_snapshots (current weighting applied
+    # to historical readings). This is what makes attribution work before genuine
+    # component history has accrued. Honestly flagged reconstructed=True.
+    if not a and allow_reconstruction:
+        hist = get_signal_scores_asof(cutoff)
+        a = sa.reconstruct_prior(b, hist, as_of_date=cutoff) if hist else None
+
+    # If even reconstruction isn't possible, fall back to the OLDEST genuine
+    # snapshot we have so a comparison is still possible (labeled by its real date).
+    if not a:
+        try:
+            with db.engine.begin() as conn:
+                row = conn.execute(
+                    select(score_components)
+                    .where(score_components.c.ticker == ticker.upper().strip())
+                    .order_by(score_components.c.snapshot_date.asc())
+                    .limit(1)
+                ).mappings().first()
+            a = _parse_components_row(row)
+        except Exception:
+            a = None
+        if a and a.get("snapshot_date") == b.get("snapshot_date"):
+            a = None  # only one snapshot exists → nothing to compare
+    label = _window_label(days_back)
+    return sa.attribute_move(a, b,
+                             from_date=(a or {}).get("snapshot_date"),
+                             to_date=b.get("snapshot_date"),
+                             window_label=label)
+
+
+def _window_label(days_back: int) -> str:
+    return {1: "since yesterday", 7: "this week", 30: "this month"}.get(
+        days_back, f"over {days_back} days")
+
+
+def explain_move_smart(ticker: str) -> dict:
+    """
+    Pick the most relevant comparison window automatically: prefer 1D if today's
+    move is already material, else 7D, else 30D — so the user doesn't have to
+    discover that the meaningful change happened a week ago. Returns the same
+    engine result, with the chosen window reflected in window_label / days_back.
+    """
+    MATERIAL = 3.0  # points — a move worth explaining
+    best = None
+    for days in (1, 7, 30):
+        res = explain_move(ticker, days_back=days)
+        if res.get("state") in ("ok", "insufficient_coverage"):
+            res["days_back"] = days
+            if abs(res.get("total_change", 0.0)) >= MATERIAL:
+                return res
+            best = best or res  # remember the first usable (small-move) window
+    # No window had a material move; return the shortest usable comparison, or the
+    # honest no_comparison state.
+    return best or explain_move(ticker, days_back=7)
 
 
 def get_score_history(ticker: str, days: int = 180) -> list[dict]:
