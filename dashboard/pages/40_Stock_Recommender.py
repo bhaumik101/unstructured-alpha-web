@@ -168,11 +168,21 @@ def _enrich_tickers(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
     Run compute_full_ticker_score() in parallel on the given tickers.
     Returns {ticker: result_dict} for successfully scored tickers.
     """
-    from utils.ticker_score import compute_full_ticker_score
+    from utils.ticker_score import compute_full_ticker_score, price_window
+    from utils.fetchers import fetch_prices_batch
+
+    # Batch-fetch every candidate's price history in ONE yfinance request,
+    # then hand each ticker its own series — instead of N separate downloads
+    # inside N parallel compute_full_ticker_score() calls. Output is identical.
+    _pstart, _pend = price_window()
+    _prices = fetch_prices_batch(tickers_tuple, _pstart, _pend)
 
     results: dict[str, dict] = {}
     with ThreadPoolExecutor(max_workers=5) as pool:
-        futures = {pool.submit(compute_full_ticker_score, t): t for t in tickers_tuple}
+        futures = {
+            pool.submit(compute_full_ticker_score, t, None, _prices.get(t)): t
+            for t in tickers_tuple
+        }
         for fut in as_completed(futures, timeout=180):
             t = futures[fut]
             try:

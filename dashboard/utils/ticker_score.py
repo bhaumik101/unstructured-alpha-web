@@ -106,7 +106,19 @@ def resolve_ticker_meta(ticker: str) -> tuple[dict, str, list]:
     return tkr_meta, company_name_hint, relevant_sig_ids
 
 
-def compute_full_ticker_score(ticker: str, signal_ids: list | None = None) -> dict:
+def price_window() -> tuple[str, str]:
+    """The (start, end) date window compute_full_ticker_score uses for prices.
+    Exposed so batch callers can pre-fetch the exact same window."""
+    end = datetime.now().strftime("%Y-%m-%d")
+    price_start = (datetime.now() - timedelta(days=365 * 15)).strftime("%Y-%m-%d")
+    return price_start, end
+
+
+def compute_full_ticker_score(
+    ticker: str,
+    signal_ids: list | None = None,
+    price_series: "pd.Series | None" = None,
+) -> dict:
     """
     Compute the exact same full Confluence Score shown on Ticker Deep Dive:
     macro signal confluence (weighted by each signal's real correlation with
@@ -146,7 +158,10 @@ def compute_full_ticker_score(ticker: str, signal_ids: list | None = None) -> di
             signal_scores[sig_id] = {"score": 50, "status": "neutral"}
             signal_data[sig_id] = pd.Series(dtype=float)
 
-    price_series = fetch_price(ticker, price_start, end)
+    # Use a caller-supplied price series when given (batch pre-fetch); otherwise
+    # fetch this ticker on its own. Byte-identical either way.
+    if price_series is None:
+        price_series = fetch_price(ticker, price_start, end)
 
     # Per-ticker correlation weighting + significance (mirrors the page exactly)
     corr_info = {}
