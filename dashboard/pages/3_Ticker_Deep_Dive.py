@@ -431,6 +431,15 @@ if section == "Overview":
     </div>
     """, unsafe_allow_html=True)
 
+    # ── TradingView Advanced Chart — the same professional widget as the Stock
+    # Chart page, embedded here so the chart lives right beside the analysis.
+    try:
+        from utils.tradingview import render_tradingview_chart
+        st.markdown(f"#### {ticker_input} — Interactive Chart")
+        render_tradingview_chart(ticker_input, chart_height=480, key=f"tdd_{ticker_input}")
+    except Exception:
+        pass
+
     # ── Confluence Score Explainer (transparency layer) ───────────────────────
     # Point 3: make the score explain itself in <10s — plain-English band, how
     # much it moved & WHY (per-signal attribution of the macro-backdrop change),

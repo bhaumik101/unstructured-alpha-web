@@ -228,6 +228,13 @@ if not ols:
     st.error("Regression could not be computed. Try a different ticker or longer period.")
     st.stop()
 
+# ── TradingView Advanced Chart — same professional widget as the Stock Chart page.
+try:
+    from utils.tradingview import render_tradingview_chart
+    render_tradingview_chart(ticker_input, chart_height=440, key=f"fe_{ticker_input}")
+except Exception:
+    pass
+
 # ── Header KPIs ───────────────────────────────────────────────────────────────
 alpha_ann   = ols["alpha_ann"]
 r2          = ols["r2"]
