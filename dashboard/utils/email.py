@@ -1586,11 +1586,27 @@ def send_score_moved_email(to_email: str, moved: list[dict]) -> None:
         acol      = _delta_color(delta)
         ncol      = _score_color(new_s)
         direction = "bullish" if delta > 0 else "bearish"
+        # Explain the Move — the deterministic "why" behind the shift, reusing the
+        # shared attribution engine. Turns an empty "69 → 54" alert into a reason.
+        # Safe/silent if this ticker has no component-snapshot history yet.
+        _why = ""
+        try:
+            from utils.score_history import explain_move
+            _attr = explain_move(ticker, days_back=7)
+            if _attr.get("state") in ("ok", "insufficient_coverage") and _attr.get("summary"):
+                _why = _attr["summary"]
+        except Exception:
+            _why = ""
+        why_html = (
+            f'<div style="font-size:0.72rem;color:#8892AA;margin-top:6px;'
+            f'line-height:1.5;max-width:210px;">{_why}</div>'
+        ) if _why else ""
         rows_html += f"""
     <tr>
       <td style="padding:14px 0;border-bottom:1px solid rgba(255,255,255,0.06);vertical-align:middle;">
         <div style="font-size:1rem;font-weight:700;color:#E8EEFF;">{ticker}</div>
         <div style="font-size:0.72rem;color:#8892AA;margin-top:2px;text-transform:capitalize;">{direction}</div>
+        {why_html}
       </td>
       <td style="padding:14px 8px;border-bottom:1px solid rgba(255,255,255,0.06);
                  text-align:right;vertical-align:middle;">
