@@ -249,7 +249,7 @@ section = st.segmented_control(
 # TAB: Signal Trends
 # ─────────────────────────────────────────────────────────────────────────────
 if section == "Signal Trends":
-    st.markdown(section_label("Signal Trends by Leg", dot="#7C3AED"), unsafe_allow_html=True)
+    st.html(section_label("Signal Trends by Leg", dot="#7C3AED"))
     st.caption("Each series normalized to 100 at the start of the selected window. One panel per leg.")
 
     _LEG_PERIOD_OPTS = ["1H", "1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "ALL"]
@@ -363,7 +363,7 @@ if section == "Signal Trends":
 # TAB: Ticker Performance
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Ticker Performance":
-    st.markdown(section_label("Ticker Performance by Supercycle Leg", dot="#00C8E0"), unsafe_allow_html=True)
+    st.html(section_label("Ticker Performance by Supercycle Leg", dot="#00C8E0"))
     st.caption("How each basket of supercycle-relevant tickers has performed over the last 2 years.")
 
     with st.expander("Why these specific tickers?"):
@@ -417,7 +417,7 @@ elif section == "Ticker Performance":
 # TAB: Copper COT
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Copper COT":
-    st.markdown(section_label("Copper COT — Commercial Positioning", dot="#F59E0B"), unsafe_allow_html=True)
+    st.html(section_label("Copper COT — Commercial Positioning", dot="#F59E0B"))
 
     with st.expander("Why copper COT matters for the supercycle"):
         st.markdown("""
@@ -481,7 +481,7 @@ elif section == "Copper COT":
 # TAB: Quantum
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Quantum":
-    st.markdown(section_label("Quantum Computing — arXiv Paper Velocity", dot="#4A1B6B"), unsafe_allow_html=True)
+    st.html(section_label("Quantum Computing — arXiv Paper Velocity", dot="#4A1B6B"))
 
     with st.expander("Why arXiv paper velocity is a leading indicator"):
         st.markdown("""
@@ -547,7 +547,7 @@ elif section == "Quantum":
 # TAB: Nuclear Contracts
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Nuclear Contracts":
-    st.markdown(section_label("DoE Nuclear Contract Awards", dot="#00D566"), unsafe_allow_html=True)
+    st.html(section_label("DoE Nuclear Contract Awards", dot="#00D566"))
 
     with st.expander("Why DoE contract awards are a leading indicator for nuclear stocks"):
         st.markdown("""
@@ -597,7 +597,7 @@ elif section == "Nuclear Contracts":
 # TAB: Confluence
 # ─────────────────────────────────────────────────────────────────────────────
 elif section == "Confluence":
-    st.markdown(section_label("Full Signal Confluence Summary", dot="#00D566"), unsafe_allow_html=True)
+    st.html(section_label("Full Signal Confluence Summary", dot="#00D566"))
 
     _leg_by_sig = {
         "uranium_proxy":     "Nuclear Fuel",

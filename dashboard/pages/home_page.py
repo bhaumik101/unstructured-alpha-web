@@ -369,7 +369,7 @@ st.markdown(
     "font-family:Inter,sans-serif;'>No account needed to browse signals</div>",
     unsafe_allow_html=True,
 )
-st.markdown(render_platform_note(), unsafe_allow_html=True)
+st.html(render_platform_note())
 
 # ── SIGNAL FLIP ALERT BANNER ──────────────────────────────────────────────────
 try:

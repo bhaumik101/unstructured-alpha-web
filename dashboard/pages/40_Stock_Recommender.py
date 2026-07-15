@@ -424,7 +424,7 @@ with col_long:
     )
     if longs:
         for r in longs:
-            st.markdown(_rec_card(r, "long"), unsafe_allow_html=True)
+            st.html(_rec_card(r, "long"))
     else:
         st.info("No high-conviction longs under this filter. Try 'All' horizons or reduce the min-signal requirement.")
 
@@ -437,7 +437,7 @@ with col_short:
     )
     if shorts:
         for r in shorts:
-            st.markdown(_rec_card(r, "short"), unsafe_allow_html=True)
+            st.html(_rec_card(r, "short"))
     else:
         st.info("No high-conviction shorts under this filter.")
 

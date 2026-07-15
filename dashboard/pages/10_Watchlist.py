@@ -106,7 +106,7 @@ current_user = require_login()
 user_id = current_user["id"]
 
 # ── Watchlist management ──────────────────────────────────────────────────────
-st.markdown(section_label("Watchlist", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
+st.html(section_label("Watchlist", color="#00C8E0", dot="#00C8E0"))
 
 new_ticker = st.text_input("Add a ticker to watch:", key="new_watch_ticker", max_chars=10).upper().strip()
 
@@ -552,7 +552,7 @@ else:
 st.divider()
 
 # ── Share Watchlist (public read-only link) ────────────────────────────────────
-st.markdown(section_label("Share Your Watchlist", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
+st.html(section_label("Share Your Watchlist", color="#7C3AED", dot="#7C3AED"))
 try:
     from utils.share_watchlist import get_or_create_slug, revoke_slug, build_share_url
 
@@ -610,7 +610,7 @@ except Exception as _share_err:
 st.divider()
 
 # ── Morning Digest Opt-In ─────────────────────────────────────────────────────
-st.markdown(section_label("Email Settings", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
+st.html(section_label("Email Settings", color="#F59E0B", dot="#F59E0B"))
 try:
     _current_optin = get_digest_optin(user_id)
     _new_optin = st.toggle(
@@ -637,7 +637,7 @@ except Exception as _digest_err:
 st.divider()
 
 # ── Webhook Settings (Pro) ────────────────────────────────────────────────────
-st.markdown(section_label("Webhook Settings", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
+st.html(section_label("Webhook Settings", color="#7C3AED", dot="#7C3AED"))
 
 _user_tier = get_user_tier(user_id)
 if _user_tier != "pro":
@@ -704,7 +704,7 @@ else:
 st.divider()
 
 # ── Alerts (integrated into this page, not a separate page) ─────────────────
-st.markdown(section_label("Alerts for Your Watchlist", color="#00D566", dot="#00D566"), unsafe_allow_html=True)
+st.html(section_label("Alerts for Your Watchlist", color="#00D566", dot="#00D566"))
 
 with st.expander("How alerts work — and what's not built yet"):
     st.markdown("""

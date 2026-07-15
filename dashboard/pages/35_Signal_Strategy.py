@@ -147,14 +147,14 @@ def _metric_html(label: str, strat_val, bench_val, fmt: str = "{:.1f}%", higher_
 
 cols = st.columns(4)
 with cols[0]:
-    st.markdown(_metric_html("CAGR", strat_m["cagr"], bench_m["cagr"]), unsafe_allow_html=True)
+    st.html(_metric_html("CAGR", strat_m["cagr"], bench_m["cagr"]))
 with cols[1]:
-    st.markdown(_metric_html("Sharpe Ratio", strat_m["sharpe"], bench_m["sharpe"], fmt="{:.2f}"), unsafe_allow_html=True)
+    st.html(_metric_html("Sharpe Ratio", strat_m["sharpe"], bench_m["sharpe"], fmt="{:.2f}"))
 with cols[2]:
     st.markdown(_metric_html("Max Drawdown", strat_m["max_drawdown"], bench_m["max_drawdown"],
                              higher_better=False), unsafe_allow_html=True)
 with cols[3]:
-    st.markdown(_metric_html("Calmar Ratio", strat_m["calmar"], bench_m["calmar"], fmt="{:.2f}"), unsafe_allow_html=True)
+    st.html(_metric_html("Calmar Ratio", strat_m["calmar"], bench_m["calmar"], fmt="{:.2f}"))
 
 st.markdown("<br>", unsafe_allow_html=True)
 

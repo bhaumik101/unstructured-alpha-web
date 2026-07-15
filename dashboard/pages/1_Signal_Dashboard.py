@@ -383,7 +383,7 @@ with tab_signals:
         st.stop()
 
     # ── Score legend ──────────────────────────────────────────────────────────────
-    st.markdown(render_signal_legend(), unsafe_allow_html=True)
+    st.html(render_signal_legend())
 
     # ── Heatmap View (alternative to card grid) ───────────────────────────────────
     # Shows every signal as a small colored cell — great for at-a-glance scanning
@@ -1054,7 +1054,7 @@ with tab_signals:
                 )
 
     # Financial disclaimer
-    st.markdown(render_disclaimer(compact=True), unsafe_allow_html=True)
+    st.html(render_disclaimer(compact=True))
 
 
 with tab_regime:

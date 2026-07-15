@@ -459,7 +459,7 @@ if section == "Overview":
         _expl_payload = build_explainer(
             _full, score_history=_expl_hist, signal_trends=_expl_trends, change_days=7,
         )
-        st.markdown(render_explainer_html(_expl_payload), unsafe_allow_html=True)
+        st.html(render_explainer_html(_expl_payload))
     except Exception:
         pass
 
@@ -1754,7 +1754,7 @@ if section == "Overview":
                 fc1, fc2, fc3, fc4 = st.columns(4)
                 with fc1:
                     st.markdown("**Valuation**")
-                    st.markdown(_fund_table([
+                    st.html(_fund_table([
                         ("Market Cap",    fund["marketCap"]),
                         ("EV",            fund["enterpriseValue"]),
                         ("Trailing P/E",  fund["trailingPE"]),
@@ -1763,10 +1763,10 @@ if section == "Overview":
                         ("Price / Book",  fund["priceToBook"]),
                         ("EV / EBITDA",   fund["evToEbitda"]),
                         ("EV / Revenue",  fund["evToRevenue"]),
-                    ]), unsafe_allow_html=True)
+                    ]))
                 with fc2:
                     st.markdown("**Profitability**")
-                    st.markdown(_fund_table([
+                    st.html(_fund_table([
                         ("Revenue (TTM)",     fund["totalRevenue"]),
                         ("Gross Margin",      fund["grossMargins"]),
                         ("Operating Margin",  fund["operatingMargins"]),
@@ -1775,10 +1775,10 @@ if section == "Overview":
                         ("Earnings Growth",   fund["earningsGrowth"]),
                         ("Return on Equity",  fund["returnOnEquity"]),
                         ("Return on Assets",  fund["returnOnAssets"]),
-                    ]), unsafe_allow_html=True)
+                    ]))
                 with fc3:
                     st.markdown("**Balance Sheet & Cash**")
-                    st.markdown(_fund_table([
+                    st.html(_fund_table([
                         ("Free Cash Flow",  fund["freeCashflow"]),
                         ("Debt / Equity",   fund["debtToEquity"]),
                         ("Current Ratio",   fund["currentRatio"]),
@@ -1787,16 +1787,16 @@ if section == "Overview":
                         ("Beta",            fund["beta"]),
                         ("Employees",       fund["employees"]),
                         ("Country",         fund["country"]),
-                    ]), unsafe_allow_html=True)
+                    ]))
                 with fc4:
                     st.markdown("**Ownership & Short Interest**")
-                    st.markdown(_fund_table([
+                    st.html(_fund_table([
                         ("Institutions %",    fund["institutionsPct"]),
                         ("Insiders %",        fund["insidersPct"]),
                         ("Short Shares",      fund["sharesShort"]),
                         ("Short Ratio",       fund["shortRatio"]),
                         ("Short % Float",     fund["shortPercentOfFloat"]),
-                    ]), unsafe_allow_html=True)
+                    ]))
 
         # ── Volume + RSI ─────────────────────────────────────────────────────────
         # Same `price_period` selector and `price_view` window as the price
@@ -1842,7 +1842,7 @@ if section == "Overview":
                     f"Bars colored green when above the trailing 50-day average volume "
                     f"({_vol_avg:,.0f}), tan when below — a rough proxy for unusually active days."
                 )
-                st.markdown(source_badge("yfinance", "Daily Volume"), unsafe_allow_html=True)
+                st.html(source_badge("yfinance", "Daily Volume"))
             else:
                 st.info(f"Volume data unavailable for {ticker_input}.")
 
@@ -1883,7 +1883,7 @@ if section == "Overview":
                         "momentum indicator, not a buy/sell signal on its own; extreme readings can "
                         "persist during strong trends rather than immediately reversing."
                     )
-                    st.markdown(source_badge("yfinance", "RSI·14 · computed"), unsafe_allow_html=True)
+                    st.html(source_badge("yfinance", "RSI·14 · computed"))
             else:
                 st.info(f"Not enough price history yet to compute RSI for {ticker_input}.")
 
@@ -1892,7 +1892,7 @@ if section == "Overview":
     # API key required. Placed here (after price/volume/RSI, before prediction
     # model) so a user reading the chart can immediately see WHAT drove recent
     # price moves before looking at the forward model's probabilities.
-    st.markdown(section_label("Catalysts & News", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
+    st.html(section_label("Catalysts & News", color="#F59E0B", dot="#F59E0B"))
 
     _cat_col, _news_col = st.columns([1, 2])
 
@@ -2091,7 +2091,7 @@ if section == "Overview":
     # ── Forward Prediction Model ───────────────────────────────────────────────────
     from utils.analysis import predict_ticker_forward  # noqa: E402 (deferred import keeps page fast)
 
-    st.markdown(section_label("Signal-Based Prediction Model", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
+    st.html(section_label("Signal-Based Prediction Model", color="#7C3AED", dot="#7C3AED"))
     st.caption(
         "Probability estimates derived from macro signal confluence + price momentum. "
         "NOT financial advice. For research & education only."
@@ -3193,7 +3193,7 @@ elif section == "13F & Federal Contracts":
 elif section == "Deep Correlation Scan":
     # ── Deep Correlation Scan — Lead Time Optimizer ────────────────────────────
     st.divider()
-    st.markdown(section_label("Deep Correlation Scan — Lead Time Optimizer", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
+    st.html(section_label("Deep Correlation Scan — Lead Time Optimizer", color="#00C8E0", dot="#00C8E0"))
     st.caption(f"Pick one signal above to test in depth against {ticker_input}: the optimal lead time, "
                f"whether the relationship is stable over time, and a visual overlay.")
 
@@ -3845,5 +3845,5 @@ elif section == "Earnings Sentiment":
             "**Source:** SEC EDGAR public HTTPS API — no API key required."
         )
 
-st.markdown(render_disclaimer(), unsafe_allow_html=True)
+st.html(render_disclaimer())
 render_footer(page="ticker")

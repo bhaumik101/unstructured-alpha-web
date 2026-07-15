@@ -213,7 +213,7 @@ if section == "Markets":
 
 
     # ── Section 1: Major Indices ───────────────────────────────────────────────────
-    st.markdown(section_label("Major Indices", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
+    st.html(section_label("Major Indices", color="#00C8E0", dot="#00C8E0"))
 
     INDICES = {
         "S&P 500":          "SPY",
@@ -279,7 +279,7 @@ if section == "Markets":
     st.markdown("")
 
     # ── Section 2: Sector Performance ─────────────────────────────────────────────
-    st.markdown(section_label(f"Sector Performance — {period_label(period_sel)}", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
+    st.html(section_label(f"Sector Performance — {period_label(period_sel)}", color="#7C3AED", dot="#7C3AED"))
 
     SECTORS = {
         "Technology":     "XLK",
@@ -329,7 +329,7 @@ if section == "Markets":
     left_col, right_col = st.columns(2)
 
     with left_col:
-        st.markdown(section_label("Rates & Fixed Income", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
+        st.html(section_label("Rates & Fixed Income", color="#F59E0B", dot="#F59E0B"))
 
         RATES = {
             "10-Year Treasury":    "^TNX",
@@ -389,7 +389,7 @@ if section == "Markets":
             </div>""")
 
     with right_col:
-        st.markdown(section_label("Commodities & Currencies", color="#00D566", dot="#00D566"), unsafe_allow_html=True)
+        st.html(section_label("Commodities & Currencies", color="#00D566", dot="#00D566"))
 
         COMMODITIES = {
             "Gold":            "GLD",
@@ -433,7 +433,7 @@ if section == "Markets":
 
     # ── Section 4: Performance Chart ──────────────────────────────────────────────
     st.divider()
-    st.markdown(section_label(f"Performance Chart — {period_label(period_sel)}", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
+    st.html(section_label(f"Performance Chart — {period_label(period_sel)}", color="#7C3AED", dot="#7C3AED"))
 
     PERF_TICKERS = {"S&P 500": "SPY", "Nasdaq 100": "QQQ", "Russell 2000": "IWM", "Gold": "GLD"}
     PERF_COLORS  = ["#7C3AED", "#F59E0B", "#00D566", "#FF4444"]
@@ -506,7 +506,7 @@ if section == "Markets":
 
     # ── Section 5: Signal Snapshot ─────────────────────────────────────────────────
     st.divider()
-    st.markdown(section_label("Signal Snapshot", color="#00D566", dot="#00D566"), unsafe_allow_html=True)
+    st.html(section_label("Signal Snapshot", color="#00D566", dot="#00D566"))
     st.caption("Key market signals computed from live yfinance data. Full alternative data analysis on Signal Dashboard.")
 
     STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF", "no_data": "#9E9E8E"}
@@ -694,7 +694,7 @@ elif section == "Macro Indicators":
         len(_macro_fetched),
     )
 
-    st.markdown(section_label("Growth Indicators", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
+    st.html(section_label("Growth Indicators", color="#F59E0B", dot="#F59E0B"))
     st.caption("Real published economic data — not live prices. Updates as slowly as the government releases it.")
 
     g1, g2, g3 = st.columns(3)
@@ -741,7 +741,7 @@ elif section == "Macro Indicators":
         else:
             st.info("Durable Goods unavailable. Add FRED API key.")
 
-    st.markdown(section_label("Labor Market", color="#00C8E0", dot="#00C8E0"), unsafe_allow_html=True)
+    st.html(section_label("Labor Market", color="#00C8E0", dot="#00C8E0"))
 
     l1, l2, l3 = st.columns(3)
 
@@ -780,7 +780,7 @@ elif section == "Macro Indicators":
         else:
             st.info("Rail freight data unavailable. Add FRED API key.")
 
-    st.markdown(section_label("Consumer & Inflation", color="#FF4444", dot="#FF4444"), unsafe_allow_html=True)
+    st.html(section_label("Consumer & Inflation", color="#FF4444", dot="#FF4444"))
 
     c1, c2, c3 = st.columns(3)
 
@@ -823,7 +823,7 @@ elif section == "Macro Indicators":
         else:
             st.info("CPI food data unavailable.")
 
-    st.markdown(section_label("Official Yield Curve (FRED)", color="#7C3AED", dot="#7C3AED"), unsafe_allow_html=True)
+    st.html(section_label("Official Yield Curve (FRED)", color="#7C3AED", dot="#7C3AED"))
     st.caption("FRED's own 10Y-2Y series — complements the live 10Y-3M spread computed from yfinance above.")
 
     yc = _macro_fetched["T10Y2Y"]
@@ -848,7 +848,7 @@ elif section == "Macro Indicators":
         st.info("Yield curve data unavailable. Add FRED API key.")
 
     # ── Economic Calendar ─────────────────────────────────────────────────────────
-    st.markdown(section_label("Key Economic Releases — Schedule", color="#F59E0B", dot="#F59E0B"), unsafe_allow_html=True)
+    st.html(section_label("Key Economic Releases — Schedule", color="#F59E0B", dot="#F59E0B"))
     st.caption("Approximate release schedule for the major data points tracked by this dashboard.")
 
     CALENDAR = [

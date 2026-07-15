@@ -167,15 +167,15 @@ with tab_today:
             _wc_watchlist = []
         _wc_diff = get_signal_diff(days_back=1)
         _wc_payload = build_what_changed(_wc_diff, watchlist=_wc_watchlist)
-        st.markdown(section_label("What Changed", dot="#7C3AED"), unsafe_allow_html=True)
-        st.markdown(render_what_changed_html(_wc_payload), unsafe_allow_html=True)
+        st.html(section_label("What Changed", dot="#7C3AED"))
+        st.html(render_what_changed_html(_wc_payload))
         st.markdown("<div style='height:20px'></div>", unsafe_allow_html=True)
     except Exception:
         pass
 
     # ── Section 1: Signal Pulse ───────────────────────────────────────────────────
 
-    st.markdown(section_label("Signal Pulse", dot="#00D566"), unsafe_allow_html=True)
+    st.html(section_label("Signal Pulse", dot="#00D566"))
 
     # Educational callout collapsed by default — returning users don't need it
     # taking up screen space every visit. New users can expand it.
@@ -195,7 +195,7 @@ with tab_today:
             ),
             unsafe_allow_html=True,
         )
-        st.markdown(render_signal_legend(), unsafe_allow_html=True)
+        st.html(render_signal_legend())
 
     with st.spinner("Loading signal pulse (cached 2 hours)…"):
         _all_scores = get_all_signal_scores()
@@ -475,9 +475,9 @@ with tab_today:
         )
         if _bull_sigs:
             for sid, d in _bull_sigs:
-                st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
+                st.html(_signal_card_html(sid, d))
         else:
-            st.markdown(empty_state("📈", "No bullish signals", "All signals currently read neutral or bearish."), unsafe_allow_html=True)
+            st.html(empty_state("📈", "No bullish signals", "All signals currently read neutral or bearish."))
 
     with _pulse_col2:
         st.markdown(
@@ -491,9 +491,9 @@ with tab_today:
         )
         if _bear_sigs:
             for sid, d in _bear_sigs:
-                st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
+                st.html(_signal_card_html(sid, d))
         else:
-            st.markdown(empty_state("📉", "No bearish signals", "All signals currently read neutral or bullish."), unsafe_allow_html=True)
+            st.html(empty_state("📉", "No bearish signals", "All signals currently read neutral or bullish."))
 
     with _pulse_col3:
         st.markdown(
@@ -507,9 +507,9 @@ with tab_today:
         )
         if _neut_sigs:
             for sid, d in _neut_sigs:
-                st.markdown(_signal_card_html(sid, d), unsafe_allow_html=True)
+                st.html(_signal_card_html(sid, d))
         else:
-            st.markdown(empty_state("⚖️", "No neutral signals", "Signals are polarized — all currently bullish or bearish."), unsafe_allow_html=True)
+            st.html(empty_state("⚖️", "No neutral signals", "Signals are polarized — all currently bullish or bearish."))
 
     # Summary bar
     _n_bull, _n_bear, _n_neut = len(_bull_sigs), len(_bear_sigs), len(_neut_sigs)
@@ -586,7 +586,7 @@ with tab_today:
             if len(_week_flips) > 12:
                 st.caption(f"+ {len(_week_flips) - 12} more signal changes this week.")
         else:
-            st.markdown(empty_state("✅", "No signal changes this week", "The macro picture is holding steady — no direction flips in the past 7 days."), unsafe_allow_html=True)
+            st.html(empty_state("✅", "No signal changes this week", "The macro picture is holding steady — no direction flips in the past 7 days."))
     except Exception:
         pass  # Never crash the page if flip history unavailable
 
@@ -594,7 +594,7 @@ with tab_today:
 
     # ── Section 2: Signal Flips ───────────────────────────────────────────────────
 
-    st.markdown(section_label("Signal Flips — Since Yesterday", dot="#F59E0B"), unsafe_allow_html=True)
+    st.html(section_label("Signal Flips — Since Yesterday", dot="#F59E0B"))
 
     _flips = get_signal_flips(days_back=1)
 
@@ -625,7 +625,7 @@ with tab_today:
 
     # ── Section 3: Score Movers ───────────────────────────────────────────────────
 
-    st.markdown(section_label("Score Movers — Last 7 Days", dot="#7C3AED"), unsafe_allow_html=True)
+    st.html(section_label("Score Movers — Last 7 Days", dot="#7C3AED"))
 
     _movers_df = get_score_movers(days_back=7)
 
@@ -734,7 +734,7 @@ with tab_today:
 
     # ── Section 3: Watchlist Activity ─────────────────────────────────────────────
 
-    st.markdown(section_label("Watchlist Activity", dot="#00C8E0"), unsafe_allow_html=True)
+    st.html(section_label("Watchlist Activity", dot="#00C8E0"))
 
     _user = st.session_state.get("user")
     if not _user:

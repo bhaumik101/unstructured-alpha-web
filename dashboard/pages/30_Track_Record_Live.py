@@ -178,7 +178,7 @@ with tab_track:
         )
 
     # ── Section 1: Prediction Log ─────────────────────────────────────────────────
-    st.markdown(section_label("Prediction Log", color=CYAN, dot=CYAN), unsafe_allow_html=True)
+    st.html(section_label("Prediction Log", color=CYAN, dot=CYAN))
     st.caption(
         "Every convergence event and score crossing logged **in advance** — before the outcome is known. "
         "Forward returns at 4w / 8w / 12w are filled in automatically once the window expires."
@@ -480,7 +480,7 @@ with tab_track:
     st.divider()
 
     # ── Section 3: Signal Accuracy Leaderboard ───────────────────────────────────
-    st.markdown(section_label("Signal Accuracy Leaderboard", color=PURPLE, dot=PURPLE), unsafe_allow_html=True)
+    st.html(section_label("Signal Accuracy Leaderboard", color=PURPLE, dot=PURPLE))
     st.caption(
         "Which macro signals have the best track record of predicting price direction? "
         "Aggregated from all resolved predictions where specific signals were recorded at the time of the call."
