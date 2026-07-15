@@ -306,12 +306,21 @@ def _signal_detail(s: dict) -> str:
     if s.get("score_from") is not None and s.get("score_to") is not None:
         bits.append(f'percentile {s["score_from"]:g}&rarr;{s["score_to"]:g}')
     w = s.get("weight_to")
-    if w is not None:
-        bits.append(f'weight {round(float(w) * 100):g}%')
-    if s.get("raw_from") is not None and s.get("raw_to") is not None:
-        bits.append(f'raw {s["raw_from"]:g}&rarr;{s["raw_to"]:g}')
-    elif s.get("raw_to") is not None:
-        bits.append(f'raw {s["raw_to"]:g}')
+    try:
+        if w is not None:
+            bits.append(f'weight {round(float(w) * 100):g}%')
+    except (TypeError, ValueError):
+        pass
+    def _num(x):
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+    rf, rt = _num(s.get("raw_from")), _num(s.get("raw_to"))
+    if rf is not None and rt is not None:
+        bits.append(f'raw {rf:g}&rarr;{rt:g}')
+    elif rt is not None:
+        bits.append(f'raw {rt:g}')
     if s.get("as_of"):
         bits.append(f'updated {s["as_of"]}')
     return " &middot; ".join(bits)
