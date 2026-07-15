@@ -383,6 +383,8 @@ def fetch_signal_series(cfg: dict, start: str, end: str) -> pd.Series:
             return fetch_google_trends_fear(terms=cfg.get("series_id", "market crash,recession"))
         elif src == "fedspeaks":
             return fetch_fedspeaks_hawkishness(series_id=cfg.get("series_id", "fomc_hawkishness"))
+        elif src == "ny_fed_gscpi":
+            return fetch_ny_fed_gscpi(start, end)
         else:
             return pd.Series(dtype=float)
     except Exception:

@@ -21,7 +21,9 @@ REQUIRED_SIGNAL_KEYS = {
 # use "series_ids" (plural) instead of a single "series_id" — both are valid,
 # checked separately below rather than folded into REQUIRED_SIGNAL_KEYS.
 
-VALID_SOURCES = {"fred", "eia", "yfinance", "yfinance_basket", "yfinance_multi", "arxiv", "fda"}
+VALID_SOURCES = {"fred", "eia", "yfinance", "yfinance_basket", "yfinance_multi",
+                 "yfinance_ratio", "arxiv", "fda", "google_trends", "fedspeaks",
+                 "ny_fed_gscpi"}
 
 
 def test_every_signal_has_required_keys():

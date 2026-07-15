@@ -964,7 +964,7 @@ SIGNALS = {
             "Similar fear-search spikes occurred in Oct 2022 (near the bear-market low) "
             "and Aug 2024 (yen carry-trade unwind — brief but sharp)",
         ],
-        "relevant_tickers": ["SPY", "QQQ", "IWM", "VIX"],
+        "relevant_tickers": ["SPY", "QQQ", "IWM"],
         "category": "macro",
         "color": "#7B5EA7",
         "source_url": "https://trends.google.com/trends/",
@@ -1088,7 +1088,7 @@ SIGNALS = {
             "Breakeven surged from 1.1% to 2.6% in 2020-2021 — energy/materials significantly outperformed during this period",
             "Breakeven peaked at 3.0% in April 2022 preceding a commodity selloff as Fed tightening credibility returned",
         ],
-        "relevant_tickers": ["TIP", "XLE", "XLB", "GLD", "FCX", "XOM", "CVX"],
+        "relevant_tickers": ["XLE", "XLB", "GLD", "FCX", "XOM", "CVX"],
         "category": "macro",
         "color": "#4A1B6B",
         "source_url": "https://fred.stlouisfed.org/series/T10YIE",
@@ -1110,7 +1110,7 @@ SIGNALS = {
             "VIX9D/VIX exceeded 1.1 in March 2020 and August 2024 — both marked short-term local lows with sharp reversals",
             "Sustained backwardation (ratio > 1 for 3+ days) preceded positive 2-week returns at elevated frequency in 2018-2024",
         ],
-        "relevant_tickers": ["SPY", "QQQ", "VIXY", "UVXY", "SPXU"],
+        "relevant_tickers": ["SPY", "QQQ", "VIXY", "UVXY"],
         "category": "macro",
         "color": "#00C8E0",
         "source_url": "https://finance.yahoo.com/quote/%5EVIX9D",
@@ -1160,7 +1160,7 @@ SIGNALS = {
             "GSCPI dropped back to near-zero by late 2022 — freight rates "
             "normalized ahead of consumer goods inflation peaking in H1 2023",
         ],
-        "relevant_tickers": ["AAPL", "WHR", "CAT", "DE", "XLI", "FDX", "UPS", "AMZN", "WMT"],
+        "relevant_tickers": ["AAPL", "CAT", "DE", "XLI", "FDX", "UPS", "AMZN", "WMT"],
         "category": "supply_chain",
         "color": "#0D7A5F",
         "source_url": "https://www.newyorkfed.org/research/policy/gscpi",
@@ -1750,6 +1750,7 @@ CATEGORIES = {
     "healthcare":         {"name": "Healthcare & Biotech",   "icon": "🧬", "color": "#EC4899"},
     "consumer":           {"name": "Consumer",               "icon": "🛍️", "color": "#F97316"},
     "industrials":        {"name": "Industrials",            "icon": "⚙️", "color": "#6B7280"},
+    "supply_chain":       {"name": "Supply Chain & Logistics", "icon": "🚚", "color": "#0EA5E9"},
 }
 # NOTE: "quantum", "critical_minerals", "defense_aerospace", "biotech_longevity",
 # "cybersecurity", "robotics_automation", and "water_security" categories were
