@@ -231,11 +231,18 @@ def fetch_ny_fed_gscpi(start: str, end: str) -> pd.Series:
 # yfinance — Stock & Commodity Prices
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Explicit yfinance network deadline. Without it, a slow Yahoo response holds
+# the (single) Streamlit worker thread far longer than yfinance's loose default,
+# and during a 280-ticker scan those waits stack up and starve the whole app.
+# Kept short: a stale cached value or a skipped ticker beats a frozen worker.
+_YF_TIMEOUT = 8  # seconds per yfinance HTTP call
+
+
 @st.cache_data(ttl=7200, show_spinner=False, max_entries=150)  # 2h — daily close series only gains one bar/day; TradingView is the live chart
 def fetch_price(ticker: str, start: str, end: str) -> pd.Series:
     """Fetch daily closing price. No API key required."""
     try:
-        hist = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True)
+        hist = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True, timeout=_YF_TIMEOUT)
         if hist.empty:
             return pd.Series(dtype=float, name=ticker)
         s = hist["Close"].rename(ticker)
@@ -257,7 +264,7 @@ def fetch_volume(ticker: str, start: str, end: str) -> pd.Series:
     than reshaping an already-widely-used function.
     """
     try:
-        hist = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True)
+        hist = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True, timeout=_YF_TIMEOUT)
         if hist.empty or "Volume" not in hist.columns:
             return pd.Series(dtype=float, name=ticker)
         s = hist["Volume"].rename(ticker)
@@ -411,7 +418,7 @@ def fetch_prices_batch(tickers: tuple, start: str, end: str) -> dict:
         return out
     try:
         df = yf.download(list(tickers), start=start, end=end, auto_adjust=True,
-                         progress=False, group_by="ticker", threads=True)
+                         progress=False, group_by="ticker", threads=True, timeout=_YF_TIMEOUT)
         lvl0 = set(df.columns.get_level_values(0)) if hasattr(df.columns, "get_level_values") else set()
         for t in tickers:
             try:
