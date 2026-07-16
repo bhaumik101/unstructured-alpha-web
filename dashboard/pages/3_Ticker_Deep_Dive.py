@@ -111,7 +111,7 @@ st.markdown("""
         </div>
     </div>
 </div>
-""", unsafe_allow_html=True)
+""".replace("43 live macro signals", f"{len(SIGNALS)} live macro signals"), unsafe_allow_html=True)
 
 with st.expander("Detailed methodology — signal scoring, lead times, and validation"):
     st.markdown("""

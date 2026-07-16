@@ -15,12 +15,17 @@ wrapped in try/except — this module never raises.
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
+try:
+    from utils.product_metrics import ACTIVE_SIGNAL_COUNT as _SIG_N
+except Exception:
+    _SIG_N = 47
+
 # The three onboarding steps. Order matters for display only.
 STEPS: list[dict] = [
     {
         "id":    "view_signals",
         "label": "Explore the Signal Dashboard",
-        "desc":  "See which of 43 macro signals are bullish, bearish, or neutral right now.",
+        "desc":  f"See which of {_SIG_N} macro signals are bullish, bearish, or neutral right now.",
         "page":  "pages/1_Signal_Dashboard.py",
         "icon":  "📊",
     },

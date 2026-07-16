@@ -16,6 +16,7 @@ import os
 import streamlit as st
 
 from utils.theme import BG_PAGE, BG_CARD, TEXT_PRIMARY, PURPLE, CYAN, GREEN, AMBER, inject_all_css
+from utils.product_metrics import ACTIVE_SIGNAL_COUNT
 
 st.set_page_config(
     page_title="Upgrade to Pro — Unstructured Alpha",
@@ -856,7 +857,7 @@ st.markdown(f"""
 </thead>
 <tbody>
 <tr>
-    <td>Signal Dashboard — 43 macroeconomic signals</td>
+    <td>Signal Dashboard — {ACTIVE_SIGNAL_COUNT} macroeconomic signals</td>
     <td style="text-align:center;" class="comp-yes">✓</td>
     <td style="text-align:center;" class="comp-pro-col comp-yes">✓</td>
 </tr>
