@@ -1758,7 +1758,12 @@ def render_header(page_subtitle: str = "") -> None:
         _rb  = sum(1 for v in _rs.values() if not v.get("error") and v.get("status") == "bullish")
         _rr  = sum(1 for v in _rs.values() if not v.get("error") and v.get("status") == "bearish")
         _rn  = sum(1 for v in _rs.values() if not v.get("error") and v.get("status") == "neutral")
-        _rto = max(1, _rb + _rr + _rn)
+        _rscored = _rb + _rr + _rn
+        _rto = max(1, _rscored)
+        # Signals in the registry that couldn't be scored this cycle (error /
+        # insufficient recent data). Surfaced so the bar's numbers reconcile to
+        # the advertised SIGNAL_COUNT instead of silently dropping ~6 signals.
+        _runavail = max(0, SIGNAL_COUNT - _rscored)
         _rbp = _rb / _rto
         _rrp = _rr / _rto
         if _rbp >= 0.58:
@@ -1782,7 +1787,8 @@ def render_header(page_subtitle: str = "") -> None:
             f'<span style="color:#00D566;">▲ {_rb}</span>'
             f' · <span style="color:#FF4444;">▼ {_rr}</span>'
             f' · <span style="color:#6B7FBF;">→ {_rn}</span>'
-            f'</span>'
+            + (f' · <span style="color:#5A6478;" title="Signals with insufficient recent data this cycle">⊘ {_runavail}</span>' if _runavail else "")
+            + f'</span>'
             f'<span style="font-size:0.60rem;color:#6B7FBF;margin-left:auto;">{SIGNAL_COUNT} signals · 2h cache</span>'
             f'</div>',
             unsafe_allow_html=True,
