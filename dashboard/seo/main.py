@@ -442,7 +442,9 @@ def _check_db(timeout: float = 3.0) -> bool:
     from sqlalchemy import text
 
     def _q() -> bool:
-        engine, _, _ = _get_engine()
+        # Use the already-created pooled engine directly — do NOT call init_db()
+        # (create_all's table inspection is too slow for a strict health check).
+        from utils.db import engine
         with engine.connect() as c:
             c.execute(text("SELECT 1"))
         return True
