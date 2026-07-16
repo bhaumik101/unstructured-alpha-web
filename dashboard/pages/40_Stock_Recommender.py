@@ -178,7 +178,10 @@ def _enrich_tickers(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
     _prices = fetch_prices_batch(tickers_tuple, _pstart, _pend)
 
     results: dict[str, dict] = {}
-    with ThreadPoolExecutor(max_workers=5) as pool:
+    # max_workers=3 (was 5): fewer full ticker scores held in memory at once —
+    # lowers the peak-RAM spike that was OOM-killing the 512MB instance. Barely
+    # affects wall-clock since each worker is I/O-bound on cached data.
+    with ThreadPoolExecutor(max_workers=3) as pool:
         futures = {
             pool.submit(compute_full_ticker_score, t, None, _prices.get(t)): t
             for t in tickers_tuple
@@ -189,6 +192,12 @@ def _enrich_tickers(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
                 results[t] = fut.result()
             except Exception:
                 pass  # leave unenriched
+
+    # Release the batch price dict + intermediate frames back to the OS before
+    # the page renders — keeps the enrich scan from leaving a high-water mark.
+    from utils.memory import release_memory
+    del _prices
+    release_memory()
     return results
 
 

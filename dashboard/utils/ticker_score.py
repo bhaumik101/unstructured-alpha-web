@@ -110,7 +110,7 @@ def price_window() -> tuple[str, str]:
     """The (start, end) date window compute_full_ticker_score uses for prices.
     Exposed so batch callers can pre-fetch the exact same window."""
     end = datetime.now().strftime("%Y-%m-%d")
-    price_start = (datetime.now() - timedelta(days=365 * 15)).strftime("%Y-%m-%d")
+    price_start = (datetime.now() - timedelta(days=365 * 3)).strftime("%Y-%m-%d")
     return price_start, end
 
 
@@ -143,7 +143,7 @@ def compute_full_ticker_score(
 
     end = datetime.now().strftime("%Y-%m-%d")
     start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
-    price_start = (datetime.now() - timedelta(days=365 * 15)).strftime("%Y-%m-%d")
+    price_start = (datetime.now() - timedelta(days=365 * 3)).strftime("%Y-%m-%d")
 
     signal_scores, signal_data = {}, {}
     for sig_id in relevant_sig_ids:

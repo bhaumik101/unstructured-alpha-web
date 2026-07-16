@@ -387,6 +387,12 @@ with tab_screener:
 
     screen_df = pd.DataFrame(rows).sort_values("Score", ascending=False).reset_index(drop=True)
 
+    # Free the per-ticker intermediate frames built during the 280-ticker scan
+    # (the transient peak that was tipping the 512MB instance into OOM).
+    from utils.memory import release_memory
+    del rows
+    release_memory()
+
     with st.spinner(f"Loading live prices for {len(screen_df)} ticker(s)…"):
         _quotes = get_batch_quotes(list(screen_df["Ticker"]))
 
