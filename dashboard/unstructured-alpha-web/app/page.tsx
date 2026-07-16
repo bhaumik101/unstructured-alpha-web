@@ -435,7 +435,7 @@ export default function Home() {
                 <span style={{ fontSize: 14, color: "#ff8080", fontWeight: 600 }}>Macro support weakened</span>
               </div>
               <div style={{ fontSize: 13, color: T.dimmer, marginTop: 6 }}>
-                Real yields &minus;8 &nbsp;·&nbsp; Liquidity &minus;5 &nbsp;·&nbsp; AI capex &minus;3</div>
+                Real yields &minus;8 &nbsp;·&nbsp; Liquidity &minus;5 &nbsp;·&nbsp; AI capex &minus;4</div>
             </div>
             <div style={{ padding: "18px 0" }}>
               <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
