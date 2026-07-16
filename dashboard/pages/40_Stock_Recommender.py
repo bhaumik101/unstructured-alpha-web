@@ -245,33 +245,36 @@ def _merge_enriched(macro_rows: list[dict], enriched: dict[str, dict]) -> list[d
     return merged
 
 
-# ─── Run Phase 1 ──────────────────────────────────────────────────────────────
-with st.spinner("Ranking all tickers by macro signals…"):
+# ─── Run Phase 1 + Phase 2 (single staged progress container) ─────────────────
+# One st.status that steps through both phases, instead of two separate spinners
+# with a blank flash in between — the scan reads as one continuous operation.
+with st.status("Scanning the market…", expanded=False) as _scan_status:
+    _scan_status.update(label="Ranking all tickers by macro signals…")
     all_rows = _macro_rank_all(_min_lag, _max_lag)
 
-# Apply filters
-if sector_filter:
-    all_rows = [r for r in all_rows if r["sector"] in sector_filter]
-all_rows = [r for r in all_rows if r["n_signals"] >= min_signals]
+    # Apply filters
+    if sector_filter:
+        all_rows = [r for r in all_rows if r["sector"] in sector_filter]
+    all_rows = [r for r in all_rows if r["n_signals"] >= min_signals]
 
-# Identify candidates for enrichment BEFORE applying show-count filter
-macro_longs  = [r for r in all_rows if r["score"] >= 60][:n_enrich]
-macro_shorts = sorted(all_rows, key=lambda r: r["score"])[:n_enrich]
-macro_shorts = [r for r in macro_shorts if r["score"] <= 40]
+    # Identify candidates for enrichment BEFORE applying show-count filter
+    macro_longs  = [r for r in all_rows if r["score"] >= 60][:n_enrich]
+    macro_shorts = sorted(all_rows, key=lambda r: r["score"])[:n_enrich]
+    macro_shorts = [r for r in macro_shorts if r["score"] <= 40]
 
-enrich_set = tuple(sorted(set(
-    [r["ticker"] for r in macro_longs] + [r["ticker"] for r in macro_shorts]
-)))
+    enrich_set = tuple(sorted(set(
+        [r["ticker"] for r in macro_longs] + [r["ticker"] for r in macro_shorts]
+    )))
 
-# ─── Run Phase 2 ──────────────────────────────────────────────────────────────
-if enrich_set:
-    enrich_label = (
-        f"Deep-scoring top {len(enrich_set)} candidates "
-        f"(insider activity, 13F positioning, short interest)…"
-    )
-    with st.spinner(enrich_label):
+    if enrich_set:
+        _scan_status.update(
+            label=(f"Deep-scoring top {len(enrich_set)} candidates "
+                   f"(insider activity, 13F positioning, short interest)…")
+        )
         enriched_data = _enrich_tickers(enrich_set)
-    all_rows = _merge_enriched(all_rows, enriched_data)
+        all_rows = _merge_enriched(all_rows, enriched_data)
+
+    _scan_status.update(label="Scan complete", state="complete", expanded=False)
 
 longs  = [r for r in all_rows if r["score"] >= 65][:n_show]
 shorts = sorted(all_rows, key=lambda r: r["score"])[:n_show]
