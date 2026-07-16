@@ -1779,6 +1779,10 @@ def render_signal_legend() -> str:
     Compact horizontal legend explaining Confluence Score ranges (Bull / Neutral / Bear).
     Designed to sit above signal card grids.
     """
+    try:
+        from utils.config import SIGNAL_COUNT as _SC
+    except Exception:
+        _SC = 47
     return (
         '<div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;'
         'padding:8px 14px;background:rgba(255,255,255,0.03);border-radius:8px;'
@@ -1796,7 +1800,7 @@ def render_signal_legend() -> str:
         '<span style="width:8px;height:8px;border-radius:50%;background:#FF4D6A;'
         'display:inline-block;flex-shrink:0;"></span>0–35 Bearish</span>'
         '<span style="margin-left:auto;font-size:0.72rem;color:#4A5280;">'
-        'Composite of 43 macro signals · 0–100 scale</span>'
+        f'Composite of {_SC} macro signals · 0–100 scale</span>'
         '</div>'
     )
 

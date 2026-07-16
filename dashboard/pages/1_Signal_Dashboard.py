@@ -21,6 +21,24 @@ from utils.theme import (
     signal_confidence_badge, chart_insight_caption,
 )
 
+def _clip(text: str, limit: int = 120) -> str:
+    """
+    Truncate at a WORD boundary and add an ellipsis — never mid-word.
+    Fixes broken card text like "...busines." and "Known as ." that the old
+    naive `desc[:120].rstrip('.') + '.'` produced by cutting at a fixed char.
+    """
+    text = (text or "").strip()
+    if not text:
+        return ""
+    if len(text) <= limit:
+        # Full text fits — keep its own terminal punctuation, else add a period.
+        return text if text[-1] in ".!?" else text.rstrip(" .,;:") + "."
+    cut = text[:limit]
+    if " " in cut:
+        cut = cut[:cut.rfind(" ")]          # back up to the last full word
+    return cut.rstrip(" .,;:") + "…"
+
+
 st.set_page_config(page_title="Signal Dashboard — UA", layout="wide")
 render_header("Signal Dashboard")
 render_sidebar_base()
@@ -535,7 +553,7 @@ with tab_signals:
                         if status == "bullish":
                             if _sig_desc:
                                 _bottom_note = (
-                                    f"<b>Bullish:</b> {_sig_desc[:120].rstrip('.')}. "
+                                    f"<b>Bullish:</b> {_clip(_sig_desc, 120)} "
                                     f"Currently <b>{_dev_abs:.0f}% above</b> its 52-week average."
                                 )
                             else:
@@ -543,7 +561,7 @@ with tab_signals:
                         elif status == "bearish":
                             if _sig_desc:
                                 _bottom_note = (
-                                    f"<b>Bearish:</b> {_sig_desc[:120].rstrip('.')}. "
+                                    f"<b>Bearish:</b> {_clip(_sig_desc, 120)} "
                                     f"Currently <b>{_dev_abs:.0f}% below</b> its 52-week average."
                                 )
                             else:
@@ -552,7 +570,7 @@ with tab_signals:
                             _bottom_note = "Not enough data yet — check back as more history accumulates."
                         else:
                             _bottom_note = (
-                                (f"{_sig_desc[:100].rstrip('.')}. " if _sig_desc else "")
+                                (f"{_clip(_sig_desc, 100)} " if _sig_desc else "")
                                 + "Within normal range — no clear directional edge right now."
                             )
 
