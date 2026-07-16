@@ -278,22 +278,35 @@ def render_auth_forms(cookies: CookieManager, key_prefix: str = "") -> None:
             if not email or not password:
                 st.error("Enter both your email and password.")
             else:
+                # Per-IP login rate limit (supplements the DB per-account lockout).
+                _lg_ok, _lg_retry = True, 0
                 try:
-                    user = login(email, password)
-                    st.session_state["user"] = user
-                    if remember_me:
-                        token = issue_remember_token(user["id"])
-                        cookies[_REMEMBER_COOKIE_NAME] = token
-                        cookies.save()
-                        st.session_state["_remember_token"] = token
-                    st.rerun()
-                except EmailNotVerifiedError:
-                    st.session_state["pending_verification_email"] = email.strip().lower()
-                    st.rerun()
-                except AccountLockedError as e:
-                    st.error(str(e))
-                except AuthError as e:
-                    st.error(str(e))
+                    from utils.ratelimit import guard as _rl_guard, client_ip as _rl_ip
+                    _lg_ok, _lg_retry = _rl_guard("login_ip", actor=_rl_ip())
+                except Exception:
+                    _lg_ok, _lg_retry = True, 0
+                if not _lg_ok:
+                    st.error(
+                        f"Too many login attempts from your network. Please wait "
+                        f"~{max(1, _lg_retry // 60)} min and try again."
+                    )
+                else:
+                    try:
+                        user = login(email, password)
+                        st.session_state["user"] = user
+                        if remember_me:
+                            token = issue_remember_token(user["id"])
+                            cookies[_REMEMBER_COOKIE_NAME] = token
+                            cookies.save()
+                            st.session_state["_remember_token"] = token
+                        st.rerun()
+                    except EmailNotVerifiedError:
+                        st.session_state["pending_verification_email"] = email.strip().lower()
+                        st.rerun()
+                    except AccountLockedError as e:
+                        st.error(str(e))
+                    except AuthError as e:
+                        st.error(str(e))
         if st.button(
             "Forgot password?",
             key=f"{key_prefix}forgot_pw",

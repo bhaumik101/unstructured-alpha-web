@@ -533,14 +533,28 @@ if prompt := st.chat_input("Ask about current macro conditions, signals, tickers
             # 1) Rule-based quick answers (instant, no API)
             answer = find_quick_answer(prompt)
 
-            # 2) Claude API with live signal context
+            # 2) Claude API with live signal context — rate-limited (Anthropic $)
             if not answer:
-                system_prompt = _get_system_prompt()  # rebuilds live context each call
-                claude_messages = [
-                    {"role": m["role"], "content": m["content"]}
-                    for m in st.session_state.messages[:-1]
-                ] + [{"role": "user", "content": prompt}]
-                answer = try_claude_api(claude_messages, system_prompt)
+                try:
+                    from utils.ratelimit import guard as _rl_guard
+                    _ai_ok, _ai_retry = _rl_guard("ai_research")
+                except Exception:
+                    _ai_ok, _ai_retry = True, 0
+                if not _ai_ok:
+                    _mins = max(1, _ai_retry // 60)
+                    answer = (
+                        f"⏳ You've reached the AI-assistant question limit for now — this keeps "
+                        f"the feature fast and affordable for everyone. Please try again in about "
+                        f"{_mins} min. In the meantime, the **Signal Dashboard** and **Ticker Deep "
+                        f"Dive** have the same live data you can explore directly."
+                    )
+                else:
+                    system_prompt = _get_system_prompt()  # rebuilds live context each call
+                    claude_messages = [
+                        {"role": m["role"], "content": m["content"]}
+                        for m in st.session_state.messages[:-1]
+                    ] + [{"role": "user", "content": prompt}]
+                    answer = try_claude_api(claude_messages, system_prompt)
 
             # 3) Rule-based generic fallback
             if not answer:

@@ -136,3 +136,43 @@ def limit_action(actor: str, action: str) -> tuple[bool, int]:
         return True, 0
     limit, window = pol
     return check(f"{action}:{actor}", limit, window)
+
+
+# ── Streamlit convenience helpers (lazy streamlit import — keeps this module
+#    testable without streamlit and importable by non-web callers) ─────────────
+def client_ip() -> str:
+    """
+    Best-effort client IP from Render's X-Forwarded-For (first hop). Render's
+    edge sets this to the real remote address; the leading value is the client.
+    NOTE: XFF can be spoofed by a client, so IP limits are a supplement, not the
+    sole control (login also has a DB per-account lockout). '?' if unknown.
+    """
+    try:
+        import streamlit as st
+        headers = getattr(getattr(st, "context", None), "headers", None)
+        if headers:
+            xff = headers.get("X-Forwarded-For") or headers.get("x-forwarded-for") or ""
+            if xff:
+                return xff.split(",")[0].strip()
+    except Exception:
+        pass
+    return "?"
+
+
+def session_actor() -> str:
+    """User id if signed in, else the Streamlit session id, else 'anon'."""
+    try:
+        import streamlit as st
+        u = (st.session_state.get("user") or {}).get("id")
+        if u:
+            return f"u{u}"
+        from streamlit.runtime.scriptrunner import get_script_run_ctx
+        ctx = get_script_run_ctx()
+        return f"s{getattr(ctx, 'session_id', 'anon')}" if ctx else "anon"
+    except Exception:
+        return "anon"
+
+
+def guard(action: str, actor: str | None = None) -> tuple[bool, int]:
+    """limit_action for `action`, defaulting the actor to session_actor()."""
+    return limit_action(actor if actor is not None else session_actor(), action)

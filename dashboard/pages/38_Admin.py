@@ -48,6 +48,18 @@ render_page_header(
     icon="🛠️",
 )
 
+# ── System health (rate-limiter backend) ──────────────────────────────────────
+try:
+    from utils.ratelimit import backend as _rl_backend
+    _rlb = _rl_backend()
+    if _rlb == "redis":
+        st.caption("🟢 Rate limiter: **Redis** (distributed, shared across instances)")
+    else:
+        st.caption("🟡 Rate limiter: **in-process fallback** — REDIS_URL unset or Redis "
+                   "unreachable. Limits are per-process only; check the Key Value service.")
+except Exception:
+    pass
+
 # ── Query helpers ─────────────────────────────────────────────────────────────
 
 def _now_utc() -> datetime:
