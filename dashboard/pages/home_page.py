@@ -499,7 +499,7 @@ if _anon_user:
         Enter any ticker in Ticker Deep Dive — see which of the 47 signals
         historically move that stock, and what the confluence score is today.
       </div>
-      <div style="font-size:0.70rem;color:#00C8E0;font-weight:600;">→ Free · AAPL, NVDA, XOM and 200+ tickers</div>
+      <div style="font-size:0.70rem;color:#00C8E0;font-weight:600;">→ Free · AAPL, NVDA, XOM and 280+ tickers</div>
     </div>
 
   </div>

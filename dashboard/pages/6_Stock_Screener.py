@@ -35,7 +35,7 @@ inject_premium_css()
 
 render_page_header(
     "Stock Screener",
-    "Filter 80+ tickers by confluence score, sector, and price momentum.",
+    f"Filter {len(TICKERS)} tickers by Macro + Momentum Rank, sector, and price momentum.",
     icon="🔍",
 )
 
@@ -48,8 +48,10 @@ tab_screener, tab_rank, tab_squeeze = st.tabs([
 with tab_screener:
     st.markdown(
         '<div style="font-size:0.76rem;color:#6B7FBF;font-family:Inter,sans-serif;'
-        'margin:-4px 0 12px;">Confluence Score ranks tickers by current signal agreement — '
-        'not a validated return forecast. See About → Methodology for the backtest.</div>',
+        'margin:-4px 0 12px;">The <b>Macro + Momentum Rank</b> orders tickers by current signal '
+        'agreement (70% macro / 30% price momentum) — a fast screen, not a validated return '
+        'forecast. For a ticker\'s full <b>Confluence Score</b> (with insider, 13F and short-interest '
+        'overlays) open its Ticker Deep Dive. See About → Methodology for the backtest.</div>',
         unsafe_allow_html=True,
     )
 
@@ -247,7 +249,7 @@ with tab_screener:
         bias_sel  = st.selectbox("Signal Bias", bias_opts, key="scr_bias")
 
         min_pcs = st.slider("Min signal quality (PCS)", 1, 10, 5, key="scr_pcs")
-        score_min, score_max = st.slider("Confluence score range", 0, 100, (0, 100), key="scr_score")
+        score_min, score_max = st.slider("Macro + Momentum Rank range", 0, 100, (0, 100), key="scr_score")
 
         st.divider()
         st.caption("Scores update every 2h. Click any row then open Ticker Deep Dive for the full breakdown.")
@@ -303,11 +305,12 @@ with tab_screener:
 
 
     # ── Build screener table ──────────────────────────────────────────────────────
-    st.markdown("""
+    st.markdown(f"""
     <div style="font-size:0.58rem;letter-spacing:0.16em;font-weight:700;color:#00D566;
                 font-family:Inter,sans-serif;margin-bottom:4px;">ALTERNATIVE DATA SCREENER</div>
     <div style="font-size:0.76rem;color:#8892AA;font-family:Inter,sans-serif;margin-bottom:12px;">
-        ~80 tickers ranked by alternative data confluence. Score = 70% macro signal confluence (PCS-weighted) + 30% price momentum.
+        {len(TICKERS)} tickers ranked by <b>Macro + Momentum Rank</b> = 70% macro signal confluence (PCS-weighted) + 30% price momentum.
+        This is a fast screen; the full Confluence Score (with insider, 13F &amp; short-interest overlays) lives on each Ticker Deep Dive.
         Click any row to preview. Can't find your ticker? Use the search box above or type it in "Analyze Any Ticker."
     </div>
     """, unsafe_allow_html=True)
@@ -430,7 +433,7 @@ with tab_screener:
         xaxis=dict(
             showgrid=False,
             tickfont=dict(color="#8892AA", size=10, family="Inter, sans-serif"),
-            title=dict(text="Confluence Score", font=dict(color="#6B7FBF", size=10)),
+            title=dict(text="Macro + Momentum Rank", font=dict(color="#6B7FBF", size=10)),
             linecolor="rgba(255,255,255,0.08)",
         ),
         yaxis=dict(
@@ -444,7 +447,7 @@ with tab_screener:
     st.plotly_chart(fig_dist, use_container_width=True, config=PLOTLY_CONFIG)
     st.markdown(
         f"&nbsp; {source_badge('yfinance', 'Live quotes · price history')} "
-        f"&nbsp; {source_badge('ua', 'Confluence Score · UA internal')}",
+        f"&nbsp; {source_badge('ua', 'Macro + Momentum Rank · UA internal')}",
         unsafe_allow_html=True,
     )
 
@@ -471,7 +474,7 @@ with tab_screener:
             "Price":      st.column_config.NumberColumn("Price", format="$%.2f", width="small"),
             "1D %":       st.column_config.NumberColumn("1D %", format="%+.2f%%", width="small"),
             "Score":      st.column_config.ProgressColumn(
-                              "Confluence Score", min_value=0, max_value=100, format="%.1f"
+                              "Macro+Momentum Rank", min_value=0, max_value=100, format="%.1f"
                           ),
             "Signal":     st.column_config.TextColumn("Case", width="small"),
             "Conviction": st.column_config.TextColumn("Conviction", width="small"),
@@ -631,7 +634,7 @@ with tab_rank:
     from utils.theme import inject_premium_css as _ipc2
 
     st.markdown("### Live Score Rankings")
-    st.caption("All 193 tickers ranked by macro confluence score. Green ≥ 65 · Red ≤ 35 · White = neutral.")
+    st.caption(f"All {len(TICKERS)} tickers ranked by macro confluence score. Green ≥ 65 · Red ≤ 35 · White = neutral.")
 
     @st.cache_data(ttl=7200, show_spinner=False, max_entries=1)
     def _rank_all_tickers():

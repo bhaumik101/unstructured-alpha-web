@@ -42,7 +42,7 @@ require_pro(page_name="Stock Recommender")
 
 render_page_header(
     "Stock Recommender",
-    "Highest-conviction long and short ideas — macro signals ranked across 193 tickers, "
+    f"Highest-conviction long and short ideas — macro signals ranked across {len(TICKERS)} tickers, "
     "with the top picks fully enriched with insider activity, 13F positioning, and short interest.",
     icon="🎯",
 )

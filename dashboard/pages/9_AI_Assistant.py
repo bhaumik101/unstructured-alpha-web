@@ -160,8 +160,9 @@ THE PAGES:
 4. Market Overview — Daily macro snapshot: major indices, sector performance, rates, commodities,
    Signal Snapshot (VIX, yield curve, HY credit, 10Y trend, risk appetite).
 
-5. Stock Screener — All 80+ tickers ranked by confluence score. Filters by sector, signal bias,
-   PCS, score range. Quick-analyze any ticker outside the universe.
+5. Stock Screener — All 280+ tickers ranked by a Macro + Momentum Rank (70% macro / 30% momentum).
+   Filters by sector, signal bias, PCS, score range. Quick-analyze any ticker outside the universe.
+   (The full Confluence Score, with insider/13F/short-interest overlays, is on the Ticker Deep Dive.)
 
 6. Watchlist — Personal ticker tracking with price alerts and 30-day confluence sparklines.
 
@@ -358,7 +359,7 @@ Five-leg thesis: AI compute → unprecedented electricity demand → largest gri
 """,
 
     ("stock screener", "screener", "how do i find stocks", "best tickers"): """
-**Stock Screener** ranks 80+ tickers by alternative data confluence score.
+**Stock Screener** ranks 280+ tickers by a Macro + Momentum Rank (70% macro signal confluence / 30% price momentum).
 
 **How to use:**
 1. Sidebar filters: sector, signal bias (bull/bear/neutral), min PCS, score range

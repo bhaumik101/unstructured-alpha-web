@@ -40,8 +40,9 @@ with tab_bt:
     import plotly.graph_objects as go
     from datetime import datetime, timedelta, timezone
 
+    from utils.config import TICKERS as _TK
     st.markdown("#### Signal-Driven Long/Short Backtest")
-    st.caption("Rank all 193 tickers by confluence score at each rebalance date. Go long the top N, short the bottom N.")
+    st.caption(f"Rank all {len(_TK)} tickers by confluence score at each rebalance date. Go long the top N, short the bottom N.")
 
     bc1, bc2, bc3, bc4 = st.columns(4)
     bull_thresh = bc1.slider("Bull threshold", 55, 80, 65, key="ps_bull")
