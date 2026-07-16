@@ -36,6 +36,8 @@ import requests
 import streamlit as st
 import yfinance as yf
 
+from utils.resilience import resilient_get, resilient_post  # shared session + circuit breakers
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPERS
@@ -113,7 +115,7 @@ def fetch_fred(series_id: str, start: str, end: str, api_key: str = "") -> pd.Se
             "observation_end": end,
         }
         try:
-            r = requests.get(url, params=params, timeout=12)
+            r = resilient_get(url, provider="fred", params=params, timeout=12)
             r.raise_for_status()
             data = r.json()
             df = pd.DataFrame(data["observations"])
@@ -155,7 +157,7 @@ def fetch_eia(series_id: str, start: str, end: str, api_key: str = "") -> pd.Ser
         url = f"https://api.eia.gov/v2/seriesid/{series_id}"
         params = {"api_key": api_key}
         try:
-            r = requests.get(url, params=params, timeout=12)
+            r = resilient_get(url, provider="eia", params=params, timeout=12)
             r.raise_for_status()
             data = r.json()
             rows = data.get("response", {}).get("data", [])
