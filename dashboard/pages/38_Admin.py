@@ -28,17 +28,17 @@ from sqlalchemy import select, func, text
 from utils.header import render_header, render_page_header, render_sidebar_base
 from utils.db import engine, users, referrals, watchlist
 from utils.theme import inject_premium_css, PLOTLY_CONFIG
-
-ADMIN_EMAIL = "bpgiri2005@gmail.com"
+from utils.billing import is_admin
 
 render_header("Admin")
 render_sidebar_base()
 inject_premium_css()
 
 # ── Access gate ───────────────────────────────────────────────────────────────
+# Uses the centralized is_admin() allowlist (utils/billing.py) — single source
+# of truth shared with the header's ADMIN badge and admin-only nav link.
 
-current_user = st.session_state.get("user", {}).get("email", "")
-if current_user != ADMIN_EMAIL:
+if not is_admin(st.session_state.get("user")):
     st.error("Access denied.")
     st.stop()
 
@@ -176,10 +176,98 @@ def load_metrics() -> dict:
     }
 
 
+@st.cache_data(ttl=60, max_entries=1, show_spinner=False)
+def load_traffic() -> dict:
+    """
+    Traffic + engagement from the analytics_events table (page_view events are
+    emitted by render_header on every navigation). All wrapped defensively so a
+    missing table or empty data never breaks the page.
+    """
+    now = _now_utc()
+    d1  = _iso(now - timedelta(days=1))
+    d7  = _iso(now - timedelta(days=7))
+    d30 = _iso(now - timedelta(days=30))
+    out = {
+        "pv_today": 0, "pv_7d": 0, "pv_30d": 0,
+        "uniq_7d": 0, "uniq_30d": 0,
+        "anon_7d": 0, "loggedin_7d": 0,
+        "top_pages": [], "daily_views": {}, "event_breakdown": [],
+        "total_events": 0,
+    }
+    try:
+        with engine.connect() as conn:
+            def _cnt(where_sql: str, params: dict) -> int:
+                return conn.execute(
+                    text(f"SELECT COUNT(*) FROM analytics_events WHERE {where_sql}"),
+                    params,
+                ).scalar() or 0
+
+            out["pv_today"] = _cnt("event_name='page_view' AND created_at >= :d", {"d": d1})
+            out["pv_7d"]    = _cnt("event_name='page_view' AND created_at >= :d", {"d": d7})
+            out["pv_30d"]   = _cnt("event_name='page_view' AND created_at >= :d", {"d": d30})
+
+            out["uniq_7d"] = conn.execute(
+                text("SELECT COUNT(DISTINCT session_id) FROM analytics_events "
+                     "WHERE event_name='page_view' AND created_at >= :d"), {"d": d7}
+            ).scalar() or 0
+            out["uniq_30d"] = conn.execute(
+                text("SELECT COUNT(DISTINCT session_id) FROM analytics_events "
+                     "WHERE event_name='page_view' AND created_at >= :d"), {"d": d30}
+            ).scalar() or 0
+
+            out["loggedin_7d"] = _cnt(
+                "event_name='page_view' AND created_at >= :d AND user_id IS NOT NULL", {"d": d7})
+            out["anon_7d"] = _cnt(
+                "event_name='page_view' AND created_at >= :d AND user_id IS NULL", {"d": d7})
+
+            out["total_events"] = conn.execute(
+                text("SELECT COUNT(*) FROM analytics_events")
+            ).scalar() or 0
+
+            # Top pages (last 30d) — parse page label out of the properties JSON.
+            pv_rows = conn.execute(
+                text("SELECT properties FROM analytics_events "
+                     "WHERE event_name='page_view' AND created_at >= :d"), {"d": d30}
+            ).fetchall()
+            page_counts: dict[str, int] = {}
+            for (props,) in pv_rows:
+                try:
+                    page = (json.loads(props) or {}).get("page", "?") if props else "?"
+                except Exception:
+                    page = "?"
+                page_counts[page] = page_counts.get(page, 0) + 1
+            out["top_pages"] = sorted(page_counts.items(), key=lambda kv: -kv[1])[:15]
+
+            # Daily page views (last 30d), bucketed in Python (portable).
+            day_rows = conn.execute(
+                text("SELECT created_at FROM analytics_events "
+                     "WHERE event_name='page_view' AND created_at >= :d"), {"d": d30}
+            ).fetchall()
+            dv: dict[str, int] = {}
+            for (ts,) in day_rows:
+                day = ts[:10] if ts else None
+                if day:
+                    dv[day] = dv.get(day, 0) + 1
+            out["daily_views"] = dv
+
+            # Event-type breakdown (last 30d) — what are users actually doing.
+            ev_rows = conn.execute(
+                text("SELECT event_name, COUNT(*) c FROM analytics_events "
+                     "WHERE created_at >= :d GROUP BY event_name ORDER BY c DESC"), {"d": d30}
+            ).fetchall()
+            out["event_breakdown"] = [(r[0], r[1]) for r in ev_rows][:15]
+    except Exception:
+        pass
+    return out
+
+
 # ── Load data ─────────────────────────────────────────────────────────────────
+
+import json  # for parsing analytics properties JSON
 
 with st.spinner("Loading metrics..."):
     m = load_metrics()
+    tr = load_traffic()
 
 # ── KPI cards ─────────────────────────────────────────────────────────────────
 
@@ -194,6 +282,82 @@ c3.metric("Pro", m["pro"],
 c4.metric("On Trial", m["trial"])
 c5.metric("Free", m["free"])
 c6.metric("Digest Opt-in", m["digest"])
+
+st.markdown("---")
+
+# ── Revenue (estimated) ───────────────────────────────────────────────────────
+
+st.markdown("### 💰 Revenue (estimated)")
+
+_PRO_MONTHLY = 20  # $/mo — Pro monthly list price (see billing.py)
+_mrr = m["pro"] * _PRO_MONTHLY
+_conv = (m["pro"] / m["total"] * 100) if m["total"] else 0
+rv1, rv2, rv3, rv4 = st.columns(4)
+rv1.metric("Est. MRR", f"${_mrr:,}", help="Pro subscribers × $20/mo. Annual plans pay ~$16/mo, so this is a slight over-estimate.")
+rv2.metric("Est. ARR", f"${_mrr * 12:,}")
+rv3.metric("Paid Conversion", f"{_conv:.1f}%", help="Pro ÷ total users")
+rv4.metric("Free → Pro headroom", f"{m['free']:,}", help="Free users not yet converted")
+
+st.markdown("---")
+
+# ── Traffic ───────────────────────────────────────────────────────────────────
+
+st.markdown("### 🌐 Traffic")
+st.caption("Page views are logged on every navigation (deduped per session). "
+           "Unique visitors = distinct sessions.")
+
+t1, t2, t3, t4 = st.columns(4)
+t1.metric("Page Views Today", f"{tr['pv_today']:,}")
+t2.metric("Page Views (7d)",  f"{tr['pv_7d']:,}")
+t3.metric("Unique Visitors (7d)", f"{tr['uniq_7d']:,}")
+t4.metric("Unique Visitors (30d)", f"{tr['uniq_30d']:,}")
+
+t5, t6, t7 = st.columns(3)
+_views_per_visitor = (tr["pv_7d"] / tr["uniq_7d"]) if tr["uniq_7d"] else 0
+t5.metric("Views / Visitor (7d)", f"{_views_per_visitor:.1f}")
+t6.metric("Logged-in Views (7d)", f"{tr['loggedin_7d']:,}")
+t7.metric("Anonymous Views (7d)", f"{tr['anon_7d']:,}")
+
+if tr["pv_30d"] == 0:
+    st.info("No page-view data yet. Traffic accrues from now that page-view "
+            "tracking is live — check back after users browse the app.")
+else:
+    # Daily page views (last 30 days)
+    import plotly.graph_objects as go
+    today = datetime.now(timezone.utc).date()
+    all_days = [(today - timedelta(days=i)).isoformat() for i in range(29, -1, -1)]
+    view_counts = [tr["daily_views"].get(d, 0) for d in all_days]
+    figv = go.Figure(go.Bar(x=all_days, y=view_counts, marker_color="#3DD68C"))
+    figv.update_layout(
+        title="Daily Page Views (last 30 days)",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#E2E8F0", xaxis={"showgrid": False},
+        yaxis={"showgrid": True, "gridcolor": "rgba(255,255,255,0.08)"},
+        margin={"t": 40, "b": 40, "l": 40, "r": 10}, height=260,
+    )
+    st.plotly_chart(figv, use_container_width=True, config=PLOTLY_CONFIG)
+
+    tp_col, ev_col = st.columns(2)
+    with tp_col:
+        st.markdown("**Top Pages (30d)**")
+        if tr["top_pages"]:
+            import pandas as pd
+            st.dataframe(
+                pd.DataFrame(tr["top_pages"], columns=["Page", "Views"]),
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.caption("No page data yet.")
+    with ev_col:
+        st.markdown("**Event Breakdown (30d)**")
+        if tr["event_breakdown"]:
+            import pandas as pd
+            st.dataframe(
+                pd.DataFrame(tr["event_breakdown"], columns=["Event", "Count"]),
+                use_container_width=True, hide_index=True,
+            )
+        else:
+            st.caption("No events yet.")
 
 st.markdown("---")
 

@@ -87,6 +87,41 @@ def get_user_tier(user_id: int) -> str:
         return "free"
 
 
+# Admin allowlist — single source of truth for who counts as an admin.
+# (Previously hard-coded only inside pages/38_Admin.py.)
+ADMIN_EMAILS = {"bpgiri2005@gmail.com"}
+
+
+def is_admin(user: dict | None) -> bool:
+    """True if the given session user is an admin. Email-based allowlist."""
+    if not user:
+        return False
+    return (user.get("email") or "").strip().lower() in {e.lower() for e in ADMIN_EMAILS}
+
+
+def effective_is_pro(user: dict | None) -> bool:
+    """
+    Non-blocking Pro check for chrome (header/footer badges).
+
+    IMPORTANT: the session `user` dict only carries {"id", "email"} — it does
+    NOT contain subscription_tier. So the tier must be read from the DB via
+    get_user_tier() (cached per session under the same `_tier_{id}` key that
+    require_pro() uses), NOT from user.get("subscription_tier"). Admins are
+    always treated as Pro.
+    """
+    if not user or not user.get("id"):
+        return False
+    if is_admin(user):
+        return True
+    cache_key = f"_tier_{user['id']}"
+    if cache_key not in st.session_state:
+        try:
+            st.session_state[cache_key] = get_user_tier(user["id"])
+        except Exception:
+            return False
+    return st.session_state.get(cache_key) == "pro"
+
+
 def set_user_tier(user_id: int, tier: str, customer_id: str = "", subscription_id: str = "") -> None:
     """Persist subscription_tier (and optionally Stripe IDs) for a user."""
     from sqlalchemy import update

@@ -1255,12 +1255,24 @@ def _render_topnav() -> None:
     every page. st.html injects raw HTML with no markdown processing, so the
     indentation is harmless.
     """
-    # Pro members see a small "PRO" badge in place of the "Upgrade" CTA.
-    _is_pro = (st.session_state.get("user") or {}).get("subscription_tier", "") == "pro"
-    _upgrade_slot = (
-        '<span class="ua-tnav-pro" title="You\'re on Pro">&#9889; PRO</span>' if _is_pro
-        else '<a class="ua-tnav-upgrade" href="/upgrade-to-pro">&#9889; Upgrade</a>'
-    )
+    # Pro members see a small "PRO" badge in place of the "Upgrade" CTA;
+    # admins see an "ADMIN" badge. Tier is read via effective_is_pro() (DB-backed,
+    # session-cached) because the session user dict only holds {id, email} —
+    # it does NOT carry subscription_tier, so reading that key always failed.
+    from utils.billing import effective_is_pro, is_admin
+    _hdr_user = st.session_state.get("user")
+    _hdr_admin = is_admin(_hdr_user)
+    if _hdr_admin:
+        _upgrade_slot = '<span class="ua-tnav-pro ua-tnav-admin" title="Admin access">&#9733; ADMIN</span>'
+    elif effective_is_pro(_hdr_user):
+        _upgrade_slot = '<span class="ua-tnav-pro" title="You\'re on Pro">&#9889; PRO</span>'
+    else:
+        _upgrade_slot = '<a class="ua-tnav-upgrade" href="/upgrade-to-pro">&#9889; Upgrade</a>'
+    # Admin-only nav entry — only rendered for admins, invisible to everyone else.
+    _admin_nav_slot = (
+        '<div class="ua-tnav-drop-rule"></div>'
+        '<a href="/admin" style="color:#E8C766;">&#9733; Admin</a>'
+    ) if _hdr_admin else ""
     st.html(("""
 <style>
 /* ── Hide native sidebar + Streamlit chrome ──────────────────────────────── */
@@ -1396,6 +1408,12 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
   border-radius: 6px; letter-spacing: 0.05em; white-space: nowrap; flex-shrink: 0;
   cursor: default;
 }
+/* Admin variant — gold, to distinguish from the purple Pro pill */
+.ua-tnav-admin {
+  background: rgba(212,175,55,0.12);
+  color: #E8C766;
+  border-color: rgba(212,175,55,0.40);
+}
 
 /* ── Mobile hamburger (JS-free checkbox toggle) ───────────────────────────── */
 .ua-tnav-toggle { display: none; }            /* the open/closed state checkbox */
@@ -1529,6 +1547,7 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
         <a href="/about-methodology">About &amp; Methodology</a>
         <div class="ua-tnav-drop-rule"></div>
         <a href="/privacy-terms" style="font-size:0.68rem;color:#6B7FBF;">Privacy &amp; Terms</a>
+        __ADMIN_NAV_SLOT__
       </div>
     </div>
   </div>
@@ -1555,7 +1574,36 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
   } catch(e){}
 })();
 </script>
-""").replace("__UPGRADE_SLOT__", _upgrade_slot))
+""").replace("__UPGRADE_SLOT__", _upgrade_slot)
+      .replace("__ADMIN_NAV_SLOT__", _admin_nav_slot))
+
+
+def _track_page_view(page_label: str) -> None:
+    """
+    Log one page_view analytics event per navigation (deduped per session so
+    Streamlit reruns don't inflate traffic). Best-effort — never raises, never
+    blocks (track() fires on a daemon thread). Powers the Admin traffic metrics.
+    """
+    try:
+        label = (page_label or "Home").strip() or "Home"
+        if st.session_state.get("_pv_tracked") == label:
+            return  # already logged this page for the current navigation
+        st.session_state["_pv_tracked"] = label
+
+        sid = None
+        try:
+            from streamlit.runtime.scriptrunner import get_script_run_ctx
+            _ctx = get_script_run_ctx()
+            sid = getattr(_ctx, "session_id", None) if _ctx else None
+        except Exception:
+            sid = None
+
+        _u = st.session_state.get("user") or {}
+        from utils.analytics import track, Event
+        track(Event.PAGE_VIEW, user_id=_u.get("id"),
+              properties={"page": label}, session_id=sid)
+    except Exception:
+        pass
 
 
 def render_header(page_subtitle: str = "") -> None:
@@ -1572,6 +1620,9 @@ def render_header(page_subtitle: str = "") -> None:
 
     # ── Horizontal topnav (replaces sidebar, hides Streamlit chrome) ───────────
     _render_topnav()
+
+    # Traffic tracking (deduped per session+page) — feeds the Admin dashboard.
+    _track_page_view(page_subtitle)
 
     st.markdown(_CSS, unsafe_allow_html=True)
     # Inject modern UI system (pill tabs, glass buttons, metrics, etc.) globally
@@ -1654,13 +1705,23 @@ def render_header(page_subtitle: str = "") -> None:
     # User pill — shown inline in the header bar whenever someone is signed in
     _user = st.session_state.get("user")
     _user_email = (_user or {}).get("email", "")
-    _is_pro = (_user or {}).get("subscription_tier", "") == "pro"
+    from utils.billing import effective_is_pro as _eip2, is_admin as _isadmin2
+    _is_pro = _eip2(_user)
+    _is_admin = _isadmin2(_user)
     _user_pill = ""
     if _user_email:
-        _tier_badge = (
-            '<span style="background:#7C3AED;color:#fff;font-size:0.55rem;font-weight:700;'
-            'padding:1px 5px;border-radius:4px;margin-left:4px;letter-spacing:0.04em;">PRO</span>'
-        ) if _is_pro else ""
+        if _is_admin:
+            _tier_badge = (
+                '<span style="background:#D4AF37;color:#1a1a1a;font-size:0.55rem;font-weight:700;'
+                'padding:1px 5px;border-radius:4px;margin-left:4px;letter-spacing:0.04em;">ADMIN</span>'
+            )
+        elif _is_pro:
+            _tier_badge = (
+                '<span style="background:#7C3AED;color:#fff;font-size:0.55rem;font-weight:700;'
+                'padding:1px 5px;border-radius:4px;margin-left:4px;letter-spacing:0.04em;">PRO</span>'
+            )
+        else:
+            _tier_badge = ""
         _user_pill = (
             f'<span style="display:inline-flex;align-items:center;gap:4px;'
             f'background:rgba(0,213,102,0.08);border:1px solid rgba(0,213,102,0.2);'
@@ -1976,7 +2037,8 @@ def render_footer(page: str = "") -> None:
         )
 
     # Pro members: footer shows a quiet "Pro member" tag instead of the Upgrade CTA.
-    _foot_is_pro = (st.session_state.get("user") or {}).get("subscription_tier", "") == "pro"
+    from utils.billing import effective_is_pro as _eip
+    _foot_is_pro = _eip(st.session_state.get("user"))
     _foot_cta = (
         '<span style="font-size:0.68rem;color:#C4B5FD;font-weight:700;'
         'background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.35);'
