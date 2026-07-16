@@ -529,6 +529,20 @@ with col_btn:
     generate = st.button("Generate PDF Report", type="primary", use_container_width=True,
                          key="gen_pdf")
 
+# Rate-limit actual PDF generation (not the cached re-display of a ready report).
+if generate:
+    try:
+        from utils.ratelimit import guard as _rl_guard
+        _ex_ok, _ex_retry = _rl_guard("export")
+    except Exception:
+        _ex_ok, _ex_retry = True, 0
+    if not _ex_ok:
+        st.warning(
+            f"⏳ You've generated several reports recently — please wait "
+            f"~{max(1, _ex_retry // 60)} min before the next one."
+        )
+        generate = False
+
 if generate or st.session_state.get("pdf_ready"):
     try:
         generated_at = datetime.now().strftime("%Y-%m-%d %H:%M UTC")

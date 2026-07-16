@@ -322,7 +322,18 @@ def render_auth_forms(cookies: CookieManager, key_prefix: str = "") -> None:
             password2 = st.text_input("Confirm password", type="password", key=f"{key_prefix}signup_password2")
             submitted = st.form_submit_button("Create Account", type="primary", use_container_width=True)
         if submitted:
-            if not email or not password:
+            _su_ok, _su_retry = True, 0
+            try:
+                from utils.ratelimit import guard as _rl_guard, client_ip as _rl_ip
+                _su_ok, _su_retry = _rl_guard("signup_ip", actor=_rl_ip())
+            except Exception:
+                _su_ok, _su_retry = True, 0
+            if not _su_ok:
+                st.error(
+                    f"Too many sign-ups from your network. Please wait "
+                    f"~{max(1, _su_retry // 60)} min and try again."
+                )
+            elif not email or not password:
                 st.error("Enter both an email and a password.")
             elif password != password2:
                 st.error("Passwords don't match.")

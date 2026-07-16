@@ -35,9 +35,9 @@ Distributed rate limiting for Unstructured Alpha. Implemented in
 | `ticker_analysis` | 30 | 5 min | user/session | ✅ Ticker Deep Dive | Counts only *new* tickers (not reruns); over-limit → calm "slow down" message + `st.stop()`. |
 | `ai_research` | 10 | 1 hour | user/session | ✅ AI Assistant | Gates only the Claude API path (Anthropic $). Rule-based answers stay free. Over-limit → polite message, no API call. |
 | `login_ip` | 25 | 15 min | IP | ✅ auth_ui login | Supplements the DB per-account lockout (5 fails / 15 min). |
-| `export` | 10 | 10 min | user/session | ⏳ pending | Report/PDF generation. |
-| `screener_scan` | 60 | 5 min | user/session | ⏳ pending | Screener runs. |
-| `signup_ip` | 10 | 1 hour | IP | ⏳ pending | Account creation. |
+| `export` | 10 | 10 min | user/session | ✅ Export page | Gates actual PDF generation (not the cached re-display of a ready report). |
+| `screener_scan` | 60 | 5 min | user/session | ⏳ optional | Screener scan is already cache-backed (re-runs hit cache), so abuse risk is low; wire only if a specific abuse pattern appears (would need per-scan dedup like the Deep Dive). |
+| `signup_ip` | 10 | 1 hour | IP | ✅ auth_ui signup | First condition in the submit chain, so even invalid submissions consume a token (spam protection). |
 | `anon_page` | 120 | 1 min | IP/session | ⏳ pending | General anonymous page loads. |
 
 ## Response behavior
