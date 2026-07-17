@@ -33,7 +33,10 @@ services:
                     # type (a dashboard-side change gets reverted on sync), so the
                     # plan must be set here. always-on, no cold start.
     rootDir: dashboard
-    buildCommand: pip install -r requirements.txt
+    # inject_boot_splash: patch Streamlit's served index.html with an on-brand dark
+    # loader so the pre-boot JS-download window shows a branded splash instead of a
+    # blank screen. Defensive + idempotent; can never fail the build (always exits 0).
+    buildCommand: pip install -r requirements.txt && python scripts/inject_boot_splash.py
     startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
     # Liveness-only check — Streamlit's built-in health endpoint (returns 200
     # "ok" when the server is up). Deliberately NOT a DB/provider-dependent path,
