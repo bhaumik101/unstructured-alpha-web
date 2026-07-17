@@ -28,7 +28,10 @@ services:
   - type: web
     name: unstructured-alpha
     runtime: python
-    plan: starter  # always-on, no cold start
+    plan: standard  # 2GB RAM / 1 CPU — 4x the Starter RAM ceiling, ends OOM headroom
+                    # concerns. Blueprint-managed: THIS line governs the instance
+                    # type (a dashboard-side change gets reverted on sync), so the
+                    # plan must be set here. always-on, no cold start.
     rootDir: dashboard
     buildCommand: pip install -r requirements.txt
     startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true
@@ -37,13 +40,11 @@ services:
     # so a data-store or provider outage can't trigger a restart loop.
     healthCheckPath: /_stcore/health
     envVars:
-      # glibc malloc arena cap. Kept at "2" for the Starter (512MB) plan: threaded
-      # scans otherwise hoard freed heap per-arena and inflate RSS toward the OOM
-      # limit. Pairs with utils/memory.release_memory()'s malloc_trim.
-      # IF this service is genuinely moved to a large instance (many cores + GBs of
-      # RAM), raise this to ~8 (and set `plan:` above accordingly) so a hard cap of
-      # 2 arenas doesn't serialise allocation across the parallel signal/ticker
-      # scans. Do NOT raise it while on Starter — it re-introduces the OOM risk.
+      # glibc malloc arena cap. Kept at "2" on Standard (2GB / 1 CPU): with a
+      # single CPU there is no arena-contention to relieve, so raising it gives
+      # no throughput benefit and only grows RSS — keep it lean. Only worth
+      # raising (to ~8) on a genuinely multi-core plan (Pro Plus+). Pairs with
+      # utils/memory.release_memory()'s malloc_trim.
       - key: MALLOC_ARENA_MAX
         value: "2"
       # Distributed rate limiting (utils/ratelimit.py). Internal private-network
