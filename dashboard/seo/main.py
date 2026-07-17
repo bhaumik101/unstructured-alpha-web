@@ -47,9 +47,21 @@ def _get_config():
     from utils.config import TICKERS, SIGNALS
     return TICKERS, SIGNALS
 
+# init_db() runs create_all + table inspection, which is SLOW (~seconds). It only
+# needs to run ONCE per process — not on every request. Calling it per request was
+# the dominant cost of the ~4.7s SEO ticker/signal page render. Memoize so the
+# first request (or a startup warm-up) pays for it and all later requests reuse
+# the already-created pooled engine directly.
+_ENGINE_READY = False
+
+
 def _get_engine():
-    from utils.db import init_db, engine, score_snapshots, signal_snapshots
-    init_db()
+    global _ENGINE_READY
+    from utils.db import engine, score_snapshots, signal_snapshots
+    if not _ENGINE_READY:
+        from utils.db import init_db
+        init_db()
+        _ENGINE_READY = True
     return engine, score_snapshots, signal_snapshots
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -98,6 +110,20 @@ try:
             )
 except Exception:  # observability must never break the SEO service
     pass
+
+
+# Warm the DB engine once at startup, in a daemon thread so it never blocks boot
+# or the liveness probe. This pays the one-time init_db() cost up front so the
+# first real ticker/signal request is already fast (not ~4s slower than the rest).
+def _warm_engine_bg():
+    try:
+        _get_engine()
+    except Exception:
+        pass
+
+
+import threading as _threading
+_threading.Thread(target=_warm_engine_bg, daemon=True).start()
 
 
 # ── HTML helpers ──────────────────────────────────────────────────────────────
@@ -413,9 +439,24 @@ def _latest_ticker_score(engine, score_snapshots, ticker: str) -> dict | None:
     return None
 
 
+# Process-local TTL cache for the latest signal statuses. This result is IDENTICAL
+# for every ticker/signal page within a snapshot window (snapshots refresh daily
+# via cron), yet it was re-queried on every request. 5-min TTL collapses that to
+# one query per window per process. Bounded (single entry) — no unbounded growth.
+_SIG_STATUS_CACHE: dict[str, object] = {"ts": 0.0, "val": None}
+_SIG_STATUS_TTL = 300  # seconds
+
+
 def _latest_signal_statuses(engine, signal_snapshots) -> dict[str, str]:
-    """Return {signal_id: status} for the most recent snapshot of each signal."""
-    from sqlalchemy import select, text
+    """Return {signal_id: status} for the most recent snapshot of each signal.
+    Cached process-locally for _SIG_STATUS_TTL seconds (shared across all pages)."""
+    import time as _t
+    now = _t.time()
+    cached = _SIG_STATUS_CACHE.get("val")
+    if cached is not None and (now - float(_SIG_STATUS_CACHE["ts"])) < _SIG_STATUS_TTL:
+        return cached  # type: ignore[return-value]
+
+    from sqlalchemy import text
     try:
         with engine.begin() as conn:
             # Get the latest row per signal_id using a subquery approach
@@ -426,8 +467,14 @@ def _latest_signal_statuses(engine, signal_snapshots) -> dict[str, str]:
                     ORDER BY signal_id, snapshot_date DESC
                 """)
             ).fetchall()
-        return {r[0]: r[1] for r in rows}
+        val = {r[0]: r[1] for r in rows}
+        _SIG_STATUS_CACHE["ts"] = now
+        _SIG_STATUS_CACHE["val"] = val
+        return val
     except Exception:
+        # On error, serve slightly-stale cache if we have it rather than empty.
+        if cached is not None:
+            return cached  # type: ignore[return-value]
         return {}
 
 
