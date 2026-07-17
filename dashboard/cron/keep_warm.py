@@ -25,9 +25,13 @@ import requests
 
 APP_URL = os.getenv("APP_URL", "https://app.unstructuredalpha.com").rstrip("/")
 
-# A couple of representative deep-links, so we exercise the router (not just the
-# root) and keep the MPA page registry warm too.
-PATHS = ["/", "/signal-dashboard", "/ticker-deep-dive"]
+# Representative deep-links across the app, so we exercise the router (not just
+# the root) and keep the MPA page registry warm — including the Pro pages, whose
+# heavy deep-links most visibly showed the cold-start "Page not found" flash.
+PATHS = [
+    "/", "/signal-dashboard", "/ticker-deep-dive",
+    "/stock-recommender", "/portfolio-suite", "/stock-screener",
+]
 
 
 def _ping(path: str) -> tuple[int | None, float]:
