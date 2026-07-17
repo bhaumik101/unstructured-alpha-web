@@ -447,8 +447,13 @@ with tab_macro:
     ma_new_t = ma_c1.selectbox("Add ticker", [""] + list(TICKER_META2.keys()), key="ma_add_t")
     ma_new_w = ma_c2.number_input("Weight %", 1, 100, 10, key="ma_add_w")
     if ma_c3.button("Add", key="ma_add_btn") and ma_new_t:
-        st.session_state.macro_holdings.append({"ticker": ma_new_t, "weight": ma_new_w})
-        st.rerun()
+        from utils.guards import MAX_PORTFOLIO_HOLDINGS
+        if len(st.session_state.macro_holdings) >= MAX_PORTFOLIO_HOLDINGS:
+            st.warning(f"Holdings capped at {MAX_PORTFOLIO_HOLDINGS} — remove one to add another. "
+                       "(Keeps the exposure scan fast and within memory.)")
+        else:
+            st.session_state.macro_holdings.append({"ticker": ma_new_t, "weight": ma_new_w})
+            st.rerun()
 
     holdings2 = st.session_state.macro_holdings
 
@@ -571,6 +576,11 @@ with tab_basket:
     else:
         basket_tickers = THEMES.get(theme, [])
         bb2.multiselect("Tickers in basket", basket_tickers, default=basket_tickers, key="bb_view", disabled=True)
+
+    from utils.guards import cap_list, MAX_BASKET_TICKERS
+    basket_tickers, _bk_trunc = cap_list(basket_tickers, MAX_BASKET_TICKERS)
+    if _bk_trunc:
+        st.caption(f"Showing the first {MAX_BASKET_TICKERS} tickers (basket cap).")
 
     if basket_tickers:
         with st.spinner("Scoring basket…"):
