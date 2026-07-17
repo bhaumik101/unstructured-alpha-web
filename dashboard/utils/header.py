@@ -1515,6 +1515,7 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
         <a href="/ticker-deep-dive">Ticker Deep Dive</a>
         <a href="/stock-screener">Stock Screener</a>
         <a class="pro-link" href="/stock-recommender">Stock Recommender</a>
+        <a class="pro-link" href="/options-flow">Options Flow</a>
       </div>
     </div>
 

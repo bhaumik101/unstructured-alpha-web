@@ -99,6 +99,7 @@ pg = st.navigation(
             # Pro-gated tools — registered for routing (reached via in-page CTAs /
             # URL), intentionally not surfaced in the visible top-nav:
             st.Page("pages/27_Factor_Exposure.py",    title="Factor Exposure",     url_path="factor-exposure"),
+            st.Page("pages/45_Options_Flow.py",       title="Options Flow",        url_path="options-flow"),
             st.Page("pages/28_Export.py",             title="Export Report",       url_path="export-report"),
         ],
         # ── Signals & Methodology ─────────────────────────────────────────────

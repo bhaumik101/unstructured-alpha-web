@@ -141,6 +141,7 @@ def check(key: str, limit: int, window: int) -> tuple[bool, int]:
 POLICIES: dict[str, tuple[int, int]] = {
     "ticker_analysis": (30, 300),
     "ai_research":     (10, 3600),
+    "options_flow":    (20, 300),   # provider-heavy (yfinance options chains)
     "export":          (10, 600),
     "screener_scan":   (60, 300),
     "login_ip":        (25, 900),
