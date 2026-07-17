@@ -69,7 +69,7 @@ from utils.config import SIGNALS
 # so we never fan out wider than the signal set or hammer a provider. Overridable
 # via SIGNAL_SCORE_WORKERS. Providers are individually protected by the circuit
 # breaker + pooled retrying session, so a burst is safe.
-_SCORE_WORKERS = max(1, min(16, int(os.getenv("SIGNAL_SCORE_WORKERS", "12"))))
+_SCORE_WORKERS = max(1, min(16, int(os.getenv("SIGNAL_SCORE_WORKERS", "8"))))
 
 
 def _error_result(cfg: dict) -> dict:

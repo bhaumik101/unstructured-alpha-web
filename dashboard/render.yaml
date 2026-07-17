@@ -37,16 +37,15 @@ services:
     # so a data-store or provider outage can't trigger a restart loop.
     healthCheckPath: /_stcore/health
     envVars:
-      # glibc malloc arena cap. On the old 512MB box this was "2" to keep RSS
-      # under the OOM limit. The box now has ample RAM + many cores, and a hard
-      # cap of 2 arenas serialises allocation across the parallel signal/ticker
-      # scans (lock contention). "8" gives good multi-thread alloc throughput
-      # without glibc's unbounded default (8×nCPU ≈ 128 arenas → fragmentation).
-      # NOTE: this key is also set on the service in the Render dashboard; the
-      # dashboard value wins over this file, so update it there too to take
-      # effect. Pairs with utils/memory.release_memory()'s malloc_trim.
+      # glibc malloc arena cap. Kept at "2" for the Starter (512MB) plan: threaded
+      # scans otherwise hoard freed heap per-arena and inflate RSS toward the OOM
+      # limit. Pairs with utils/memory.release_memory()'s malloc_trim.
+      # IF this service is genuinely moved to a large instance (many cores + GBs of
+      # RAM), raise this to ~8 (and set `plan:` above accordingly) so a hard cap of
+      # 2 arenas doesn't serialise allocation across the parallel signal/ticker
+      # scans. Do NOT raise it while on Starter — it re-introduces the OOM risk.
       - key: MALLOC_ARENA_MAX
-        value: "8"
+        value: "2"
       # Distributed rate limiting (utils/ratelimit.py). Internal private-network
       # URL of the free Render Key Value instance "unstructured-alpha-redis"
       # (same Oregon region). No credentials — only reachable inside Render's

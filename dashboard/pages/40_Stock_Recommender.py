@@ -179,12 +179,13 @@ def _enrich_tickers(tickers_tuple: tuple[str, ...]) -> dict[str, dict]:
 
     results: dict[str, dict] = {}
     # Worker count: prices are already batch-fetched above, so each worker is
-    # CPU-bound scoring on in-memory data. On the old 512MB box this was pinned
-    # to 3 to cap the peak-RAM spike; the box now has ample RAM + many cores, so
-    # default to 8 for a faster scan. Tunable via RECOMMENDER_WORKERS; still
-    # bounded so we never oversubscribe pathologically.
+    # CPU-bound scoring on in-memory data — BUT each in-flight full ticker score
+    # holds a 3yr price frame + factor intermediates, so N workers ≈ N such frames
+    # resident at once. On Starter (512MB) that peak is what OOM-killed the box, so
+    # the default stays 3. On a large instance, raise via RECOMMENDER_WORKERS (e.g.
+    # 8) for a faster scan. Bounded [1,16] so a bad env value can't oversubscribe.
     import os as _os
-    _rec_workers = max(1, min(16, int(_os.getenv("RECOMMENDER_WORKERS", "8"))))
+    _rec_workers = max(1, min(16, int(_os.getenv("RECOMMENDER_WORKERS", "3"))))
     with ThreadPoolExecutor(max_workers=_rec_workers) as pool:
         futures = {
             pool.submit(compute_full_ticker_score, t, None, _prices.get(t)): t
