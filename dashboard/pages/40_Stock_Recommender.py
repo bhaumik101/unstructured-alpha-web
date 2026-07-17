@@ -409,6 +409,44 @@ def _alignment_badge(row: dict, color: str) -> str:
     )
 
 
+def _why_line(row: dict, side: str) -> str:
+    """One-line plain-English 'why this pick' — synthesises the drivers already on
+    the row (top signals, alignment, and any enrichment) into a readable sentence.
+    Reuses existing data; no extra compute."""
+    sigs = row["bull_signals"] if side == "long" else row["bear_signals"]
+    dir_word = "bullish" if side == "long" else "bearish"
+    top = [s.get("name", "") for s in sigs[:3] if s.get("name")]
+    if not top:
+        return "Ranked on overall macro-regime alignment (no single dominant signal)."
+    n = len(sigs)
+    lead = f"Scores {row['score']:.0f}, led by {n} {dir_word} macro signal{'s' if n != 1 else ''}"
+    names = ", ".join(top) + ("…" if n > 3 else "")
+    aligned, total = row.get("aligned", 0), row.get("total_relevant", 0)
+    align = f" · {aligned}/{total} relevant signals aligned" if total else ""
+    enrich = ""
+    if row.get("enriched"):
+        extras = []
+        if row.get("has_insider"):   extras.append("insider activity")
+        if row.get("has_13f"):       extras.append("13F positioning")
+        if row.get("has_short_int"): extras.append("short interest")
+        if row.get("momentum_score", 50) >= 65: extras.append("price momentum")
+        if extras:
+            enrich = " Confirmed by " + ", ".join(extras) + "."
+    return f"{lead} ({names}){align}.{enrich}"
+
+
+def _why_block(row: dict, side: str) -> str:
+    accent = "#00D566" if side == "long" else "#FF4444"
+    return (
+        f'<div style="margin-top:10px;padding:8px 10px;border-radius:8px;'
+        f'background:rgba(255,255,255,0.03);border-left:2px solid {accent}66;">'
+        f'<span style="font-size:0.56rem;color:{accent};text-transform:uppercase;'
+        f'letter-spacing:0.08em;font-weight:700;">💡 Why this pick</span>'
+        f'<div style="font-size:0.68rem;color:#B8C2D9;margin-top:3px;line-height:1.4;">'
+        f'{_why_line(row, side)}</div></div>'
+    )
+
+
 def _rec_card(row: dict, side: str) -> str:
     if side == "long":
         border = "#00D566"; glow = "#00D56618"; badge = "BUY"
@@ -449,6 +487,7 @@ def _rec_card(row: dict, side: str) -> str:
     </div>
   </div>
   {_score_bar(row["score"], border)}
+  {_why_block(row, side)}
   <div style="margin-top:8px;">
     <span style="font-size:0.58rem;color:#6B7FBF;text-transform:uppercase;letter-spacing:0.08em;">{driver_label}</span>
     <div style="margin-top:4px;">{sig_html or "<span style='font-size:0.62rem;color:#4A5568;'>Macro regime alignment</span>"}</div>
