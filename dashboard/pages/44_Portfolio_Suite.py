@@ -452,6 +452,18 @@ with tab_macro:
 
     holdings2 = st.session_state.macro_holdings
 
+    # Heavy analysis (per-holding full Confluence score + macro exposure) is gated
+    # behind an explicit action. Because st.tabs renders EVERY tab's code on every
+    # page load, running this automatically meant compute_full_ticker_score() fired
+    # for each holding on every visit to the Portfolio Suite — even when the user
+    # was on another tab — which froze/spiked the single-core box. Opt-in fixes it.
+    if st.button("▶  Analyze portfolio exposure", key="ps_macro_run_btn", type="primary"):
+        st.session_state["ps_macro_analyzed"] = True
+    _macro_ready = bool(holdings2) and st.session_state.get("ps_macro_analyzed")
+    if holdings2 and not _macro_ready:
+        st.info("Set your holdings above, then click **Analyze portfolio exposure** "
+                "to build the Macro X-Ray and exposure map.")
+
     # ── Portfolio Macro X-Ray (Point 2) ───────────────────────────────────────
     # The flagship portfolio view: aggregate each holding's real per-ticker
     # Confluence read (correlation-weighted, significant signals only) into a
@@ -460,7 +472,7 @@ with tab_macro:
     # between holdings that look diversified but share the same macro bet.
     # Engine + tests: utils/portfolio_xray.py. Additive (the simpler signal
     # table below stays) and fully defensive. Framed as context, never advice.
-    if holdings2:
+    if _macro_ready:
         try:
             from utils.portfolio_xray import build_portfolio_xray, render_portfolio_xray_html
             from utils.ticker_score import compute_full_ticker_score as _pf_score
@@ -492,7 +504,7 @@ with tab_macro:
         except Exception:
             pass
 
-    if holdings2:
+    if _macro_ready:
         from utils.ticker_score import SECTOR_SIGNAL_MAP
         from utils.signals_cache import get_all_signal_scores
         from utils.config import SIGNALS
