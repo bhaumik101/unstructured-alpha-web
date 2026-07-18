@@ -115,19 +115,29 @@ st.html(section_label("Watchlist", color="#00C8E0", dot="#00C8E0"))
 # network per keystroke, and still accepts ANY symbol we don't track yet — which
 # then joins the dynamic universe on add (alerts_db.add_to_watchlist already calls
 # universe.add_to_universe).
-@st.cache_data(ttl=3600, show_spinner=False)
+@st.cache_data(ttl=86400, show_spinner=False)
 def _wl_ticker_index() -> dict:
-    """{ticker: 'AAPL — Apple Inc. · Technology'} over tracked + dynamic universe."""
+    """
+    {SYMBOL: 'AAPL — Apple Inc.'} across the FULL US-listed universe (~12.6k
+    symbols from utils.symbols), not just our 280 scored tickers — so you can
+    search and watch almost any stock. Streamlit filters this client-side, so
+    matching is instant on every keystroke with no server round-trip.
+    Our 280 scored tickers get a ✦ marker; anything else still works and starts
+    being tracked the moment it's added.
+    """
+    from utils.symbols import get_symbol_index
     from utils.config import TICKERS as _TK
-    idx = {t: f"{t} — {(m.get('name') or t)[:40]} · {m.get('sector', '—')}"
-           for t, m in _TK.items()}
-    try:  # include anything users already added to the dynamic universe
+    idx = dict(get_symbol_index())
+    for _t in _TK:                       # mark what we actively score
+        if _t in idx:
+            idx[_t] = f"✦ {idx[_t]}"
+    try:                                 # plus anything already in the dynamic universe
         from sqlalchemy import select as _s
         from utils.db import dynamic_universe as _du, engine as _e
         with _e.begin() as _c:
-            for _r in _c.execute(_s(_du.c.ticker, _du.c.name, _du.c.sector)).fetchall():
+            for _r in _c.execute(_s(_du.c.ticker, _du.c.name)).fetchall():
                 if _r[0] and _r[0] not in idx:
-                    idx[_r[0]] = f"{_r[0]} — {(_r[1] or _r[0])[:40]} · {_r[2] or '—'}"
+                    idx[_r[0]] = f"{_r[0]} — {(_r[1] or _r[0])[:38]}"
     except Exception:
         pass
     return dict(sorted(idx.items()))
@@ -188,9 +198,17 @@ if new_ticker:
     else:
         _pv_right = ('<div style="font-size:0.68rem;color:#8892AA;">No score yet</div>'
                      '<div style="font-size:0.56rem;color:#6B7FBF;">Will be scored on the next run</div>')
-    _pv_new = "" if _pv_label else (
+    # "Tracked" means we actively SCORE it (the 280-ticker signal universe) —
+    # not merely that it's listed. Anything else is still addable and starts
+    # being tracked the moment it's added.
+    try:
+        from utils.symbols import is_tracked as _is_tracked
+        _pv_tracked = _is_tracked(new_ticker)
+    except Exception:
+        _pv_tracked = bool(_pv_label)
+    _pv_new = "" if _pv_tracked else (
         '<div style="margin-top:6px;font-size:0.60rem;color:#F59E0B;">'
-        '✦ New to our universe — adding it starts tracking it.</div>')
+        '✦ Not scored yet — adding it starts tracking it.</div>')
     st.html(f"""
     <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;
                 background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);
