@@ -184,6 +184,15 @@ users = Table(
     # cron/send_onboarding_day7.py sends the "unlock more signal power" email.
     # Mirrors the day3_email_sent pattern — TEXT flag, NULL/"" = not yet sent.
     Column("day7_email_sent", String(8)),
+    # Risk profile (added 2026-07-17). JSON blob:
+    #   {"tolerance":"conservative|balanced|aggressive",
+    #    "horizon":"short|medium|long|all",
+    #    "emphasis":"macro|balanced|full"}
+    # Drives the personalized "Your Score" on Ticker Deep Dive (see
+    # utils/risk_profile.py). NULL = user has never set one → defaults apply.
+    # Deliberately does NOT affect the canonical Confluence Score. Migrated via
+    # the generic TEXT path in _migrate_users_table().
+    Column("risk_profile", Text),
 )
 
 watchlist = Table(

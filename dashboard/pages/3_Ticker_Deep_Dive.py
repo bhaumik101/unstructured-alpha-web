@@ -463,6 +463,89 @@ if section == "Overview":
     </div>
     """, unsafe_allow_html=True)
 
+    # ── Your Score — personalized by the user's risk profile ──────────────────
+    # ADDITIVE by design: the canonical Confluence Score above is never changed
+    # (it has to stay comparable across users, snapshots and alerts). This is a
+    # second, clearly-labelled read tuned to how this user actually invests —
+    # risk tolerance, time horizon, and which data they want counted.
+    # Engine + tests: utils/risk_profile.py. Fully defensive; on any problem the
+    # page renders exactly as before.
+    try:
+        from utils.risk_profile import (
+            get_profile, save_profile, compute_personal_score,
+            TOLERANCES, HORIZONS, EMPHASES,
+            TOLERANCE_LABELS, HORIZON_LABELS, EMPHASIS_LABELS,
+        )
+        _rp_user = st.session_state.get("user") or {}
+        _rp_uid = _rp_user.get("id")
+
+        if "_risk_profile" not in st.session_state:
+            st.session_state["_risk_profile"] = get_profile(_rp_uid)
+        _prof = st.session_state["_risk_profile"]
+
+        with st.expander("🎚️  Your risk profile — personalize this score", expanded=False):
+            st.caption(
+                "Tune the read to how you actually invest. This produces a separate "
+                "**Your Score** — the Confluence Score above stays the standard, "
+                "comparable number."
+            )
+            _rc1, _rc2, _rc3 = st.columns(3)
+            _tol = _rc1.selectbox(
+                "Risk tolerance", list(TOLERANCES),
+                index=list(TOLERANCES).index(_prof["tolerance"]),
+                format_func=lambda t: TOLERANCE_LABELS[t], key="rp_tol",
+                help="Aggressive gives price momentum and alt-data more say; conservative leans on slow macro.",
+            )
+            _hor = _rc2.selectbox(
+                "Time horizon", list(HORIZONS),
+                index=list(HORIZONS).index(_prof["horizon"]),
+                format_func=lambda h: HORIZON_LABELS[h], key="rp_hor",
+                help="Only counts signals that historically lead price on your timeframe.",
+            )
+            _emp = _rc3.selectbox(
+                "Data emphasis", list(EMPHASES),
+                index=list(EMPHASES).index(_prof["emphasis"]),
+                format_func=lambda e: EMPHASIS_LABELS[e], key="rp_emp",
+                help="Whether insider activity, 13F positioning and short interest participate.",
+            )
+            _new_prof = {"tolerance": _tol, "horizon": _hor, "emphasis": _emp}
+            if _new_prof != _prof:
+                st.session_state["_risk_profile"] = _new_prof
+                _prof = _new_prof
+                if _rp_uid:
+                    if save_profile(_rp_uid, _new_prof):
+                        st.caption("✅ Saved to your account — applied everywhere you see Your Score.")
+                else:
+                    st.caption("Sign in to save this profile to your account.")
+
+        _ps = compute_personal_score(_full, _prof)
+        if _ps.get("ok"):
+            _pv, _dl = _ps["score"], _ps.get("delta", 0.0)
+            _pc = "#00D566" if _pv >= 65 else ("#FF4444" if _pv <= 35 else "#6B7FBF")
+            _dtxt = ("+" if _dl > 0 else "") + f"{_dl:g}"
+            _dcol = "#00D566" if _dl > 0 else ("#FF4444" if _dl < 0 else "#8892AA")
+            st.html(f"""
+            <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+                        background:rgba(255,255,255,0.025);border:1px solid {_pc}33;
+                        border-left:4px solid {_pc};border-radius:10px;
+                        padding:14px 18px;margin:0 0 18px;">
+              <div style="flex-shrink:0;text-align:center;min-width:104px;">
+                <div style="font-size:0.56rem;font-weight:700;color:{_pc};
+                            letter-spacing:0.10em;text-transform:uppercase;">🎚️ Your Score</div>
+                <div style="font-size:2rem;font-weight:900;color:{_pc};line-height:1.15;">{_pv:.0f}</div>
+                <div style="font-size:0.62rem;color:{_dcol};">{_dtxt} vs standard</div>
+              </div>
+              <div style="width:1px;height:54px;background:rgba(255,255,255,0.08);flex-shrink:0;"></div>
+              <div style="flex:1;min-width:220px;">
+                <div style="font-size:0.68rem;color:#B8C2D9;line-height:1.5;">{_ps['explanation']}</div>
+                <div style="margin-top:6px;font-size:0.58rem;color:#6B7FBF;">
+                  {_ps['tolerance_label']} · {_ps['horizon_label']} · {_ps['emphasis_label']}
+                </div>
+              </div>
+            </div>""")
+    except Exception:
+        pass
+
     # ── TradingView Advanced Chart — the same professional widget as the Stock
     # Chart page, embedded here so the chart lives right beside the analysis.
     try:
