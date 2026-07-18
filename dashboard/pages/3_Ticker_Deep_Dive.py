@@ -224,6 +224,37 @@ if not st.session_state.get("_tdd_onboarded"):
 
 st.markdown(f"### Analyzing: **{ticker_input}** — {company_name_hint}")
 
+# ── One-click watchlist toggle for the ticker being viewed ────────────────────
+# Viewing a ticker is exactly when someone decides to track it — so the action
+# lives here rather than making them go to the Watchlist page and re-type it.
+# Uses the existing alerts_db API (default alert thresholds). Fully defensive.
+try:
+    from utils.alerts_db import add_to_watchlist, remove_from_watchlist, is_watched
+    _wl_uid = (st.session_state.get("user") or {}).get("id")
+    _wl_c1, _wl_c2 = st.columns([1, 4])
+    if _wl_uid:
+        if is_watched(_wl_uid, ticker_input):
+            if _wl_c1.button("✓ Watching", key=f"wl_rm_{ticker_input}",
+                             use_container_width=True,
+                             help="Remove this ticker from your watchlist"):
+                remove_from_watchlist(_wl_uid, ticker_input)
+                st.toast(f"Removed {ticker_input} from your watchlist")
+                st.rerun()
+            _wl_c2.caption("On your watchlist — you'll get score-move and price alerts.")
+        else:
+            if _wl_c1.button("＋ Add to Watchlist", key=f"wl_add_{ticker_input}",
+                             type="primary", use_container_width=True,
+                             help="Track this ticker and get score/price alerts"):
+                add_to_watchlist(_wl_uid, ticker_input)
+                st.toast(f"Added {ticker_input} to your watchlist")
+                st.rerun()
+    else:
+        _wl_c1.button("＋ Add to Watchlist", key=f"wl_add_anon_{ticker_input}",
+                      disabled=True, use_container_width=True)
+        _wl_c2.caption("Sign in to track this ticker and get alerts.")
+except Exception:
+    pass
+
 relevant_sig_ids = _auto_sig_ids
 
 # Also let user add/remove signals
