@@ -135,6 +135,67 @@ place. _Effort: M. Impact: Med._
 
 ---
 
+## Theme 5 — Scale scored coverage (the big one)
+
+**Goal:** move from 280 scored tickers to scored coverage of the large majority of
+*investable* US stocks, precomputed off the interactive path and stored durably.
+Search already spans ~12,641 symbols; scoring needs to catch up.
+
+### The integrity trap — do NOT score all 12,641
+
+A large share of that universe is **not meaningfully scoreable** by a
+macro-correlation model: leveraged/inverse ETPs (RKLX, SOFA…), plain ETFs, SPACs,
+sub-12-month listings, and illiquid microcaps. Running the model on them produces
+noise formatted as a score — which is exactly the credibility failure this product
+can least afford. The app already has the right instinct in `utils/coverage.py`
+(honest coverage tiers, never "—/100 Unknown"); extend that, don't bypass it.
+
+**Qualifying universe (target ~3,000–5,000):** US common stocks with ≥12 months of
+price history and a minimum average dollar-volume floor; exclude leveraged/inverse
+and derivative ETPs; keep only macro-relevant ETFs (the sector SPDRs already in the
+280). Everything outside stays searchable and on-demand — just honestly labelled
+as not-scored rather than given a fake number.
+
+### Architecture
+
+Runs as a **dedicated scoring worker** (separate Render service/cron with 2–4 GB),
+never in the 2 GB web process:
+
+1. **Signals loaded once per run.** The 47 macro series are ticker-independent —
+   load them a single time and reuse across every ticker. This is the dominant win
+   and is what makes the whole thing tractable.
+2. **Batch price fetch** via `fetch_prices_batch` in chunks (~150 symbols/call)
+   through the resilience layer, with jitter and a per-provider request budget.
+3. **Score** reusing `compute_full_ticker_score`'s math (correlation-weighted
+   macro + momentum), chunked so peak RSS stays bounded; `release_memory()` between
+   chunks.
+4. **Persist** to the existing `score_snapshots` (+ `score_components` for
+   attribution). Idempotent per `(ticker, snapshot_date)`; a failed compute must
+   never overwrite a good prior row.
+
+### Cadence (tiered — don't score everything daily)
+
+| Tier | Universe | Cadence |
+|---|---|---|
+| A | the 280 core + every watchlisted/searched ticker | daily |
+| B | liquid large/mid caps (~1,500) | every 2–3 days |
+| C | remaining qualifying names | weekly |
+| — | anything else | on-demand when a user opens it (already works), then cached |
+
+### Stored safely
+
+- Neon Postgres (managed, backups/PITR) — **confirm the retention window** matches
+  the value of this data before relying on it.
+- Index `(ticker, snapshot_date)`; at ~5k tickers daily that's ~1.8M rows/year —
+  comfortable, but revisit partitioning/retention as it grows.
+- Always surface the as-of date; never present a stale snapshot as current.
+- Track per-run: rows written, failures, duration, input/algorithm version.
+
+_Effort: L. Impact: Very High — it turns "search any stock" into "analyse any
+stock", which is the product promise._
+
+---
+
 ## Suggested sequence
 
 1. **Portfolio Suite freeze audit** (P0, Theme 2) — same class of bug we just fixed
