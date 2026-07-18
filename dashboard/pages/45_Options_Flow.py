@@ -215,9 +215,18 @@ st.caption(
 # ── Ticker selector ───────────────────────────────────────────────────────────
 col_pick, col_custom = st.columns([2, 1])
 with col_pick:
+    # Search the full US-listed universe (~12.6k) — options chains exist for far
+    # more than our scored tickers. index=None + placeholder (not a sentinel
+    # option, which Streamlit renders as the box's VALUE and breaks searching).
+    try:
+        from utils.symbols import get_symbol_index as _gsi
+        _of_idx = dict(_gsi())
+    except Exception:
+        _of_idx = {t: t for t in _POPULAR}
     selected_popular = st.selectbox(
-        "Popular tickers", ["(enter custom below)"] + _POPULAR,
-        index=0, key="opts_popular",
+        "Search any stock", list(_of_idx.keys()), index=None,
+        placeholder="🔍 Symbol or company…",
+        format_func=lambda t: _of_idx.get(t, t), key="opts_popular",
     )
 with col_custom:
     custom_ticker = st.text_input(
@@ -225,7 +234,7 @@ with col_custom:
         key="opts_custom",
     ).strip().upper()
 
-ticker = custom_ticker if custom_ticker else (selected_popular if selected_popular != "(enter custom below)" else None)
+ticker = (custom_ticker or selected_popular or "").strip().upper() or None
 
 if not ticker:
     st.info("Select a ticker above to view its options flow.")

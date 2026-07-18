@@ -1223,7 +1223,28 @@ def render_global_ticker_search() -> None:
     compares the picked value against the last value actually acted on
     and only navigates when it's genuinely new.
     """
-    options = sorted(TICKERS.keys())
+    # Search the FULL US-listed universe (~12.6k symbols via utils.symbols), not
+    # just our 280 scored tickers — matching on symbol AND company name, filtered
+    # client-side so it's instant per keystroke. Scored tickers are marked ✦.
+    # The option list is static, so Streamlit ships it once per session rather
+    # than on every rerun. Degrades to the tracked list if the directory is
+    # unavailable, so search never breaks.
+    try:
+        from utils.symbols import get_symbol_index
+        _sym_idx = dict(get_symbol_index())
+        for _t in TICKERS:
+            if _t in _sym_idx:
+                _sym_idx[_t] = f"✦ {_sym_idx[_t]}"
+    except Exception:
+        _sym_idx = {}
+
+    if _sym_idx:
+        options = list(_sym_idx.keys())
+        _fmt = lambda t: _sym_idx.get(t, t)          # noqa: E731
+    else:
+        options = sorted(TICKERS.keys())
+        _fmt = ticker_label
+
     _, search_col, _ = st.columns([3, 2.2, 1.4])
     with search_col:
         picked = st.selectbox(
@@ -1233,7 +1254,7 @@ def render_global_ticker_search() -> None:
             placeholder="🔍 Search any ticker…",
             key="global_ticker_search",
             label_visibility="collapsed",
-            format_func=ticker_label,
+            format_func=_fmt,
         )
     if picked and picked != st.session_state.get("_last_global_ticker_search"):
         st.session_state["_last_global_ticker_search"] = picked

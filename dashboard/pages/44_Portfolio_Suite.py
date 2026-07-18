@@ -496,7 +496,22 @@ with tab_macro:
                            "one per line.")
 
     ma_c1, ma_c2, ma_c3 = st.columns([2,1,1])
-    ma_new_t = ma_c1.selectbox("Add ticker", [""] + list(TICKER_META2.keys()), key="ma_add_t")
+    # Search the full US-listed universe (~12.6k) rather than only our scored
+    # tickers, and use index=None + placeholder (an empty-string sentinel makes
+    # Streamlit render the label as the box's VALUE, breaking type-to-search).
+    try:
+        from utils.symbols import get_symbol_index as _gsi
+        _ma_idx = dict(_gsi())
+        for _t in TICKER_META2:
+            if _t in _ma_idx:
+                _ma_idx[_t] = f"✦ {_ma_idx[_t]}"
+    except Exception:
+        _ma_idx = {t: t for t in TICKER_META2}
+    ma_new_t = ma_c1.selectbox(
+        "Add ticker", list(_ma_idx.keys()), index=None,
+        placeholder="Search any stock…",
+        format_func=lambda t: _ma_idx.get(t, t), key="ma_add_t",
+    ) or ""
     ma_new_w = ma_c2.number_input("Weight %", 1, 100, 10, key="ma_add_w")
     if ma_c3.button("Add", key="ma_add_btn") and ma_new_t:
         from utils.guards import MAX_PORTFOLIO_HOLDINGS
