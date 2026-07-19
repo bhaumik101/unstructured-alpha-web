@@ -31,6 +31,7 @@
 #   python -m cron.score_universe --tier rest --rotate-days 7
 
 import argparse
+import os
 import sys
 import time
 from datetime import datetime, timedelta, timezone
@@ -43,6 +44,53 @@ if str(_here) not in sys.path:
 CHUNK_SIZE = 120          # symbols per batched price request
 DEFAULT_BUDGET = 1200     # max tickers scored in one run
 DEFAULT_DEADLINE_MIN = 50  # wall-clock guard
+
+# Memory guard. Render killed the first core run nine minutes in with
+# "Ran out of memory (used over 512MB)". Crons inherit the Starter plan (512MB)
+# unless render.yaml gives them one, and the web service's `plan: standard` does
+# not apply to them.
+#
+# Measured on this codebase (scripts/measure_cron_memory.py):
+#   imports alone ......... 208MB  (pandas 77, scipy 56, yfinance 26, streamlit 31)
+#   + all 47 signals ...... 268MB
+#   + a 120-symbol chunk .. 232MB  (the price frame itself is only 0.5MB)
+#
+# So the fixed cost is ~270MB and the price frames are negligible; what remains
+# is consumed gradually while scoring hundreds of tickers through the full path.
+# The run already had a wall-clock deadline but no memory guard, so it was killed
+# rather than stopping — and an OOM kill loses the entire run, which then repeats
+# identically the next night. Stopping cleanly banks whatever was scored and lets
+# the next run continue, so the universe fills in over several days instead of
+# never.
+DEFAULT_MAX_RSS_MB = int(os.environ.get("SCORE_MAX_RSS_MB", "430"))
+
+
+def _rss_mb() -> float:
+    """CURRENT resident set size in MB, or 0.0 when it cannot be determined.
+
+    Deliberately current rather than peak. getrusage's ru_maxrss is a high-water
+    mark that never falls, so once a single chunk spiked the guard would trip on
+    every later check even after release_memory() handed the heap back — halting
+    healthy runs. Render kills on current usage, so that is what to compare
+    against. /proc/self/statm is the current figure on Linux, which is where the
+    cron actually runs; getrusage is the fallback elsewhere and is only a
+    conservative approximation.
+
+    Returning 0.0 on failure means an unavailable reading can never trip the
+    guard and stop a run that was doing fine.
+    """
+    try:
+        with open("/proc/self/statm", "rb") as fh:
+            pages = int(fh.read().split()[1])
+        return pages * os.sysconf("SC_PAGE_SIZE") / 1024 / 1024
+    except Exception:
+        pass
+    try:
+        import resource
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return peak / 1024 / 1024 if sys.platform == "darwin" else peak / 1024
+    except Exception:
+        return 0.0
 
 
 def _log(event: str, **fields):
@@ -95,6 +143,8 @@ def main() -> None:
     ap.add_argument("--rotate-days", type=int, default=7)
     ap.add_argument("--budget", type=int, default=DEFAULT_BUDGET)
     ap.add_argument("--deadline-min", type=int, default=DEFAULT_DEADLINE_MIN)
+    ap.add_argument("--max-rss-mb", type=int, default=DEFAULT_MAX_RSS_MB,
+                    help="stop cleanly before the host OOM-kills the process")
     ap.add_argument("--dry-run", action="store_true",
                     help="select + gate tickers but write nothing")
     args = ap.parse_args()
@@ -151,6 +201,17 @@ def main() -> None:
     gate_reasons: dict[str, int] = {}
 
     for i in range(0, len(targets), CHUNK_SIZE):
+        # Checked per chunk, in the same place as the deadline, because both are
+        # "stop cleanly and keep what we have" conditions. Ordered before the
+        # deadline check so a memory stop is reported as such rather than being
+        # masked by a coincident timeout.
+        _rss = _rss_mb()
+        if _rss and _rss > args.max_rss_mb:
+            _log("memory_guard_reached", rss_mb=round(_rss, 1),
+                 limit_mb=args.max_rss_mb, scored=stats["scored"],
+                 remaining=len(targets) - i)
+            break
+
         if time.monotonic() > deadline:
             _log("deadline_reached", scored=stats["scored"])
             break
