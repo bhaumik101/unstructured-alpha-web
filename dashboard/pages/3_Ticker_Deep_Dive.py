@@ -545,7 +545,12 @@ if section == "Overview":
                 _prof = _new_prof
                 if _rp_uid:
                     if save_profile(_rp_uid, _new_prof):
-                        st.caption("✅ Saved to your account — applied everywhere you see Your Score.")
+                        st.caption("✅ Saved to your account — applied to Your Score and your alerts.")
+                        try:   # tick the onboarding checklist
+                            from utils.onboarding import mark_step
+                            mark_step(_rp_uid, "set_risk_profile")
+                        except Exception:
+                            pass
                 else:
                     st.caption("Sign in to save this profile to your account.")
 

@@ -33,7 +33,8 @@ def _pct_change(new: float, old: float) -> float:
     return (new - old) / abs(old) * 100.0
 
 
-def evaluate_ticker(user_id: int, ticker: str, thresholds: dict) -> list[dict]:
+def evaluate_ticker(user_id: int, ticker: str, thresholds: dict,
+                    profile: dict | None = None) -> list[dict]:
     """
     Evaluate one watched ticker against ITS OWNER'S stored last-seen state.
     Returns the list of newly-created alert dicts (already persisted) --
@@ -53,6 +54,28 @@ def evaluate_ticker(user_id: int, ticker: str, thresholds: dict) -> list[dict]:
 
     full = compute_full_ticker_score(ticker)
     current_score = full["confluence"]["overall_score"]
+
+    # Alert on the score the user actually SEES. Showing a personalised
+    # "Your Score" on Deep Dive while alerting off the generic Confluence Score
+    # is incoherent — a long-horizon investor would get pinged by short-lead
+    # signals they've explicitly told us to down-weight. When the user has set a
+    # non-default risk profile, their score becomes the alerting basis.
+    #
+    # Pure post-processing of `full` — no extra fetch. Fully defensive: any
+    # problem falls back to the canonical score.
+    #
+    # NOTE: alert_state stores the last-seen score, so changing your profile can
+    # produce one transitional alert as the basis shifts. That's a one-off and
+    # preferable to alerting on a number the user isn't looking at.
+    if profile:
+        try:
+            from utils.risk_profile import compute_personal_score, is_default
+            if not is_default(profile):
+                _ps = compute_personal_score(full, profile)
+                if _ps.get("ok") and _ps.get("score") is not None:
+                    current_score = float(_ps["score"])
+        except Exception:
+            pass
     price_series = full["price_series"].dropna()
     current_price = float(price_series.iloc[-1]) if not price_series.empty else None
     high_52w = float(price_series.tail(252).max()) if len(price_series) >= 2 else current_price
@@ -164,6 +187,15 @@ def evaluate_watchlist(user_id: int) -> list[dict]:
     pipeline (multiple network fetches) per watched ticker.
     """
     all_new_alerts = []
+
+    # Load the user's risk profile ONCE for the whole sweep — it's per-user, not
+    # per-ticker, so alerts fire on the same score this user sees in the app.
+    try:
+        from utils.risk_profile import get_profile
+        profile = get_profile(user_id)
+    except Exception:
+        profile = None
+
     for row in alerts_db.get_watchlist(user_id):
         thresholds = {
             "score_bull_threshold": row["score_bull_threshold"],
@@ -171,7 +203,8 @@ def evaluate_watchlist(user_id: int) -> list[dict]:
             "price_move_pct_threshold": row["price_move_pct_threshold"],
         }
         try:
-            all_new_alerts.extend(evaluate_ticker(user_id, row["ticker"], thresholds))
+            all_new_alerts.extend(
+                evaluate_ticker(user_id, row["ticker"], thresholds, profile=profile))
         except Exception:
             # One ticker's data hiccup (network, bad ticker, etc.) must not
             # block evaluating the rest of the watchlist.

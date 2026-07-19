@@ -43,6 +43,17 @@ STEPS: list[dict] = [
         "page":  "pages/10_Watchlist.py",
         "icon":  "🔔",
     },
+    # Added 2026-07-18. The risk profile personalises the score AND the alerts,
+    # so getting it set early is the difference between a generic tool and one
+    # that feels built for this user. Marked complete the moment a profile is
+    # saved (see pages/3_Ticker_Deep_Dive.py).
+    {
+        "id":    "set_risk_profile",
+        "label": "Set your risk profile",
+        "desc":  "Tune scores and alerts to your risk tolerance and time horizon.",
+        "page":  "pages/3_Ticker_Deep_Dive.py",
+        "icon":  "🎚️",
+    },
 ]
 
 _NEW_USER_DAYS = 7
