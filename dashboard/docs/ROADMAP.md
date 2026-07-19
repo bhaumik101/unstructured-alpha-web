@@ -194,6 +194,56 @@ never in the 2 GB web process:
 _Effort: L. Impact: Very High — it turns "search any stock" into "analyse any
 stock", which is the product promise._
 
+**Status:** step 1 shipped — `utils/scoring_universe.py` partitions the listed
+universe into **5,273 scoreable** common stocks vs 7,364 held back with a stable
+reason. Next: the liquidity/history gate (needs price data), then the worker.
+
+---
+
+## Theme 6 — Platform level-ups
+
+Higher-leverage additions beyond the current backlog, roughly in order of
+value-per-effort.
+
+**P0 · Risk profile in onboarding.** The profile now exists but is buried on one
+page. Ask the three questions during signup and the very first dashboard is
+already personalised. Classic activation win — it makes the product feel built for
+them within a minute of arriving. _Effort: S. Impact: High._
+
+**P0 · Alerts that respect the risk profile.** Alerting on the generic score while
+showing a personalised one is incoherent. Drive watchlist alerts off **Your Score**
+and the user's horizon, so a long-horizon investor stops getting short-term noise.
+Reuses the existing alert cron. _Effort: M. Impact: High (retention)._
+
+**P1 · Peer / sector relative context.** A 72 means little alone; "72 — the
+highest in semis, sector median 54" is a judgement. Compute percentile-within-
+sector from the snapshots already being written. Cheap once Theme 5 lands, and it
+makes every score interpretable. _Effort: M. Impact: High._
+
+**P1 · Honest accuracy reporting.** `prediction_log` already records
+high-conviction calls. Publish per-signal and overall hit rates with sample sizes
+and confidence — including where the model is weak. For a precision-positioned
+product, visible falsifiability is a moat, not a risk. _Effort: M. Impact: High
+(trust)._
+
+**P1 · Pro API access.** Issue per-user API keys over the scored snapshots
+(rate-limited, tiered). Turns a subscription into infrastructure others build on,
+and is the most defensible monetisation step. The rate-limit and resilience layers
+already exist. _Effort: M–L. Impact: High (revenue + moat)._
+
+**P2 · Public status / data-freshness page.** A small page showing per-source last
+successful refresh and current provider health, fed by the existing circuit
+breakers and `/readyz`. Data products live on trust; showing the plumbing builds
+it — and it deflects "is this stale?" support questions. _Effort: S. Impact: Med._
+
+**P2 · Score-change digest with attribution.** Extend the digest to say *why* a
+watchlist score moved, reusing the Explain-the-Move engine. Turns a notification
+into an insight. _Effort: M. Impact: Med–High._
+
+**P2 · Mobile polish.** The topnav, wide tables and multi-column cards assume
+desktop. A responsive pass would materially widen usable reach. _Effort: M.
+Impact: Med._
+
 ---
 
 ## Suggested sequence
