@@ -486,6 +486,11 @@ with tab_track:
         "Aggregated from all resolved predictions where specific signals were recorded at the time of the call."
     )
 
+    try:
+        from utils.accuracy import MIN_REPORTABLE as _MIN_REPORTABLE
+    except Exception:
+        _MIN_REPORTABLE = 20
+
     _sig_stats = get_signal_accuracy_stats()
 
     if not _sig_stats:
@@ -528,13 +533,25 @@ with tab_track:
         for i, sig in enumerate(_sig_stats):
             bg = "rgba(255,255,255,0.02)" if i % 2 == 0 else "rgba(255,255,255,0.00)"
             border_r = "0 0 8px 8px" if i == len(_sig_stats) - 1 else "0"
+            # Medals are EARNED, not positional. A signal only places if the
+            # lower bound of its confidence interval actually clears a coin flip
+            # — otherwise ranking first just means "least bad small sample", and
+            # a gold medal on 3-of-3 would be an outright overclaim.
             medal = ""
-            if i == 0:
-                medal = " 🥇"
-            elif i == 1:
-                medal = " 🥈"
-            elif i == 2:
-                medal = " 🥉"
+            if sig.get("beats_chance"):
+                medal = {0: " 🥇", 1: " 🥈", 2: " 🥉"}.get(i, "")
+
+            # Evidence context shown inline, so a rate is never read without its
+            # sample size. Tier colour: green only when it beats chance.
+            _tier_col = (BULL_COLOR if sig.get("beats_chance")
+                         else (BEAR_COLOR if sig.get("stats_12w", {}).get("worse_than_chance")
+                               else "#8892AA"))
+            _n12 = sig.get("sample_12w") or 0
+            _ci_lo, _ci_hi = sig.get("ci_low_12w"), sig.get("ci_high_12w")
+            _ci_txt = (f" · 95% CI {_ci_lo:.0f}–{_ci_hi:.0f}%"
+                       if (_ci_lo is not None and _ci_hi is not None and _n12) else "")
+            _evidence = (f'<div style="font-size:0.60rem;color:{_tier_col};margin-top:2px;">'
+                         f'{sig.get("tier_label", "")} · n={_n12}{_ci_txt}</div>')
             st.markdown(f"""
     <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:4px;
          padding:10px 14px;background:{bg};border-radius:{border_r};
@@ -543,6 +560,7 @@ with tab_track:
       <div>
         <div style="font-size:0.84rem;font-weight:700;color:#E8EEFF;">{sig["signal_name"]}{medal}</div>
         <div style="font-size:0.64rem;color:#8892AA;margin-top:1px;">{sig["signal_id"]}</div>
+        {_evidence}
       </div>
       <div style="text-align:center;font-size:0.88rem;font-weight:700;color:{CYAN};">{sig["predictions"]}</div>
       <div style="text-align:center;">{_acc_bar(sig["accuracy_4w"])}</div>
@@ -552,8 +570,13 @@ with tab_track:
     """, unsafe_allow_html=True)
 
         st.caption(
-            "🟢 ≥55% · 🟡 45–55% · 🔴 <45% · "
-            "Only signals with at least one resolved prediction are shown."
+            f"🟢 ≥55% · 🟡 45–55% · 🔴 <45%.  **A rate is only shown once a signal has "
+            f"at least {_MIN_REPORTABLE} resolved predictions** — below that the sample is too "
+            "small to mean anything, so we show “—” rather than a number you might act on. "
+            "Ranking is by the *lower* bound of the 95% confidence interval, not the raw "
+            "percentage, so a well-evidenced 61% outranks a 3-for-3 100%. A medal is only "
+            "awarded when that lower bound clears 50% — i.e. the signal is statistically "
+            "distinguishable from a coin flip. Directional calls, so 50% is the baseline."
         )
 
     st.divider()

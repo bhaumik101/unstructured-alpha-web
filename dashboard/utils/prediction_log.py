@@ -444,21 +444,45 @@ def get_signal_accuracy_stats() -> list[dict]:
             if row.get("correct_12w") is not None:
                 buckets[sig_id]["c12"].append(int(row["correct_12w"]))
 
+    # Each signal now carries sample size, a Wilson 95% interval, an evidence
+    # tier, and a real "does this beat a coin flip?" test — see utils/accuracy.
+    #
+    # This replaced a raw `100 * correct / total` sorted by accuracy descending,
+    # which put `3 of 3 = 100.0%` at the TOP of the leaderboard, above a signal
+    # that was 61% across 200 predictions. Publishing that unqualified is how a
+    # precision-positioned product loses its credibility: the number is real but
+    # it is indistinguishable from luck, and a user could bet money on it.
+    from utils.accuracy import summarize, rank_key
+
     results = []
     for sig_id, d in buckets.items():
         counts = max(len(d["c4"]), len(d["c8"]), len(d["c12"]))
-        acc = lambda lst: round(100 * sum(lst) / len(lst), 1) if lst else None
+        s4, s8, s12 = summarize(d["c4"]), summarize(d["c8"]), summarize(d["c12"])
         results.append({
             "signal_id":    sig_id,
             "signal_name":  SIGNALS.get(sig_id, {}).get("name", sig_id),
             "predictions":  counts,
-            "accuracy_4w":  acc(d["c4"]),
-            "accuracy_8w":  acc(d["c8"]),
-            "accuracy_12w": acc(d["c12"]),
+            # Headline rates stay None below the reportable sample size, so a
+            # caller literally cannot render a confident number we can't defend.
+            "accuracy_4w":  s4["rate"],
+            "accuracy_8w":  s8["rate"],
+            "accuracy_12w": s12["rate"],
+            # Full statistical context for honest display.
+            "stats_4w":     s4,
+            "stats_8w":     s8,
+            "stats_12w":    s12,
+            "sample_12w":   s12["n"],
+            "ci_low_12w":   s12["ci_low"],
+            "ci_high_12w":  s12["ci_high"],
+            "tier":         s12["tier"],
+            "tier_label":   s12["tier_label"],
+            "beats_chance": s12["beats_chance"],
+            "verdict":      s12["verdict"],
         })
 
-    # Sort by 12w accuracy desc, then prediction count desc
-    results.sort(key=lambda r: (-(r["accuracy_12w"] or 0), -r["predictions"]))
+    # Rank by EVIDENCE (beats-chance, then conservative lower bound, then n),
+    # not by raw percentage — otherwise small-sample flukes lead the board.
+    results.sort(key=lambda r: rank_key(r["stats_12w"]))
     return results
 
 
