@@ -283,6 +283,19 @@ score_snapshots = Table(
     Column("case", String(16)),         # "BULL" / "BEAR" / "NEUTRAL"
     Column("conviction", String(32)),
     Column("created_at", String(64), nullable=False),
+    # WHICH score this row holds (added 2026-07-18). Two different metrics can
+    # legitimately exist for a ticker and they must never be conflated:
+    #   "full"            — the Confluence Score shown on Ticker Deep Dive:
+    #                       macro (correlation-weighted) + momentum + the four
+    #                       optional differentiator signals. Expensive (~sec/ticker,
+    #                       4 network calls), so only the core tier gets it.
+    #   "macro_momentum"  — macro + momentum only, no differentiator data. This is
+    #                       the same blend the Screener labels "Macro + Momentum
+    #                       Rank". Cheap enough to precompute across ~5k tickers.
+    # They produce DIFFERENT numbers for the same ticker (measured: AAPL 45.6 full
+    # vs 56.3 macro-only), so a reader must filter on this column rather than
+    # assume. NULL = legacy row, which was always the full score.
+    Column("score_kind", String(20)),
     UniqueConstraint("ticker", "snapshot_date", name="uq_score_snapshot_ticker_date"),
 )
 
@@ -589,6 +602,33 @@ def _migrate_alert_state_table() -> None:
             conn.execute(text(f"ALTER TABLE alert_state ADD COLUMN {col.name} {col_sql_type}"))
 
 
+def _migrate_score_snapshots_table() -> None:
+    """
+    Idempotent ALTER TABLE for score_snapshots. Same inspect() pattern as the
+    other migrations.
+
+    Currently handles:
+      score_kind TEXT — added 2026-07-18 so a "full" Confluence Score and a
+                        cheaper "macro_momentum" bulk score can coexist without
+                        being mistaken for each other. Existing rows are left
+                        NULL and read as "full", which is what they were.
+    """
+    inspector = inspect(engine)
+    if "score_snapshots" not in inspector.get_table_names():
+        return  # brand new database — create_all() already made it with every column
+
+    existing_cols = {c["name"] for c in inspector.get_columns("score_snapshots")}
+    new_cols = [c for c in score_snapshots.columns if c.name not in existing_cols]
+    if not new_cols:
+        return
+
+    with engine.begin() as conn:
+        for col in new_cols:
+            col_sql_type = "TEXT" if isinstance(col.type, String) else "FLOAT"
+            conn.execute(text(
+                f"ALTER TABLE score_snapshots ADD COLUMN {col.name} {col_sql_type}"))
+
+
 def init_db() -> None:
     """Create every table if it doesn't already exist, then apply any
     pending column migrations. Safe to call on every page load."""
@@ -596,6 +636,7 @@ def init_db() -> None:
     _migrate_users_table()
     _migrate_prediction_log_table()
     _migrate_alert_state_table()
+    _migrate_score_snapshots_table()
 
 
 # Probability that any single page load triggers run_periodic_maintenance()

@@ -217,6 +217,55 @@ services:
       - key: EIA_API_KEY
         sync: false
 
+  # ── Batch scoring: CORE tier ────────────────────────────────────────────────
+  # The curated tickers + everything users actually watch, scored with the FULL
+  # Confluence Score (include_optional=True) so these snapshots match Ticker Deep
+  # Dive exactly. Small tier, so the ~sec/ticker cost of the four differentiator
+  # fetches is affordable. 04:10 UTC — after grow-universe, off-peak.
+  - type: cron
+    name: unstructured-alpha-score-core
+    runtime: python
+    rootDir: dashboard
+    schedule: "10 4 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.score_universe --tier core --budget 600 --deadline-min 50
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+
+  # ── Batch scoring: REST tier ────────────────────────────────────────────────
+  # The remaining qualifying universe (~5k common stocks), scored macro+momentum
+  # only — a DIFFERENT metric, stored as score_kind="macro_momentum" so it can
+  # never be mistaken for the full Confluence Score. Rotated in daily slices
+  # (1/7th per day) so the whole universe refreshes weekly without a 5k run.
+  # A macro_momentum write can never overwrite a same-day "full" row.
+  - type: cron
+    name: unstructured-alpha-score-rest
+    runtime: python
+    rootDir: dashboard
+    schedule: "40 5 * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m cron.score_universe --tier rest --rotate-days 7 --budget 1200 --deadline-min 50
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+      - key: OMP_NUM_THREADS
+        value: "1"
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"
+
   # Daily universe growth — seeds big-cap names across covered industries into
   # the dynamic_universe table and pre-warms each one's Confluence Score snapshot
   # so common tickers load instantly. Runs at 03:00 UTC (after resolve-predictions,

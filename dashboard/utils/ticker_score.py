@@ -118,6 +118,7 @@ def compute_full_ticker_score(
     ticker: str,
     signal_ids: list | None = None,
     price_series: "pd.Series | None" = None,
+    include_optional: bool = True,
 ) -> dict:
     """
     Compute the exact same full Confluence Score shown on Ticker Deep Dive:
@@ -199,26 +200,47 @@ def compute_full_ticker_score(
         blended_ret = ret_1y * 0.6 + ret_1m * 0.4
         mom_score = float(np.clip(50.0 + blended_ret * 83.3, 5.0, 95.0))
 
-    # Optional signal 1: federal contracts
-    contracts_df = fetch_federal_contracts(company_name_hint, years=2)
-    contract_vel = score_contract_velocity(contracts_df)
-    has_contract_signal = contract_vel.get("status") != "no_data" and contract_vel.get("award_count", 0) >= 3
-
-    # Optional signal 2: insider activity
-    insider_tx = fetch_insider_transactions_detail(ticker, days=180)
-    insider_score = score_insider_activity(insider_tx)
-    has_insider_signal = insider_score.get("status") != "no_data"
-
-    # Optional signal 3: short interest
-    short_interest_df = fetch_short_interest(ticker, years=1.5)
-    short_interest_score = score_short_interest(short_interest_df)
-    has_short_interest_signal = (
-        short_interest_score.get("status") != "no_data" and short_interest_score.get("periods", 0) >= 2
-    )
-
-    # Optional signal 4: 13F institutional positioning
-    ticker_cusips = {c for c, t in THIRTEENF_CUSIP_TO_TICKER.items() if t == ticker}
+    # ── Optional differentiator signals ───────────────────────────────────────
+    # These four are the expensive part of this function: each is a live network
+    # call per ticker (USASpending, SEC EDGAR, FINRA, and a LOOP of 13F filings),
+    # together ~6s/ticker. That's the right trade for one Deep Dive view, but it
+    # makes bulk scoring of thousands of tickers impossible.
+    #
+    # `include_optional=False` skips them and returns the macro+momentum score
+    # only — the same blend the screener and recommender rank on. Default stays
+    # True, so Deep Dive and every existing caller behave EXACTLY as before.
+    contracts_df = None
+    contract_vel = {"status": "no_data"}
+    has_contract_signal = False
+    insider_tx = None
+    insider_score = {"status": "no_data"}
+    has_insider_signal = False
+    short_interest_df = None
+    short_interest_score = {"status": "no_data"}
+    has_short_interest_signal = False
     fund_rows_13f = []
+    ticker_cusips = set()
+
+    if include_optional:
+        # Optional signal 1: federal contracts
+        contracts_df = fetch_federal_contracts(company_name_hint, years=2)
+        contract_vel = score_contract_velocity(contracts_df)
+        has_contract_signal = contract_vel.get("status") != "no_data" and contract_vel.get("award_count", 0) >= 3
+
+        # Optional signal 2: insider activity
+        insider_tx = fetch_insider_transactions_detail(ticker, days=180)
+        insider_score = score_insider_activity(insider_tx)
+        has_insider_signal = insider_score.get("status") != "no_data"
+
+        # Optional signal 3: short interest
+        short_interest_df = fetch_short_interest(ticker, years=1.5)
+        short_interest_score = score_short_interest(short_interest_df)
+        has_short_interest_signal = (
+            short_interest_score.get("status") != "no_data" and short_interest_score.get("periods", 0) >= 2
+        )
+
+        # Optional signal 4: 13F institutional positioning
+        ticker_cusips = {c for c, t in THIRTEENF_CUSIP_TO_TICKER.items() if t == ticker}
     if ticker_cusips:
         direction_sign = {"long": 1, "short": -1}
         for fund in CURATED_FUNDS:

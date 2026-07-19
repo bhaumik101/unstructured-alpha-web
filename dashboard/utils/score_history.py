@@ -29,7 +29,8 @@ from utils.db import score_snapshots, signal_snapshots, score_components, upsert
 from utils.lead_time_research import get_sector_peers
 
 
-def record_score_snapshot(ticker: str, score: float, case: str, conviction: str) -> None:
+def record_score_snapshot(ticker: str, score: float, case: str, conviction: str,
+                          kind: str = "full") -> None:
     """
     Upsert today's score snapshot for `ticker`. Safe to call on every
     Ticker Deep Dive page view -- the unique (ticker, snapshot_date)
@@ -42,14 +43,28 @@ def record_score_snapshot(ticker: str, score: float, case: str, conviction: str)
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     now_iso = datetime.now(timezone.utc).isoformat()
 
+    # `kind` distinguishes the full Confluence Score from the cheaper bulk
+    # macro+momentum score — they are different metrics and produce different
+    # numbers for the same ticker, so callers must never conflate them.
+    # A "full" row is authoritative: never let a bulk macro_momentum run
+    # downgrade a full score that was already computed for the same day.
     stmt = upsert_stmt(score_snapshots, ["ticker", "snapshot_date"]).values(
         ticker=ticker, snapshot_date=today, score=score, case=case,
-        conviction=conviction, created_at=now_iso,
+        conviction=conviction, created_at=now_iso, score_kind=kind,
     )
-    stmt = stmt.on_conflict_do_update(
-        index_elements=["ticker", "snapshot_date"],
-        set_={"score": score, "case": case, "conviction": conviction, "created_at": now_iso},
-    )
+    update_set = {"score": score, "case": case, "conviction": conviction,
+                  "created_at": now_iso, "score_kind": kind}
+    if kind != "full":
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["ticker", "snapshot_date"],
+            set_=update_set,
+            where=(score_snapshots.c.score_kind != "full"),
+        )
+    else:
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["ticker", "snapshot_date"],
+            set_=update_set,
+        )
     with db.engine.begin() as conn:
         conn.execute(stmt)
 

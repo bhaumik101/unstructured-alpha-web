@@ -155,6 +155,46 @@ def build_scoring_universe(records: dict[str, dict] | None = None) -> dict:
     return {"scoreable": scoreable, "excluded": excluded, "stats": stats}
 
 
+# ── Second gate: price history / tradeability ────────────────────────────────
+# The classifier above is offline (name + flags). This gate needs actual price
+# data, so the scoring worker applies it after the batch fetch.
+EXCL_SHORT_HISTORY = "insufficient_history"
+EXCL_PENNY = "sub_dollar_price"
+EXCL_NO_DATA = "no_price_data"
+
+MIN_HISTORY_DAYS = 252     # ~1 trading year — correlations need a real window
+MIN_PRICE = 1.0            # sub-$1 names are dominated by microstructure, not macro
+
+
+def qualifies_on_price(series, min_days: int = MIN_HISTORY_DAYS,
+                       min_price: float = MIN_PRICE) -> str:
+    """
+    Second-stage gate, applied to a ticker's close-price series.
+
+    Returns OK, or a reason. A macro-correlation score computed on a few weeks of
+    data, or on a sub-dollar quote, is not a signal — it's an artifact. Cheap and
+    defensive: anything unreadable is treated as no data rather than assumed good.
+
+    NOTE: a true liquidity screen wants average dollar volume; `fetch_prices_batch`
+    returns closes only, so this uses history length + price level as the proxy.
+    Volume-based screening is the natural refinement once volume is batched too.
+    """
+    try:
+        if series is None or len(series) == 0:
+            return EXCL_NO_DATA
+        s = series.dropna()
+        if len(s) == 0:
+            return EXCL_NO_DATA
+        if len(s) < min_days:
+            return EXCL_SHORT_HISTORY
+        last = float(s.iloc[-1])
+        if last != last or last < min_price:      # NaN or penny
+            return EXCL_PENNY
+        return OK
+    except Exception:
+        return EXCL_NO_DATA
+
+
 def get_scoring_universe() -> dict:
     """Streamlit-cached wrapper (24h). Safe on every rerun."""
     try:
