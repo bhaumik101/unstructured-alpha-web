@@ -474,6 +474,23 @@ if section == "Overview":
     except Exception:
         pass
 
+    # ── Thesis window (time-stop) ─────────────────────────────────────────────
+    # A score says a case exists but not WHEN it should show up in price, or when
+    # to conclude it didn't — which is how conviction quietly becomes stubbornness.
+    # Every signal carries a researched lead time, so we derive an expected window
+    # from the median lead of the signals actually FORMING this case (median, not
+    # mean: leads run 1–52 weeks and one long-tail signal would stretch a 4-week
+    # thesis to a year). Framed as a guide, never a forecast or a stop-loss.
+    _horizon_badge, _horizon_note = "", ""
+    try:
+        from utils.time_stops import driving_signal_ids, thesis_horizon, horizon_html
+        _hz = thesis_horizon(driving_signal_ids(confluence, case))
+        if _hz.get("median_weeks"):
+            _horizon_badge = horizon_html(_hz)
+            _horizon_note = _hz.get("note", "")
+    except Exception:
+        pass
+
     st.markdown(f"""
     <div class="ua-gradient-border" style="margin-bottom:20px;">
       <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:18px 22px;">
@@ -483,8 +500,9 @@ if section == "Overview":
           <div style="font-size:0.60rem;font-weight:700;color:#8892AA;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:4px;">Signal Case</div>
           <div class="ua-kpi-animate" style="font-size:2.2rem;font-weight:900;color:{score_color};
                text-shadow:0 0 32px {score_color}55,0 0 8px {score_color}35;line-height:1;">{case}</div>
-          <div style="font-size:0.80rem;color:#B8C0D4;margin-top:4px;">Conviction: <b style="color:{score_color};">{conviction}</b>{_earn_badge}</div>
+          <div style="font-size:0.80rem;color:#B8C0D4;margin-top:4px;">Conviction: <b style="color:{score_color};">{conviction}</b>{_earn_badge}{_horizon_badge}</div>
           {f'<div style="font-size:0.66rem;color:#F59E0B;margin-top:6px;line-height:1.45;">{_earn_caveat}</div>' if _earn_caveat else ''}
+          {f'<div style="font-size:0.64rem;color:#6B7FBF;margin-top:5px;line-height:1.45;">{_horizon_note}</div>' if _horizon_note else ''}
           <div style="font-size:0.70rem;color:#8892AA;margin-top:6px;line-height:1.5;">
             {len(relevant_sig_ids)} signals + momentum{" + contracts" if _has_contract_signal else ""}{" + insiders" if _has_insider_signal else ""}{" + short interest" if _has_short_interest_signal else ""}{" + 13F" if _has_13f_signal else ""}
           </div>
