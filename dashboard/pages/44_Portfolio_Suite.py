@@ -46,6 +46,9 @@ with tab_bt:
     from datetime import datetime, timedelta, timezone
 
     from utils.config import TICKERS as _TK
+    from utils.backtest_integrity import (
+        DEFAULT_COST_BPS, DEFAULT_BORROW_BPS_ANNUAL,
+    )
     st.markdown("#### Signal-Driven Long/Short Backtest")
     st.caption(f"Rank all {len(_TK)} tickers by confluence score at each rebalance date. Go long the top N, short the bottom N.")
 
@@ -117,15 +120,32 @@ with tab_bt:
         l_eq = s_eq = c_eq = 100.0
         prev_date = None
 
+        from utils.backtest_integrity import (
+            point_in_time_row, turnover_cost, borrow_cost,
+        )
+
+        prev_longs: set[str] = set()
+        prev_shorts: set[str] = set()
+        n_rebalances = 0
+
         for i, rb_date in enumerate(rebal_dates[:-1]):
             next_rb = rebal_dates[i + 1]
-            score_row = pivot.iloc[pivot.index.get_indexer([rb_date.strftime("%Y-%m-%d")], method="nearest")[0]]
+
+            # Most recent score AT OR BEFORE the rebalance date. This previously
+            # used get_indexer(method="nearest"), which resolves in either
+            # direction — when the closest snapshot postdated the rebalance the
+            # backtest selected holdings from a score that did not exist yet,
+            # while the caption below claimed the result was out-of-sample.
+            score_row = point_in_time_row(pivot, rb_date)
+            if score_row is None:
+                continue  # no information existed yet; skip rather than guess
             ranked = score_row.dropna().sort_values(ascending=False)
 
             longs  = [t for t in ranked.index if ranked[t] >= bull_t][:n]
             shorts = [t for t in ranked.index[::-1] if ranked[t] <= bear_t][:n]
             if not longs and not shorts:
                 continue
+            n_rebalances += 1
 
             period = daily_returns.loc[rb_date:next_rb]
             if period.empty:
@@ -133,6 +153,24 @@ with tab_bt:
 
             l_rets = period[longs].mean(axis=1)  if longs  else pd.Series(0, index=period.index)
             s_rets = -period[shorts].mean(axis=1) if shorts else pd.Series(0, index=period.index)
+
+            # Costs, charged on the first day of each holding period. A weekly
+            # long/short book paying nothing in spread, commission or borrow is
+            # not a strategy anyone can actually run, and omitting them is what
+            # makes paper results look tradeable.
+            _held_days = max((next_rb - rb_date).days, 1)
+            _l_cost = turnover_cost(prev_longs, set(longs))
+            _s_cost = turnover_cost(prev_shorts, set(shorts)) + (
+                borrow_cost(_held_days) if shorts else 0.0
+            )
+            if len(l_rets):
+                l_rets = l_rets.copy()
+                l_rets.iloc[0] -= _l_cost
+            if len(s_rets):
+                s_rets = s_rets.copy()
+                s_rets.iloc[0] -= _s_cost
+            prev_longs, prev_shorts = set(longs), set(shorts)
+
             c_rets = (l_rets + s_rets) / 2
 
             for day, r in c_rets.items():
@@ -164,24 +202,42 @@ with tab_bt:
         return {
             "long_eq": long_eq, "short_eq": short_eq,
             "combined_eq": combined_eq, "spy_eq": spy_eq,
+            "rebalances": n_rebalances,
             "contributions": dict(sorted(contributions.items(), key=lambda x: -abs(x[1]))[:15]),
         }
 
-    def _stats(eq: pd.Series) -> dict:
-        if eq.empty or len(eq) < 5:
+    def _stats(eq: pd.Series, rebalances: int) -> dict:
+        """Formatted statistics, with unsupported figures rendered as "—".
+
+        The previous version always computed a CAGR by raising the total return
+        to 1/years. On the ~4 weeks of score history that exists today that
+        exponent is about 13, so a few percent became tens of percent and was
+        displayed beside SPY's genuine multi-year CAGR. utils.backtest_integrity
+        returns None for anything the sample cannot support; "—" is the honest
+        rendering of None here, not a formatting fallback.
+        """
+        from utils.backtest_integrity import report as _bt_report
+
+        if eq is None or eq.empty or len(eq) < 5:
             return {}
-        total_ret  = eq.iloc[-1] / eq.iloc[0] - 1
-        n_years    = max((eq.index[-1] - eq.index[0]).days / 365.25, 0.01)
-        cagr       = (1 + total_ret) ** (1 / n_years) - 1
-        daily_rets = eq.pct_change().dropna()
-        sharpe     = (daily_rets.mean() * 252) / max(daily_rets.std() * (252**0.5), 1e-9)
-        roll_max   = eq.cummax()
-        drawdowns  = (eq - roll_max) / roll_max
-        max_dd     = drawdowns.min()
-        win_rate   = (daily_rets > 0).mean()
-        return {"Total Return": f"{total_ret*100:+.1f}%", "CAGR": f"{cagr*100:+.1f}%",
-                "Sharpe": f"{sharpe:.2f}", "Max Drawdown": f"{max_dd*100:.1f}%",
-                "Win Rate": f"{win_rate*100:.0f}%"}
+        r = _bt_report(eq, rebalances)
+
+        def _pct(x, signed=True):
+            if x is None:
+                return "—"
+            return f"{x * 100:+.1f}%" if signed else f"{x * 100:.1f}%"
+
+        sharpe_txt = "—"
+        if r["sharpe"] is not None:
+            sharpe_txt = f"{r['sharpe']:.2f} ± {r['sharpe_se']:.2f}"
+
+        return {
+            "Total Return": _pct(r["total_return"]),
+            "CAGR": _pct(r["cagr"]),
+            "Sharpe": sharpe_txt,
+            "Max Drawdown": _pct(r["max_drawdown"], signed=False),
+            "_sufficiency": r["sufficiency"],
+        }
 
     if st.button("▶  Run Backtest", key="ps_run_bt"):
         with st.spinner("Running walk-forward backtest…"):
@@ -190,13 +246,33 @@ with tab_bt:
         if result is None:
             st.info("Not enough score_snapshots history yet. Keep using Ticker Deep Dive to build it up — scores are snapshotted at view time.")
         else:
+            # Lead with what the sample can support. Showing the curve first and
+            # the caveat last invites reading the curve as the result.
+            _rebals = result.get("rebalances", 0)
+            _suff = _stats(result["combined_eq"], _rebals).get("_sufficiency")
+            if _suff is not None and not _suff.ok:
+                st.warning(
+                    f"**{_suff.headline}** This run covers {_suff.days} days, "
+                    f"{_suff.observations} trading sessions and {_suff.rebalances} "
+                    "rebalances.\n\n"
+                    + "\n".join(f"- {r}" for r in _suff.reasons)
+                    + "\n\nTotal return and drawdown are shown because they make no "
+                    "claim about a longer period. CAGR and Sharpe are withheld rather "
+                    "than extrapolated — annualising a sample this short multiplies "
+                    "the apparent return several-fold."
+                )
+
             s1, s2, s3, s4 = st.columns(4)
             for col, label, eq in [(s1,"Long",result["long_eq"]),(s2,"Short",result["short_eq"]),
                                     (s3,"Combined",result["combined_eq"]),(s4,"SPY",result["spy_eq"])]:
-                stats = _stats(eq)
+                stats = _stats(eq, _rebals)
                 if stats:
                     col.metric(f"{label} Return",  stats.get("Total Return","—"))
-                    col.metric(f"{label} Sharpe",  stats.get("Sharpe","—"))
+                    col.metric(f"{label} Sharpe",  stats.get("Sharpe","—"),
+                               help="Shown as estimate ± standard error. Withheld "
+                                    "below 60 observations, where the estimate cannot "
+                                    "be distinguished from noise.")
+                    col.metric(f"{label} Max DD",  stats.get("Max Drawdown","—"))
 
             fig = go.Figure()
             for label, eq, color in [("Long",result["long_eq"],"#00D566"),
@@ -224,7 +300,15 @@ with tab_bt:
                 st.markdown("**Top contributing tickers**")
                 st.dataframe(contrib_df, use_container_width=True, hide_index=True)
 
-        st.caption("Walk-forward: scores are from the score_snapshots DB — genuinely out-of-sample. Short P&L is shown positive when short was correct.")
+        st.caption(
+            "Walk-forward: at each rebalance the most recent score dated **at or "
+            "before** that date is used, never a later one. Costs of "
+            f"{DEFAULT_COST_BPS:.0f}bps round-trip on turnover plus "
+            f"{DEFAULT_BORROW_BPS_ANNUAL:.0f}bps annualised borrow on the short leg "
+            "are deducted. Short P&L is shown positive when the short was correct. "
+            "Results still carry survivorship bias — the universe is today's tracked "
+            "tickers, so names delisted during the period are absent."
+        )
     else:
         st.info("Configure parameters above and click **Run Backtest** to begin.")
 

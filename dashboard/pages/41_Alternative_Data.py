@@ -157,7 +157,7 @@ with tab_congress:
 # ─────────────────────────────────────────────────────────────────────────────
 with tab_options:
     from utils.billing import require_pro
-    require_pro("Options Flow")
+    require_pro("Alternative Data")
 
     import yfinance as yf
     import pandas as pd
