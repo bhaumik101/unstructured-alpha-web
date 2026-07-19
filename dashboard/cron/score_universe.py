@@ -93,6 +93,47 @@ def _rss_mb() -> float:
         return 0.0
 
 
+def score_kind_for_tier(tier: str) -> str:
+    """Which score_kind a tier writes. Single definition, used for both the
+    write and the staleness lookup so the two can never disagree."""
+    return "full" if tier == "core" else "macro_momentum"
+
+
+def _stalest_first(targets: list[str], score_kind: str) -> list[str]:
+    """Order by least-recently-scored, never-scored first.
+
+    A run that stops early — on budget, deadline or the memory guard — must not
+    keep re-scoring the same alphabetical prefix, or the tail of the universe is
+    unreachable in principle. Sorting by the age of each ticker's most recent
+    snapshot of THIS kind turns a series of partial runs into full coverage.
+
+    Matching on score_kind matters: a ticker with a fresh macro_momentum score
+    still needs a full one, and treating those as interchangeable would starve
+    the core tier.
+
+    Any failure returns the input order unchanged — a lookup problem should
+    degrade to the old behaviour, not stop the run.
+    """
+    try:
+        from sqlalchemy import text
+        from utils.db import engine
+
+        with engine.connect() as conn:
+            rows = conn.execute(text("""
+                SELECT ticker, MAX(snapshot_date) AS last_seen
+                FROM score_snapshots
+                WHERE score_kind = :kind OR (:kind = 'full' AND score_kind IS NULL)
+                GROUP BY ticker
+            """), {"kind": score_kind}).fetchall()
+        last_seen = {r[0]: (r[1] or "") for r in rows}
+    except Exception as exc:
+        _log("staleness_lookup_failed", error=str(exc)[:120])
+        return targets
+
+    # "" sorts before any real date, so never-scored tickers come first.
+    return sorted(targets, key=lambda t: (last_seen.get(t, ""), t))
+
+
 def _log(event: str, **fields):
     """Structured line when observability is available, plain print otherwise."""
     try:
@@ -180,6 +221,13 @@ def main() -> None:
     else:
         targets = sorted(set(scoreable) | core)
 
+    # Stalest first. This is what makes a budget-limited or memory-limited run
+    # actually converge: targets used to be alphabetical, so every run scored the
+    # same leading slice and stopped, and anything past the cut-off would never be
+    # reached no matter how many nights the cron ran. Ordering by least-recently
+    # scored means each run resumes where the last one gave up, and coverage
+    # fills in over successive days.
+    targets = _stalest_first(targets, score_kind_for_tier(args.tier))
     targets = targets[: args.budget]
 
     # WHICH score this run produces — these are DIFFERENT metrics, not two
@@ -191,7 +239,9 @@ def main() -> None:
     #          "Macro + Momentum Rank". ~425x faster, which is the only reason
     #          scoring thousands of tickers is possible at all.
     want_optional = args.tier == "core"
-    score_kind = "full" if want_optional else "macro_momentum"
+    # Same helper the staleness ordering uses, so the kind a run WRITES can
+    # never drift from the kind it treats as already-covered.
+    score_kind = score_kind_for_tier(args.tier)
 
     _log("run_start", tier=args.tier, universe=len(scoreable), core=len(core),
          targets=len(targets), score_kind=score_kind, dry_run=args.dry_run)

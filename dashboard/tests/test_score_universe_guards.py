@@ -142,3 +142,87 @@ def test_guard_is_checked_before_the_deadline():
     """Otherwise a memory stop gets misreported as a timeout."""
     src = (DASHBOARD / "cron" / "score_universe.py").read_text()
     assert src.index("memory_guard_reached") < src.index("deadline_reached")
+
+
+# ── Convergence ───────────────────────────────────────────────────────────────
+# The guard alone does not fix coverage. Targets used to be alphabetical, so a
+# run that stopped early always stopped at the same place and the tail of the
+# universe was unreachable no matter how many nights the cron ran. These cover
+# the ordering that turns repeated partial runs into full coverage.
+
+def _stalest(monkeypatch, last_seen: dict[str, str], targets: list[str],
+             kind: str = "full") -> list[str]:
+    sys.path.insert(0, str(DASHBOARD))
+    import cron.score_universe as su
+
+    class _Result:
+        def __init__(self, rows): self._rows = rows
+        def fetchall(self): return self._rows
+
+    class _Conn:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+        def execute(self, *a, **k): return _Result(list(last_seen.items()))
+
+    class _Engine:
+        def connect(self): return _Conn()
+
+    monkeypatch.setitem(sys.modules, "utils.db",
+                        type("m", (), {"engine": _Engine()})())
+    return su._stalest_first(targets, kind)
+
+
+def test_never_scored_tickers_come_first(monkeypatch):
+    out = _stalest(monkeypatch,
+                   {"AAPL": "2026-07-18", "CCJ": "2026-07-19"},
+                   ["AAPL", "CCJ", "NEWCO"])
+    assert out[0] == "NEWCO"
+
+
+def test_stalest_scored_ticker_precedes_freshest(monkeypatch):
+    out = _stalest(monkeypatch,
+                   {"AAPL": "2026-07-01", "CCJ": "2026-07-19", "MSFT": "2026-07-10"},
+                   ["CCJ", "MSFT", "AAPL"])
+    assert out == ["AAPL", "MSFT", "CCJ"]
+
+
+def test_ordering_is_not_alphabetical(monkeypatch):
+    """The regression: alphabetical order made the tail unreachable."""
+    out = _stalest(monkeypatch,
+                   {"AAA": "2026-07-19", "ZZZ": "2026-07-01"},
+                   ["AAA", "ZZZ"])
+    assert out == ["ZZZ", "AAA"], "freshly-scored AAA must not be re-scored first"
+
+
+def test_budget_truncation_after_ordering_covers_the_stalest(monkeypatch):
+    """A budget of 2 must pick the two most-neglected names, not the first two."""
+    last = {"AAA": "2026-07-19", "BBB": "2026-07-18", "YYY": "2026-07-01"}
+    out = _stalest(monkeypatch, last, ["AAA", "BBB", "YYY", "ZZZ_NEW"])[:2]
+    assert set(out) == {"ZZZ_NEW", "YYY"}
+
+
+def test_lookup_failure_degrades_to_input_order(monkeypatch):
+    """A broken lookup must not stop the run."""
+    sys.path.insert(0, str(DASHBOARD))
+    import cron.score_universe as su
+
+    class _Engine:
+        def connect(self): raise RuntimeError("db unreachable")
+
+    monkeypatch.setitem(sys.modules, "utils.db",
+                        type("m", (), {"engine": _Engine()})())
+    assert su._stalest_first(["B", "A"], "full") == ["B", "A"]
+
+
+def test_score_kind_helper_matches_the_tiers():
+    sys.path.insert(0, str(DASHBOARD))
+    from cron.score_universe import score_kind_for_tier
+
+    assert score_kind_for_tier("core") == "full"
+    assert score_kind_for_tier("rest") == "macro_momentum"
+
+
+def test_write_kind_and_staleness_kind_come_from_one_helper():
+    """If they drifted, a tier would treat the wrong scores as coverage."""
+    src = (DASHBOARD / "cron" / "score_universe.py").read_text()
+    assert src.count("score_kind_for_tier(args.tier)") >= 2

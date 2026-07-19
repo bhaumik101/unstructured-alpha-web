@@ -228,7 +228,7 @@ services:
     rootDir: dashboard
     schedule: "10 4 * * *"
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m cron.score_universe --tier core --budget 600 --deadline-min 50
+    startCommand: python -m cron.score_universe --tier core --budget 250 --deadline-min 40
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -236,6 +236,8 @@ services:
         sync: false
       - key: EIA_API_KEY
         sync: false
+      - key: SCORE_MAX_RSS_MB
+        value: "430"
       - key: OMP_NUM_THREADS
         value: "1"
       - key: OPENBLAS_NUM_THREADS
@@ -253,7 +255,7 @@ services:
     rootDir: dashboard
     schedule: "40 5 * * *"
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m cron.score_universe --tier rest --rotate-days 7 --budget 1200 --deadline-min 50
+    startCommand: python -m cron.score_universe --tier rest --rotate-days 7 --budget 900 --deadline-min 40
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -261,6 +263,8 @@ services:
         sync: false
       - key: EIA_API_KEY
         sync: false
+      - key: SCORE_MAX_RSS_MB
+        value: "430"
       - key: OMP_NUM_THREADS
         value: "1"
       - key: OPENBLAS_NUM_THREADS
