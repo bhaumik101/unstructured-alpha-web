@@ -17,7 +17,7 @@
 # and utils/analysis.py are kept -- it orchestrates config + fetchers +
 # analysis together, the same role the page itself used to play alone.
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -33,6 +33,8 @@ from utils.analysis import (
     score_insider_activity, score_short_interest, score_13f_positioning,
     score_contract_velocity,
 )
+from utils.model_version import MODEL_VERSION, signal_registry_version
+from utils.performance import notify_progress, timed_stage
 
 # Mirrors pages/3_Ticker_Deep_Dive.py's SECTOR_SIGNAL_MAP exactly -- kept in
 # sync by hand since Streamlit pages can't be imported as modules cleanly.
@@ -114,11 +116,13 @@ def price_window() -> tuple[str, str]:
     return price_start, end
 
 
-def compute_full_ticker_score(
+def _compute_full_ticker_score(
     ticker: str,
     signal_ids: list | None = None,
     price_series: "pd.Series | None" = None,
     include_optional: bool = True,
+    progress_callback=None,
+    _timing_events: list[dict] | None = None,
 ) -> dict:
     """
     Compute the exact same full Confluence Score shown on Ticker Deep Dive:
@@ -140,56 +144,70 @@ def compute_full_ticker_score(
     """
     ticker = ticker.upper().strip()
     tkr_meta, company_name_hint, auto_sig_ids = resolve_ticker_meta(ticker)
-    relevant_sig_ids = signal_ids if signal_ids else auto_sig_ids
+    # None means "resolve the automatic set"; [] means "explicitly no macro
+    # signals". Keeping those semantics distinct is also required by the shared
+    # full-result cache key.
+    relevant_sig_ids = signal_ids if signal_ids is not None else auto_sig_ids
 
     end = datetime.now().strftime("%Y-%m-%d")
     start = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
     price_start = (datetime.now() - timedelta(days=365 * 3)).strftime("%Y-%m-%d")
 
     signal_scores, signal_data = {}, {}
-    for sig_id in relevant_sig_ids:
-        cfg = SIGNALS.get(sig_id)
-        if not cfg:
-            continue
-        try:
-            s = fetch_signal_series(cfg, start, end)
-            signal_scores[sig_id] = score_signal(s, inverse=cfg.get("inverse", False))
-            signal_data[sig_id] = s
-        except Exception:
-            signal_scores[sig_id] = {"score": 50, "status": "neutral"}
-            signal_data[sig_id] = pd.Series(dtype=float)
+    notify_progress(progress_callback, "macro_signals", "Loading macro signals…")
+    with timed_stage("signal_series_retrieval", ticker=ticker, events=_timing_events,
+                     metadata={"signal_count": len(relevant_sig_ids)}):
+        for sig_id in relevant_sig_ids:
+            cfg = SIGNALS.get(sig_id)
+            if not cfg:
+                continue
+            try:
+                s = fetch_signal_series(cfg, start, end)
+                signal_scores[sig_id] = score_signal(s, inverse=cfg.get("inverse", False))
+                signal_data[sig_id] = s
+            except Exception:
+                signal_scores[sig_id] = {"score": 50, "status": "neutral"}
+                signal_data[sig_id] = pd.Series(dtype=float)
 
     # Use a caller-supplied price series when given (batch pre-fetch); otherwise
     # fetch this ticker on its own. Byte-identical either way.
-    if price_series is None:
-        price_series = fetch_price(ticker, price_start, end)
+    notify_progress(progress_callback, "price_history", "Loading price history…")
+    _price_outcome = {}
+    with timed_stage("price_retrieval", ticker=ticker, events=_timing_events,
+                     cache_status="caller_supplied" if price_series is not None else "unknown",
+                     outcome=_price_outcome):
+        if price_series is None:
+            price_series = fetch_price(ticker, price_start, end)
+        _price_outcome["success"] = not getattr(price_series, "attrs", {}).get("fetch_error", False)
 
     # Per-ticker correlation weighting + significance (mirrors the page exactly)
     corr_info = {}
-    if not price_series.empty:
-        for sig_id in relevant_sig_ids:
-            cfg = SIGNALS.get(sig_id, {})
-            lag = cfg.get("lag_weeks", 0)
-            raw_series = signal_data.get(sig_id, pd.Series(dtype=float))
-            if len(raw_series.dropna()) >= 20:
-                stat = compute_quick_correlation_stats(raw_series, price_series, lag_weeks=lag)
-            else:
-                stat = {"r": 0.0, "p_value": 1.0, "significant": False, "n": 0}
-            pcs = cfg.get("pcs", 5)
-            r = stat["r"]
-            weight = max(0.15, abs(r)) * (pcs / 10.0)
-            corr_info[sig_id] = {
-                "r": r, "weight": round(weight, 4),
-                "p_value": stat["p_value"], "significant": stat["significant"], "n": stat["n"],
-            }
-    else:
-        for sig_id in relevant_sig_ids:
-            cfg = SIGNALS.get(sig_id, {})
-            pcs = cfg.get("pcs", 5)
-            corr_info[sig_id] = {"r": 0.0, "weight": pcs / 10.0, "p_value": 1.0, "significant": False, "n": 0}
+    with timed_stage("correlation_calculation", ticker=ticker, events=_timing_events,
+                     metadata={"signal_count": len(relevant_sig_ids)}):
+        if not price_series.empty:
+            for sig_id in relevant_sig_ids:
+                cfg = SIGNALS.get(sig_id, {})
+                lag = cfg.get("lag_weeks", 0)
+                raw_series = signal_data.get(sig_id, pd.Series(dtype=float))
+                if len(raw_series.dropna()) >= 20:
+                    stat = compute_quick_correlation_stats(raw_series, price_series, lag_weeks=lag)
+                else:
+                    stat = {"r": 0.0, "p_value": 1.0, "significant": False, "n": 0}
+                pcs = cfg.get("pcs", 5)
+                r = stat["r"]
+                weight = max(0.15, abs(r)) * (pcs / 10.0)
+                corr_info[sig_id] = {
+                    "r": r, "weight": round(weight, 4),
+                    "p_value": stat["p_value"], "significant": stat["significant"], "n": stat["n"],
+                }
+        else:
+            for sig_id in relevant_sig_ids:
+                cfg = SIGNALS.get(sig_id, {})
+                pcs = cfg.get("pcs", 5)
+                corr_info[sig_id] = {"r": 0.0, "weight": pcs / 10.0, "p_value": 1.0, "significant": False, "n": 0}
 
-    corr_weights_flat = {sid: ci["weight"] for sid, ci in corr_info.items()}
-    confluence = compute_confluence(signal_scores, weights=corr_weights_flat)
+        corr_weights_flat = {sid: ci["weight"] for sid, ci in corr_info.items()}
+        confluence = compute_confluence(signal_scores, weights=corr_weights_flat)
 
     # Momentum blend
     mom_score = 50.0
@@ -220,67 +238,99 @@ def compute_full_ticker_score(
     has_short_interest_signal = False
     fund_rows_13f = []
     ticker_cusips = set()
+    source_errors: list[str] = []
+
+    if getattr(price_series, "attrs", {}).get("fetch_error"):
+        source_errors.append("price_history")
 
     if include_optional:
+        notify_progress(progress_callback, "optional_evidence", "Checking optional evidence…")
         # Optional signal 1: federal contracts
-        contracts_df = fetch_federal_contracts(company_name_hint, years=2)
-        contract_vel = score_contract_velocity(contracts_df)
+        _contracts_outcome = {}
+        with timed_stage("federal_contract_retrieval", ticker=ticker, events=_timing_events,
+                         outcome=_contracts_outcome):
+            contracts_df = fetch_federal_contracts(company_name_hint, years=2)
+            contract_vel = score_contract_velocity(contracts_df)
+            _contracts_outcome["success"] = not getattr(contracts_df, "attrs", {}).get("fetch_error", False)
+        if getattr(contracts_df, "attrs", {}).get("fetch_error"):
+            source_errors.append("federal_contracts")
         has_contract_signal = contract_vel.get("status") != "no_data" and contract_vel.get("award_count", 0) >= 3
 
         # Optional signal 2: insider activity
-        insider_tx = fetch_insider_transactions_detail(ticker, days=180)
-        insider_score = score_insider_activity(insider_tx)
+        _insider_outcome = {}
+        with timed_stage("insider_retrieval", ticker=ticker, events=_timing_events,
+                         outcome=_insider_outcome):
+            insider_tx = fetch_insider_transactions_detail(ticker, days=180)
+            insider_score = score_insider_activity(insider_tx)
+            _insider_outcome["success"] = not getattr(insider_tx, "attrs", {}).get("fetch_error", False)
+        if getattr(insider_tx, "attrs", {}).get("fetch_error"):
+            source_errors.append("insider_activity")
         has_insider_signal = insider_score.get("status") != "no_data"
 
         # Optional signal 3: short interest
-        short_interest_df = fetch_short_interest(ticker, years=1.5)
-        short_interest_score = score_short_interest(short_interest_df)
+        _short_outcome = {}
+        with timed_stage("short_interest_retrieval", ticker=ticker, events=_timing_events,
+                         outcome=_short_outcome):
+            short_interest_df = fetch_short_interest(ticker, years=1.5)
+            short_interest_score = score_short_interest(short_interest_df)
+            _short_outcome["success"] = not getattr(short_interest_df, "attrs", {}).get("fetch_error", False)
+        if getattr(short_interest_df, "attrs", {}).get("fetch_error"):
+            source_errors.append("short_interest")
         has_short_interest_signal = (
             short_interest_score.get("status") != "no_data" and short_interest_score.get("periods", 0) >= 2
         )
 
         # Optional signal 4: 13F institutional positioning
         ticker_cusips = {c for c, t in THIRTEENF_CUSIP_TO_TICKER.items() if t == ticker}
-    if ticker_cusips:
-        direction_sign = {"long": 1, "short": -1}
-        for fund in CURATED_FUNDS:
-            fund_df = fetch_13f_holdings(fund["cik"], fund["name"])
-            if fund_df.empty:
-                continue
-            periods = sorted(fund_df["period"].dropna().unique(), reverse=True)
-            if not periods:
-                continue
-            latest_period = periods[0]
-            prior_period = periods[1] if len(periods) > 1 else None
+    _thirteenf_outcome = {}
+    with timed_stage("thirteenf_retrieval", ticker=ticker, events=_timing_events,
+                     cache_status="not_requested" if not ticker_cusips else "unknown",
+                     outcome=_thirteenf_outcome):
+        if ticker_cusips:
+            direction_sign = {"long": 1, "short": -1}
+            for fund in CURATED_FUNDS:
+                fund_df = fetch_13f_holdings(fund["cik"], fund["name"])
+                if getattr(fund_df, "attrs", {}).get("fetch_error"):
+                    if "thirteenf" not in source_errors:
+                        source_errors.append("thirteenf")
+                    continue
+                if fund_df.empty:
+                    continue
+                periods = sorted(fund_df["period"].dropna().unique(), reverse=True)
+                if not periods:
+                    continue
+                latest_period = periods[0]
+                prior_period = periods[1] if len(periods) > 1 else None
 
-            def _signed_shares(period):
-                rows = fund_df[(fund_df["period"] == period) & (fund_df["cusip"].isin(ticker_cusips))]
-                if rows.empty:
-                    return 0.0
-                return float((rows["shares"] * rows["direction"].map(direction_sign)).sum())
+                def _signed_shares(period):
+                    rows = fund_df[(fund_df["period"] == period) & (fund_df["cusip"].isin(ticker_cusips))]
+                    if rows.empty:
+                        return 0.0
+                    return float((rows["shares"] * rows["direction"].map(direction_sign)).sum())
 
-            def _source_url(period):
-                # Audit-trail field: the exact information-table XML this
-                # position came from. Picks the first matching row's
-                # source_url -- a fund can hold this ticker via more than
-                # one CUSIP/option-type row in the same filing, but they all
-                # share the same filing, so any one of their source_urls
-                # points to the right document.
-                rows = fund_df[(fund_df["period"] == period) & (fund_df["cusip"].isin(ticker_cusips))]
-                if rows.empty or "source_url" not in rows.columns:
-                    return None
-                return rows["source_url"].iloc[0]
+                def _source_url(period):
+                    # Audit-trail field: the exact information-table XML this
+                    # position came from. Picks the first matching row's
+                    # source_url -- a fund can hold this ticker via more than
+                    # one CUSIP/option-type row in the same filing, but they all
+                    # share the same filing, so any one of their source_urls
+                    # points to the right document.
+                    rows = fund_df[(fund_df["period"] == period) & (fund_df["cusip"].isin(ticker_cusips))]
+                    if rows.empty or "source_url" not in rows.columns:
+                        return None
+                    return rows["source_url"].iloc[0]
 
-            latest_signed = _signed_shares(latest_period)
-            prior_signed = _signed_shares(prior_period) if prior_period is not None else None
-            if latest_signed == 0.0 and not prior_signed:
-                continue
-            fund_rows_13f.append({
-                "fund": fund["name"], "style": fund["style"],
-                "latest_shares": latest_signed, "latest_period": latest_period,
-                "prior_shares": prior_signed, "prior_period": prior_period,
-                "latest_source_url": _source_url(latest_period),
-            })
+                latest_signed = _signed_shares(latest_period)
+                prior_signed = _signed_shares(prior_period) if prior_period is not None else None
+                if latest_signed == 0.0 and not prior_signed:
+                    continue
+                fund_rows_13f.append({
+                    "fund": fund["name"], "style": fund["style"],
+                    "latest_shares": latest_signed, "latest_period": latest_period,
+                    "prior_shares": prior_signed, "prior_period": prior_period,
+                    "latest_source_url": _source_url(latest_period),
+                })
+        _thirteenf_outcome["success"] = "thirteenf" not in source_errors
 
     thirteenf_score = score_13f_positioning(fund_rows_13f)
     has_13f_signal = thirteenf_score.get("status") != "no_data"
@@ -310,6 +360,7 @@ def compute_full_ticker_score(
     elif final_score <= 35:
         confluence["case"] = "BEAR"
 
+    notify_progress(progress_callback, "explanation", "Preparing explanation…")
     return {
         "ticker": ticker,
         "company_name_hint": company_name_hint,
@@ -332,4 +383,38 @@ def compute_full_ticker_score(
         "thirteenf_score": thirteenf_score,
         "has_13f_signal": has_13f_signal,
         "thirteenf_fund_rows": fund_rows_13f,
+        "score_kind": (
+            "macro_momentum" if not include_optional
+            else "full" if not source_errors
+            else "provisional"
+        ),
+        "is_complete": not source_errors,
+        "source_errors": source_errors,
+        "model_version": MODEL_VERSION,
+        "signal_registry_version": signal_registry_version(),
+        "calculated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+def compute_full_ticker_score(
+    ticker: str,
+    signal_ids: list | None = None,
+    price_series: "pd.Series | None" = None,
+    include_optional: bool = True,
+    progress_callback=None,
+) -> dict:
+    """Timed public entrypoint for the canonical ticker score computation."""
+    normalized = ticker.upper().strip()
+    events: list[dict] = []
+    with timed_stage("full_score", ticker=normalized, events=events,
+                     metadata={"include_optional": include_optional}):
+        result = _compute_full_ticker_score(
+            normalized,
+            signal_ids=signal_ids,
+            price_series=price_series,
+            include_optional=include_optional,
+            progress_callback=progress_callback,
+            _timing_events=events,
+        )
+    result["_timings"] = events
+    return result
