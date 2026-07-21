@@ -28,7 +28,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from utils.header import render_header, render_sidebar_base, render_page_header, render_footer
+from utils.header import render_header, render_sidebar_base, render_page_header, render_footer, disclose_synthetic_signals
 from utils.theme import inject_premium_css, source_badge, PLOTLY_CONFIG
 from utils.config import SIGNALS, TICKERS
 from utils.billing import require_pro
@@ -51,6 +51,15 @@ render_page_header(
     "with the top picks fully enriched with insider activity, 13F positioning, and short interest.",
     icon="🎯",
 )
+
+# Data-integrity disclosure: this page RANKS tickers by macro-signal confluence.
+# If any underlying signal is synthetic (no FRED/EIA key, or a failed fetch), the
+# ranking is built on placeholder data and must say so — a recommender that sorts
+# stocks on fabricated inputs while looking authoritative is the worst version of
+# quiet wrongness. get_all_signal_scores() is the same cached call the scorer uses,
+# so this adds no network cost.
+from utils.signals_cache import get_all_signal_scores as _gas_disc
+disclose_synthetic_signals(_gas_disc())
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuration

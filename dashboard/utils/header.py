@@ -1171,6 +1171,45 @@ def render_synthetic_data_banner(n_synthetic: int, n_total: int) -> None:
     """, unsafe_allow_html=True)
 
 
+def count_synthetic_signals(all_signals: dict) -> tuple[int, int]:
+    """(n_synthetic, n_total) from a signals-cache dict.
+
+    Every page previously inlined `sum(1 for sv in ... if sv.get("is_synthetic"))`
+    at its own call site. Five pages did; eight score-consuming pages did not,
+    and an inlined count is exactly the kind of thing that silently drifts or
+    gets forgotten on a new page. Centralising the count means a page cannot
+    miscount, and the coverage test can assert every consumer routes through
+    this or its sibling below.
+    """
+    if not all_signals:
+        return 0, 0
+    total = len(all_signals)
+    synthetic = sum(1 for sv in all_signals.values()
+                    if isinstance(sv, dict) and sv.get("is_synthetic"))
+    return synthetic, total
+
+
+def disclose_synthetic_signals(all_signals: dict) -> int:
+    """Render the demo-data banner for a signals dict and return the count.
+
+    The single one-liner every score-consuming page should call:
+
+        all_signals = get_all_signal_scores()
+        disclose_synthetic_signals(all_signals)
+
+    This is a data-correctness control, not decoration. When no FRED/EIA key is
+    configured or a live fetch fails, signals fall back to synthetic placeholder
+    series (see utils/fetchers._synthetic_signal). Any page that ranks, scores,
+    exports, or reasons over those values while presenting them as real is
+    showing fabricated data as live — the precise failure this product's
+    credibility cannot survive. Returns the synthetic count so callers that also
+    need to act on it (e.g. tagging exported rows) do not have to recount.
+    """
+    n_synthetic, n_total = count_synthetic_signals(all_signals)
+    render_synthetic_data_banner(n_synthetic, n_total)
+    return n_synthetic
+
+
 def ticker_label(ticker: str) -> str:
     """'TICKER (Full Company Name)' when the company name is known, else just the ticker."""
     company = TICKERS.get(ticker, {}).get("name", "")

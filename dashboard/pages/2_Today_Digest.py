@@ -24,7 +24,7 @@ from sqlalchemy import select
 
 from utils.config import SIGNALS, TICKERS
 from utils.db import engine, score_snapshots, init_db
-from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, render_footer
+from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, render_footer, disclose_synthetic_signals
 from utils.quotes import get_batch_quotes
 from utils.score_history import (
     record_all_signal_snapshots, get_signal_flips, get_signal_diff,
@@ -48,6 +48,14 @@ render_page_header(
     "What the macro machine sees right now — signals, regime, and top opportunities.",
     icon="📋",
 )
+
+# Data-integrity disclosure: this page presents/acts on macro-signal scores. If
+# any underlying signal is synthetic (no FRED/EIA key or a failed live fetch),
+# that must be visible here, not only on the Signal Dashboard. Same cached call
+# the page's own logic uses, so no extra network cost.
+from utils.signals_cache import get_all_signal_scores as _gas_disc
+disclose_synthetic_signals(_gas_disc())
+
 init_db()
 
 tab_today, tab_weekly = st.tabs(["📋 Today's Brief", "📰 Weekly Brief"])

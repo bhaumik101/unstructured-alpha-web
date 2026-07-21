@@ -8,7 +8,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Portfolio Suite — UA", layout="wide")
 
-from utils.header import render_header, render_sidebar_base, render_page_header
+from utils.header import render_header, render_sidebar_base, render_page_header, disclose_synthetic_signals
 from utils.theme import inject_premium_css, PLOTLY_CONFIG
 from utils.billing import require_pro
 
@@ -28,6 +28,14 @@ render_page_header(
     "Every portfolio-level tool in one place — backtest, stress test, signal combination, exposure analysis, and basket building.",
     icon="🗂️",
 )
+
+# Data-integrity disclosure: this page presents/acts on macro-signal scores. If
+# any underlying signal is synthetic (no FRED/EIA key or a failed live fetch),
+# that must be visible here, not only on the Signal Dashboard. Same cached call
+# the page's own logic uses, so no extra network cost.
+from utils.signals_cache import get_all_signal_scores as _gas_disc
+disclose_synthetic_signals(_gas_disc())
+
 
 tab_bt, tab_stress, tab_sigbt, tab_macro, tab_basket = st.tabs([
     "📊 Portfolio Backtest",
