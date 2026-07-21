@@ -19,7 +19,7 @@ render_page_header(
     icon="📄",
 )
 
-tab_about, tab_val = st.tabs(["📖 About & Methodology", "🧪 Model Validation"])
+tab_about, tab_val = st.tabs(["About & Methodology", "Model Validation"])
 
 with tab_about:
     # ── Helper ────────────────────────────────────────────────────────────────────

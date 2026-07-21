@@ -27,7 +27,7 @@ from utils.signals_cache import get_all_signal_scores as _gas_disc
 disclose_synthetic_signals(_gas_disc())
 
 
-tab_cal, tab_forecast = st.tabs(["📅 Macro Calendar", "🔮 Event Forecaster"])
+tab_cal, tab_forecast = st.tabs(["Macro Calendar", "Event Forecaster"])
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 1 — MACRO CALENDAR

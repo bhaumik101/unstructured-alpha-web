@@ -58,7 +58,7 @@ render_page_header(
     icon="📊",
 )
 
-tab_signals, tab_regime = st.tabs(["📡 Signal Dashboard", "📖 Regime Playbook"])
+tab_signals, tab_regime = st.tabs(["Signal Dashboard", "Regime Playbook"])
 
 with tab_signals:
     STATUS_COLOR = {"bullish": "#00D566", "bearish": "#FF4444", "neutral": "#6B7FBF", "insufficient_data": "#6B7FBF"}
@@ -82,7 +82,7 @@ with tab_signals:
             st.rerun()
 
     # ── Methodology Callout ───────────────────────────────────────────────────────
-    with st.expander("ℹ️ How these signals work", expanded=False):
+    with st.expander("How these signals work", expanded=False):
         _m_css = (
             "background:rgba(18,21,30,0.8);border:1px solid rgba(255,255,255,0.07);"
             "border-radius:10px;padding:14px 16px;height:100%;"

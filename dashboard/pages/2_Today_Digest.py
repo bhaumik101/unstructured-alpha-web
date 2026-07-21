@@ -58,7 +58,7 @@ disclose_synthetic_signals(_gas_disc())
 
 init_db()
 
-tab_today, tab_weekly = st.tabs(["📋 Today's Brief", "📰 Weekly Brief"])
+tab_today, tab_weekly = st.tabs(["Today's Brief", "Weekly Brief"])
 
 with tab_today:
 
@@ -187,7 +187,7 @@ with tab_today:
 
     # Educational callout collapsed by default — returning users don't need it
     # taking up screen space every visit. New users can expand it.
-    with st.expander("ℹ️ How to read these signals", expanded=False):
+    with st.expander("How to read these signals", expanded=False):
         st.markdown(
             render_educational_callout(
                 title="How to read these signals",
@@ -942,7 +942,7 @@ with tab_weekly:
 
     # Archive
     st.markdown("---")
-    with st.expander("📂 Past issues", expanded=False):
+    with st.expander("Past issues", expanded=False):
         _wb_archive = get_note_archive(limit=20)
         if not _wb_archive:
             st.caption("No past issues yet.")

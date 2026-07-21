@@ -246,7 +246,7 @@ for _preset_name, _col in {"Bullish Watch": qa1, "Bearish Watch": qa2, "Drastic 
         st.caption(f"<span style='font-size:0.60rem;color:#6B7FBF;'>{_PRESET_BLURB[_preset_name]}</span>",
                    unsafe_allow_html=True)
 
-with st.expander("⚙️  Fine-tune alert thresholds instead"):
+with st.expander("Fine-tune alert thresholds instead"):
     t1, t2, t3 = st.columns(3)
     with t1:
         bull_thresh = st.slider("Alert when score rises to ≥", 50.0, 99.0, 65.0, 1.0, key="add_bull",
@@ -761,7 +761,7 @@ try:
             st.info("Morning digest disabled.")
         st.rerun()
     if _current_optin:
-        st.caption("✓ You'll receive a morning brief at 7 AM ET with signal flips and score movers.")
+        st.caption("You'll receive a morning brief at 7 AM ET with signal flips and score movers.")
     else:
         st.caption("Turn on to receive a daily morning brief with the day's signal changes and top movers.")
 except Exception as _digest_err:

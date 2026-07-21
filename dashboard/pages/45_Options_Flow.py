@@ -443,7 +443,7 @@ with oi_col:
 st.divider()
 
 # ── Unusual contracts table ───────────────────────────────────────────────────
-st.markdown("#### 🔥 Unusual Contracts — Volume > Open Interest")
+st.markdown("#### Unusual Contracts — Volume > Open Interest")
 st.caption(
     f"Contracts where Vol/OI ≥ {_UNUSUAL_VOL_OI_THRESHOLD:.0f}x AND volume ≥ {_UNUSUAL_MIN_VOLUME:,}. "
     "These suggest fresh positioning, not just rolling existing trades."

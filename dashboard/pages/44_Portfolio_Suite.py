@@ -545,7 +545,7 @@ with tab_macro:
     # Accepts "TICKER, weight" or "TICKER weight" per line (weight optional →
     # equal-weighted). Only known tickers are kept; capped at MAX_PORTFOLIO_HOLDINGS
     # so a huge paste can't drive an unbounded exposure scan on the 2GB box.
-    with st.expander("📋 Paste / import holdings (bulk)"):
+    with st.expander("Paste / import holdings (bulk)"):
         from utils.guards import MAX_PORTFOLIO_HOLDINGS
         _paste = st.text_area(
             "One holding per line — `TICKER, weight%` (weight optional)",

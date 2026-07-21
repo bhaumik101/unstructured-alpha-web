@@ -65,7 +65,7 @@ render_page_header(
     icon="🎯",
 )
 
-tab_track, tab_earnings = st.tabs(["📊 Track Record", "📈 Earnings Track Record"])
+tab_track, tab_earnings = st.tabs(["Track Record", "Earnings Track Record"])
 
 with tab_track:
     # ── Quietly resolve any pending predictions whose windows have expired ─────────

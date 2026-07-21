@@ -53,9 +53,9 @@ try:
     from utils.ratelimit import backend as _rl_backend
     _rlb = _rl_backend()
     if _rlb == "redis":
-        st.caption("🟢 Rate limiter: **Redis** (distributed, shared across instances)")
+        st.caption("Rate limiter: **Redis** (distributed, shared across instances)")
     else:
-        st.caption("🟡 Rate limiter: **in-process fallback** — REDIS_URL unset or Redis "
+        st.caption("Rate limiter: **in-process fallback** — REDIS_URL unset or Redis "
                    "unreachable. Limits are per-process only; check the Key Value service.")
 except Exception:
     pass
@@ -283,7 +283,7 @@ with st.spinner("Loading metrics..."):
 
 # ── KPI cards ─────────────────────────────────────────────────────────────────
 
-st.markdown("### 📊 Top-Line KPIs")
+st.markdown("### Top-Line KPIs")
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("Total Users", m["total"])
@@ -299,7 +299,7 @@ st.markdown("---")
 
 # ── Revenue (estimated) ───────────────────────────────────────────────────────
 
-st.markdown("### 💰 Revenue (estimated)")
+st.markdown("### Revenue (estimated)")
 
 _PRO_MONTHLY = 20  # $/mo — Pro monthly list price (see billing.py)
 _mrr = m["pro"] * _PRO_MONTHLY
@@ -314,7 +314,7 @@ st.markdown("---")
 
 # ── Traffic ───────────────────────────────────────────────────────────────────
 
-st.markdown("### 🌐 Traffic")
+st.markdown("### Traffic")
 st.caption("Page views are logged on every navigation (deduped per session). "
            "Unique visitors = distinct sessions.")
 
@@ -375,7 +375,7 @@ st.markdown("---")
 
 # ── Acquisition ───────────────────────────────────────────────────────────────
 
-st.markdown("### 🚀 Acquisition")
+st.markdown("### Acquisition")
 
 a1, a2, a3 = st.columns(3)
 a1.metric("New Today",    m["new_today"])
@@ -384,7 +384,7 @@ a3.metric("New (30 days)", m["new_30d"])
 
 # ── Engagement ────────────────────────────────────────────────────────────────
 
-st.markdown("### 🔥 Engagement")
+st.markdown("### Engagement")
 
 e1, e2, e3 = st.columns(3)
 e1.metric("Active (7d)",  m["active_7d"],
@@ -396,7 +396,7 @@ e3.metric("Have Watchlist", m["users_with_watchlist"],
 
 # ── Conversion funnel ─────────────────────────────────────────────────────────
 
-st.markdown("### 🎯 Conversion Funnel")
+st.markdown("### Conversion Funnel")
 
 if m["total"] > 0:
     import plotly.graph_objects as go
@@ -420,7 +420,7 @@ else:
 
 # ── Daily signups chart ───────────────────────────────────────────────────────
 
-st.markdown("### 📈 Daily Signups (last 30 days)")
+st.markdown("### Daily Signups (last 30 days)")
 
 if m["daily_counts"]:
     import plotly.graph_objects as go
@@ -451,7 +451,7 @@ else:
 
 # ── Referral stats ────────────────────────────────────────────────────────────
 
-st.markdown("### 🔗 Referral Program")
+st.markdown("### Referral Program")
 
 r1, r2, r3 = st.columns(3)
 r1.metric("Total Referrals",  m["ref_total"])
@@ -461,7 +461,7 @@ r3.metric("Rewarded",         m["ref_rewarded"])
 
 # ── Recent signups table ──────────────────────────────────────────────────────
 
-st.markdown("### 👥 Recent Signups (last 50)")
+st.markdown("### Recent Signups (last 50)")
 
 if m["recent"]:
     import pandas as pd

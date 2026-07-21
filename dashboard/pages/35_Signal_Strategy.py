@@ -40,7 +40,7 @@ st.markdown("---")
 
 # ── Sidebar: parameters ───────────────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("### ⚙️ Strategy Parameters")
+    st.markdown("### Strategy Parameters")
     long_threshold   = st.slider("Bullish threshold (→ LONG)", 50, 80, 65, 5,
                                  help="Composite score above this = 100% long SPY")
     reduce_threshold = st.slider("Bearish threshold (→ CASH)", 20, 50, 35, 5,
@@ -285,7 +285,7 @@ metrics_df = pd.DataFrame({
 st.dataframe(metrics_df.set_index("Metric"), use_container_width=True)
 
 # ── Methodology note ──────────────────────────────────────────────────────────
-with st.expander("📐 Methodology & Limitations"):
+with st.expander("Methodology & Limitations"):
     st.markdown(f"""
 **How the composite score is built:**
 Each of the {params['n_signals']} signals is independently normalized using a rolling {params['rolling_window']}-day (1-year)

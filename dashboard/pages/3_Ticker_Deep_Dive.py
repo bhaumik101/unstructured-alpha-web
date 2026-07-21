@@ -584,7 +584,7 @@ if section == "Overview":
             st.session_state["_risk_profile"] = get_profile(_rp_uid)
         _prof = st.session_state["_risk_profile"]
 
-        with st.expander("🎚️  Your risk profile — personalize this score", expanded=False):
+        with st.expander("Your risk profile — personalize this score", expanded=False):
             st.caption(
                 "Tune the read to how you actually invest. This produces a separate "
                 "**Your Score** — the Confluence Score above stays the standard, "
@@ -615,7 +615,7 @@ if section == "Overview":
                 _prof = _new_prof
                 if _rp_uid:
                     if save_profile(_rp_uid, _new_prof):
-                        st.caption("✅ Saved to your account — applied to Your Score and your alerts.")
+                        st.caption("Saved to your account — applied to Your Score and your alerts.")
                         # record() both logs the event and ticks the onboarding
                         # checklist. Keeping those two as separate calls is how
                         # the other three steps ended up with no call site.
@@ -1456,7 +1456,7 @@ if section == "Overview":
     #     users see is the most meaningful relationship, not an arbitrary one.
     #   - Wrapped in st.expander so it doesn't add visual weight unless the user
     #     wants it.
-    with st.expander("📈 Signal → Price Overlay", expanded=False):
+    with st.expander("Signal → Price Overlay", expanded=False):
         try:
             # Sort relevant signals by |correlation| descending so the first
             # option in the selectbox is the most meaningful one by default.
@@ -1759,7 +1759,7 @@ if section == "Overview":
             except Exception:
                 return {}
 
-        with st.expander("📊 Company Fundamentals & Financials", expanded=False):
+        with st.expander("Company Fundamentals & Financials", expanded=False):
             with st.spinner("Loading fundamentals…"):
                 fund = _fetch_fundamentals(ticker_input)
 
@@ -2409,7 +2409,7 @@ if section == "Overview":
     # The last N times this ticker's confluence score crossed 70+ (or dropped
     # below 35), what happened to the stock price 4, 8, 12 weeks later?
     # Turns the score history into a miniature per-ticker track record.
-    with st.expander("📖 Playbook — historical setups at this score level"):
+    with st.expander("Playbook — historical setups at this score level"):
         try:
             _ph = get_score_history(ticker_input, days=365)
             if len(_ph) < 5:
@@ -2472,7 +2472,7 @@ if section == "Overview":
                             )
                             _pb_df = pd.DataFrame(_playbook_rows)
                             st.dataframe(_pb_df, use_container_width=True, hide_index=True)
-                            st.caption("⚠️ Small sample — treat as illustrative context, not statistical proof. Score history only accumulates when this page is visited.")
+                            st.caption("Small sample — treat as illustrative context, not statistical proof. Score history only accumulates when this page is visited.")
                         else:
                             st.info("Could not compute forward returns for the crossing dates found.")
         except Exception as _pb_err:
@@ -2482,7 +2482,7 @@ if section == "Overview":
     # For each score bucket (50–60, 60–70, 70–80, 80+), show what actual
     # forward returns looked like across ALL tickers in our history when they
     # were in that score range. Context for "what does score X typically mean?"
-    with st.expander("📈 What does this score level historically imply? — Return Distribution"):
+    with st.expander("What does this score level historically imply? — Return Distribution"):
         try:
             _all_score_hist = []
             # Pull score history for this ticker

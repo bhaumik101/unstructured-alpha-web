@@ -550,7 +550,7 @@ with col_short:
 # ─────────────────────────────────────────────────────────────────────────────
 
 st.markdown("---")
-st.markdown("### 📈 Track Record — Past High-Conviction Calls")
+st.markdown("### Track Record — Past High-Conviction Calls")
 st.caption(
     "Tickers the model scored ≥70 (bullish) or ≤30 (bearish) in the last 6 months, "
     "resolved to their realized 30-day forward return. "

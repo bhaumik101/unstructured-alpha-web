@@ -436,7 +436,7 @@ if user:
 
             # Copy-link button (uses Streamlit's clipboard mechanism via st.code)
             st.code(_ref_link, language=None)
-            st.caption("👆 Click the copy icon to copy your referral link.")
+            st.caption("Click the copy icon to copy your referral link.")
 
         except Exception as _ref_err:
             pass  # never block the Pro dashboard over a referral lookup error

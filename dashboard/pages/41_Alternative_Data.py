@@ -20,7 +20,7 @@ render_page_header(
     icon="📡",
 )
 
-tab_congress, tab_options = st.tabs(["🏛️ Congress Trades", "📊 Options Flow"])
+tab_congress, tab_options = st.tabs(["Congress Trades", "Options Flow"])
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB 1 — CONGRESS TRACKER
