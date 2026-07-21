@@ -75,6 +75,15 @@ def _tz_strip(s: pd.Series) -> pd.Series:
     return s
 
 
+def _empty_frame_with_error(provider: str, exc: Exception) -> pd.DataFrame:
+    """Represent an unavailable source without caching the failure."""
+    frame = pd.DataFrame()
+    frame.attrs["fetch_error"] = True
+    frame.attrs["provider"] = provider
+    frame.attrs["error_type"] = type(exc).__name__
+    return frame
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # FRED — Macro Signal Data
 # ─────────────────────────────────────────────────────────────────────────────
@@ -241,16 +250,29 @@ _YF_TIMEOUT = 8  # seconds per yfinance HTTP call
 
 
 @st.cache_data(ttl=7200, show_spinner=False, max_entries=150)  # 2h — daily close series only gains one bar/day; TradingView is the live chart
-def fetch_price(ticker: str, start: str, end: str) -> pd.Series:
+def _fetch_price_cached(ticker: str, start: str, end: str) -> pd.Series:
     """Fetch daily closing price. No API key required."""
     try:
         hist = yf.Ticker(ticker).history(start=start, end=end, auto_adjust=True, timeout=_YF_TIMEOUT)
         if hist.empty:
-            return pd.Series(dtype=float, name=ticker)
+            raise RuntimeError("price source returned no rows")
         s = hist["Close"].rename(ticker)
         return _tz_strip(s)
     except Exception:
-        return pd.Series(dtype=float, name=ticker)
+        raise
+
+
+def fetch_price(ticker: str, start: str, end: str) -> pd.Series:
+    ticker = str(ticker).upper().strip()
+    try:
+        return _fetch_price_cached(ticker, str(start)[:10], str(end)[:10])
+    except Exception as exc:
+        series = pd.Series(dtype=float, name=ticker)
+        series.attrs.update(fetch_error=True, provider="yfinance", error_type=type(exc).__name__)
+        return series
+
+
+fetch_price.clear = _fetch_price_cached.clear
 
 
 @st.cache_data(ttl=7200, show_spinner=False, max_entries=80)  # 2h — daily volume series, matches fetch_price
@@ -539,8 +561,8 @@ def fetch_cot(market: str = "copper") -> pd.DataFrame:
 # USASpending.gov — Federal Contract Award Velocity
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=7200, show_spinner=False, max_entries=50)
-def fetch_federal_contracts(company_name: str, years: int = 2) -> pd.DataFrame:
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=128)
+def _fetch_federal_contracts_cached(company_name: str, years: int = 2) -> pd.DataFrame:
     """
     Fetch federal contract awards for a company from USASpending.gov.
     No API key required. Free public endpoint.
@@ -591,7 +613,18 @@ def fetch_federal_contracts(company_name: str, years: int = 2) -> pd.DataFrame:
         return df.sort_values("date").reset_index(drop=True)
 
     except Exception:
-        return pd.DataFrame()
+        raise
+
+
+def fetch_federal_contracts(company_name: str, years: int = 2) -> pd.DataFrame:
+    company_name = " ".join(str(company_name).split()).upper()
+    try:
+        return _fetch_federal_contracts_cached(company_name, int(years))
+    except Exception as exc:
+        return _empty_frame_with_error("usaspending", exc)
+
+
+fetch_federal_contracts.clear = _fetch_federal_contracts_cached.clear
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -646,8 +679,8 @@ def fetch_insider_trades(ticker: str, days: int = 180) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-@st.cache_data(ttl=21600, show_spinner=False, max_entries=30)
-def fetch_insider_transactions_detail(ticker: str, days: int = 180, max_filings: int = 20) -> pd.DataFrame:
+@st.cache_data(ttl=21600, show_spinner=False, max_entries=128)
+def _fetch_insider_transactions_detail_cached(ticker: str, days: int = 180, max_filings: int = 20) -> pd.DataFrame:
     """
     Fetch and parse ACTUAL Form 4 transaction detail (buy/sell direction,
     shares, price) -- not just filing metadata.
@@ -694,7 +727,7 @@ def fetch_insider_transactions_detail(ticker: str, days: int = 180, max_filings:
         r.raise_for_status()
         hits = r.json().get("hits", {}).get("hits", [])
     except Exception:
-        return pd.DataFrame()
+        raise
 
     records = []
     for hit in hits[:max_filings]:
@@ -779,12 +812,23 @@ def fetch_insider_transactions_detail(ticker: str, days: int = 180, max_filings:
     return df.dropna(subset=["date"]).sort_values("date", ascending=False).reset_index(drop=True)
 
 
+def fetch_insider_transactions_detail(ticker: str, days: int = 180, max_filings: int = 20) -> pd.DataFrame:
+    ticker = str(ticker).upper().strip()
+    try:
+        return _fetch_insider_transactions_detail_cached(ticker, int(days), int(max_filings))
+    except Exception as exc:
+        return _empty_frame_with_error("sec_edgar", exc)
+
+
+fetch_insider_transactions_detail.clear = _fetch_insider_transactions_detail_cached.clear
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # FINRA — Consolidated Equity Short Interest
 # ─────────────────────────────────────────────────────────────────────────────
 
-@st.cache_data(ttl=43200, show_spinner=False, max_entries=50)
-def fetch_short_interest(ticker: str, years: float = 1.5) -> pd.DataFrame:
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=128)
+def _fetch_short_interest_cached(ticker: str, years: float = 1.5) -> pd.DataFrame:
     """
     Fetch real, exchange-listed short interest history from FINRA's free,
     keyless public API.
@@ -847,7 +891,18 @@ def fetch_short_interest(ticker: str, years: float = 1.5) -> pd.DataFrame:
         return df.dropna(subset=["date"]).sort_values("date").reset_index(drop=True)
 
     except Exception:
-        return pd.DataFrame()
+        raise
+
+
+def fetch_short_interest(ticker: str, years: float = 1.5) -> pd.DataFrame:
+    ticker = str(ticker).upper().strip()
+    try:
+        return _fetch_short_interest_cached(ticker, float(years))
+    except Exception as exc:
+        return _empty_frame_with_error("finra", exc)
+
+
+fetch_short_interest.clear = _fetch_short_interest_cached.clear
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -858,8 +913,8 @@ _THIRTEENF_NS = {"t": "http://www.sec.gov/edgar/document/thirteenf/informationta
 _ATOM_NS = {"a": "http://www.w3.org/2005/Atom"}
 
 
-@st.cache_data(ttl=86400, show_spinner=False, max_entries=20)
-def fetch_13f_holdings(cik: str, fund_name: str, max_filings: int = 2) -> pd.DataFrame:
+@st.cache_data(ttl=86400, show_spinner=False, max_entries=32)
+def _fetch_13f_holdings_cached(cik: str, fund_name: str, max_filings: int = 2) -> pd.DataFrame:
     """
     Fetch a fund's most recent Form 13F-HR holdings, real and live, for the
     curated funds in utils/config.CURATED_FUNDS.
@@ -977,11 +1032,23 @@ def fetch_13f_holdings(cik: str, fund_name: str, max_filings: int = 2) -> pd.Dat
                     "source_url": f"{base}/{info_table_name}",
                 })
     except Exception:
-        return pd.DataFrame()
+        raise
 
     if not rows:
         return pd.DataFrame()
     return pd.DataFrame(rows)
+
+
+def fetch_13f_holdings(cik: str, fund_name: str, max_filings: int = 2) -> pd.DataFrame:
+    try:
+        cik = str(int(str(cik)))
+        fund_name = " ".join(str(fund_name).split())
+        return _fetch_13f_holdings_cached(cik, fund_name, int(max_filings))
+    except Exception as exc:
+        return _empty_frame_with_error("sec_edgar", exc)
+
+
+fetch_13f_holdings.clear = _fetch_13f_holdings_cached.clear
 
 
 # NOTE: a Google Trends fetcher (via the unofficial "pytrends" scraper) used
