@@ -10,7 +10,7 @@ from datetime import datetime
 
 import streamlit as st
 
-from utils.header import render_header, render_sidebar_base, render_page_header
+from utils.header import render_header, render_sidebar_base, render_page_header, disclose_synthetic_signals
 
 st.set_page_config(page_title="AI Assistant — UA", layout="wide")
 render_header("AI Research Assistant")
@@ -21,6 +21,14 @@ render_page_header(
     "Ask anything about signals, tickers, or current macro conditions.",
     icon="",
 )
+
+# Data-integrity disclosure: this page presents/acts on macro-signal scores. If
+# any underlying signal is synthetic (no FRED/EIA key or a failed live fetch),
+# that must be visible here, not only on the Signal Dashboard. Same cached call
+# the page's own logic uses, so no extra network cost.
+from utils.signals_cache import get_all_signal_scores as _gas_disc
+disclose_synthetic_signals(_gas_disc())
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
