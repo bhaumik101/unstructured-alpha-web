@@ -1425,6 +1425,69 @@ def skeleton_chart_block(height: int = 300, title_lines: int = 1) -> str:
     )
 
 
+def loading_splash(fact: str | None = None, height: int = 260,
+                   sub: str = "Loading macro signal intelligence") -> str:
+    """Branded loading panel: a filled brand hexagon, the wordmark, and a true
+    macro fun fact. For use in an st.empty() placeholder before a heavy fetch:
+
+        ph = st.empty()
+        ph.markdown(loading_splash(), unsafe_allow_html=True)
+        data = expensive_fetch()
+        ph.empty()
+
+    The shape is a filled hexagon in the brand green->teal->purple gradient at
+    moderate opacity, so it reads as a distinct object on the #0B0D12 page rather
+    than a wash. Motion is a slow, non-distracting pulse; it respects
+    prefers-reduced-motion. The fact defaults to a random genuinely-true one from
+    utils.macro_facts (see that module's editorial rule).
+    """
+    if fact is None:
+        from utils.macro_facts import random_fact
+        fact = random_fact()
+    # escape the fact for safe HTML embedding
+    import html as _html
+    fact_safe = _html.escape(fact)
+    return f"""
+<div class="ua-load-splash" role="status" aria-label="Loading" style="height:{height}px;">
+  <div class="ua-load-stage">
+    <svg class="ua-load-hex" viewBox="0 0 100 100" width="128" height="128" aria-hidden="true">
+      <defs>
+        <linearGradient id="uaLoadGrad" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#00D566"/>
+          <stop offset="55%" stop-color="#12B5A6"/>
+          <stop offset="100%" stop-color="#7C3AED"/>
+        </linearGradient>
+      </defs>
+      <polygon points="50,4 91,27 91,73 50,96 9,73 9,27"
+               fill="url(#uaLoadGrad)" opacity="0.92"/>
+      <polygon points="50,4 91,27 91,73 50,96 9,73 9,27"
+               fill="none" stroke="#0B0D12" stroke-width="2"/>
+      <text x="50" y="60" text-anchor="middle" font-family="Inter,sans-serif"
+            font-size="30" font-weight="900" fill="#0B0D12">UA</text>
+    </svg>
+  </div>
+  <div class="ua-load-word">UNSTRUCTURED <span>ALPHA</span></div>
+  <div class="ua-load-sub">{sub}</div>
+  <div class="ua-load-fact">{fact_safe}</div>
+</div>
+<style>
+.ua-load-splash{{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;gap:6px;padding:18px;font-family:'Inter',system-ui,sans-serif;}}
+.ua-load-stage{{filter:drop-shadow(0 0 26px rgba(0,213,102,0.28));
+  animation:ua-load-pulse 2.4s ease-in-out infinite;}}
+.ua-load-word{{margin-top:10px;font-size:1.05rem;font-weight:800;letter-spacing:.05em;color:#E8EEFF;}}
+.ua-load-word span{{color:#00D566;}}
+.ua-load-sub{{font-size:.72rem;color:#6B7FBF;letter-spacing:.02em;}}
+.ua-load-fact{{margin-top:12px;max-width:440px;font-size:.8rem;line-height:1.5;color:#9AA6C4;
+  border-top:1px solid rgba(255,255,255,0.07);padding-top:12px;}}
+.ua-load-fact::before{{content:"DID YOU KNOW";display:block;font-size:.58rem;font-weight:700;
+  letter-spacing:.14em;color:#4F5B7A;margin-bottom:5px;}}
+@keyframes ua-load-pulse{{0%,100%{{transform:scale(1);opacity:.92;}}50%{{transform:scale(1.06);opacity:1;}}}}
+@media (prefers-reduced-motion: reduce){{.ua-load-stage{{animation:none;}}}}
+</style>
+"""
+
+
 def empty_state(icon: str = "", title: str = "", body: str = "", action: str = "") -> str:
     """
     Return HTML for a tasteful, emoji-free empty-state block.

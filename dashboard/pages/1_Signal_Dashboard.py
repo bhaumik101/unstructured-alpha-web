@@ -148,7 +148,10 @@ with tab_signals:
 
     inject_skeleton_css()
     _sk_ph = st.empty()
-    _sk_ph.markdown(skeleton_cards(n=6, height=110, cols=3), unsafe_allow_html=True)
+    # Branded loading panel (logo, filled brand shape, a true macro fact) while
+    # the 47-signal fetch runs — the heaviest wait on the highest-traffic page.
+    from utils.theme import loading_splash
+    _sk_ph.markdown(loading_splash(), unsafe_allow_html=True)
     all_signals = get_all_signal_scores()
     _sk_ph.empty()
 
