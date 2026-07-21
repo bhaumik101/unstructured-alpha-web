@@ -6,7 +6,7 @@ import streamlit as st
 
 st.set_page_config(page_title="Sector View — UA", layout="wide")
 
-from utils.header import render_header, render_sidebar_base, render_page_header
+from utils.header import render_header, render_sidebar_base, render_page_header, disclose_synthetic_signals
 from utils.theme import inject_premium_css, source_badge, PLOTLY_CONFIG, empty_state
 
 render_header("Sector View")
@@ -18,6 +18,14 @@ render_page_header(
     "Signal-driven sector strength, equity heatmap, and supply chain network — all in one place.",
     icon="",
 )
+
+# Data-integrity disclosure: this page presents/acts on macro-signal scores. If
+# any underlying signal is synthetic (no FRED/EIA key or a failed live fetch),
+# that must be visible here, not only on the Signal Dashboard. Same cached call
+# the page's own logic uses, so no extra network cost.
+from utils.signals_cache import get_all_signal_scores as _gas_disc
+disclose_synthetic_signals(_gas_disc())
+
 
 tab_sector, tab_heatmap, tab_supply = st.tabs([
     " Sector Rotation",
