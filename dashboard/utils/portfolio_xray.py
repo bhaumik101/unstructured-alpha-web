@@ -142,6 +142,7 @@ def build_portfolio_xray(holdings: list, prior_portfolio_score: Optional[float] 
           "corr_info": {sig: {weight, significant, ...}},
           "signal_scores": {sig: {score, status}},
           "sector": str (optional),       # used for hidden-correlation detection
+          "weight": float (optional),      # portfolio weight; equal if omitted
         }
     prior_portfolio_score: optional earlier portfolio score, for the over-time delta.
 
@@ -156,13 +157,20 @@ def build_portfolio_xray(holdings: list, prior_portfolio_score: Optional[float] 
     profiles: dict[str, dict] = {}
     scores: dict[str, float] = {}
     sectors: dict[str, str] = {}
+    raw_weights: dict[str, float] = {}
     for h in holdings:
         t = h["ticker"].upper().strip()
         profiles[t] = holding_factor_profile(h.get("corr_info", {}), h.get("signal_scores", {}))
         scores[t] = float(h.get("score", 50) or 50)
         sectors[t] = h.get("sector") or ""
+        raw_weights[t] = max(0.0, float(h.get("weight", h.get("weight_pct", 1.0)) or 0.0))
 
-    portfolio_score = round(sum(scores.values()) / n, 1)
+    if sum(raw_weights.values()) <= 0:
+        raw_weights = {ticker: 1.0 for ticker in scores}
+    weight_total = sum(raw_weights.values())
+    weights = {ticker: value / weight_total for ticker, value in raw_weights.items()}
+
+    portfolio_score = round(sum(scores[ticker] * weights[ticker] for ticker in scores), 1)
 
     # ── Factor-level aggregation ────────────────────────────────────────────
     all_factors = set()
@@ -171,14 +179,20 @@ def build_portfolio_xray(holdings: list, prior_portfolio_score: Optional[float] 
 
     factor_rows = []
     for f in all_factors:
-        exposures = [profiles[t].get(f, {}).get("exposure", 0.0) for t in profiles]
         exposed_tickers = [t for t in profiles if profiles[t].get(f, {}).get("exposure", 0.0) >= EXPOSURE_THRESHOLD]
         # direction averaged over the holdings actually exposed to this factor
-        dirs = [profiles[t][f]["direction"] for t in exposed_tickers
-                if profiles[t].get(f, {}).get("direction") is not None]
-        avg_dir = round(sum(dirs) / len(dirs), 1) if dirs else None
+        directed = [(t, profiles[t][f]["direction"]) for t in exposed_tickers
+                    if profiles[t].get(f, {}).get("direction") is not None]
+        directed_weight = sum(weights[t] for t, _ in directed)
+        avg_dir = (
+            round(sum(direction * weights[t] for t, direction in directed) / directed_weight, 1)
+            if directed_weight > 0 else None
+        )
         pct_exposed = round(100.0 * len(exposed_tickers) / n)
-        avg_exposure = round(sum(exposures) / n, 3)
+        pct_portfolio = round(100.0 * sum(weights[t] for t in exposed_tickers))
+        avg_exposure = round(
+            sum(profiles[t].get(f, {}).get("exposure", 0.0) * weights[t] for t in profiles), 3
+        )
 
         if avg_dir is not None and avg_dir >= SUPPORT_BAND:
             kind = "tailwind"
@@ -191,6 +205,7 @@ def build_portfolio_xray(holdings: list, prior_portfolio_score: Optional[float] 
             "factor": f,
             "name": factor_name(f),
             "pct_holdings": pct_exposed,
+            "pct_portfolio": pct_portfolio,
             "n_exposed": len(exposed_tickers),
             "avg_exposure": avg_exposure,
             "avg_direction": avg_dir,
@@ -201,20 +216,20 @@ def build_portfolio_xray(holdings: list, prior_portfolio_score: Optional[float] 
     # Tailwinds: supportive factors, ranked by breadth × strength.
     tailwinds = sorted(
         [r for r in factor_rows if r["kind"] == "tailwind"],
-        key=lambda r: (r["pct_holdings"] * ((r["avg_direction"] or 50) - 50)),
+        key=lambda r: (r["pct_portfolio"] * ((r["avg_direction"] or 50) - 50)),
         reverse=True,
     )
     # Risks: a factor is a portfolio risk if it's a shared headwind, OR if it's
     # heavily concentrated (a lot of the book leans on the same factor at once).
     risks = sorted(
         [r for r in factor_rows
-         if r["kind"] == "risk" or (r["pct_holdings"] >= 60 and r["kind"] != "tailwind")],
-        key=lambda r: (r["pct_holdings"], -(r["avg_direction"] or 50)),
+         if r["kind"] == "risk" or (r["pct_portfolio"] >= 60 and r["kind"] != "tailwind")],
+        key=lambda r: (r["pct_portfolio"], -(r["avg_direction"] or 50)),
         reverse=True,
     )
 
     # Most concentrated factor (highest share of holdings exposed).
-    concentration = sorted(factor_rows, key=lambda r: (r["pct_holdings"], r["avg_exposure"]), reverse=True)
+    concentration = sorted(factor_rows, key=lambda r: (r["pct_portfolio"], r["avg_exposure"]), reverse=True)
     top_concentration = concentration[0] if concentration else None
 
     # ── Most vulnerable / most supported holding ────────────────────────────
@@ -277,14 +292,17 @@ def build_portfolio_xray(holdings: list, prior_portfolio_score: Optional[float] 
         "portfolio_score": portfolio_score,
         "score_delta": score_delta,
         "band": _portfolio_band(portfolio_score),
-        "factors": sorted(factor_rows, key=lambda r: r["pct_holdings"], reverse=True),
+        "factors": sorted(factor_rows, key=lambda r: r["pct_portfolio"], reverse=True),
         "tailwinds": tailwinds,
         "risks": risks,
         "top_concentration": top_concentration,
         "most_vulnerable": most_vulnerable,
         "most_supported": most_supported,
         "hidden_correlations": hidden,
-        "holdings": [{"ticker": t, "score": scores[t], "sector": sectors[t]} for t in tickers],
+        "holdings": [
+            {"ticker": t, "score": scores[t], "sector": sectors[t], "weight_pct": round(weights[t] * 100, 2)}
+            for t in tickers
+        ],
     }
 
 
@@ -342,7 +360,7 @@ def render_portfolio_xray_html(payload: dict) -> str:
             return '<div style="color:#6B7280;font-size:0.82rem;">None stand out right now.</div>'
         out = []
         for r in rows[:4]:
-            detail = f'{_pct(r["pct_holdings"])} of holdings'
+            detail = f'{_pct(r.get("pct_portfolio", r["pct_holdings"]))} of portfolio weight'
             if r.get("avg_direction") is not None:
                 detail += f' · avg {r["avg_direction"]:g}/100'
             out.append(

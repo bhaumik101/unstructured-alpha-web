@@ -77,6 +77,7 @@ def build_command_center(
             "kind": "exposure",
             "factor": r.get("name"),
             "pct_holdings": r.get("pct_holdings"),
+            "pct_portfolio": r.get("pct_portfolio", r.get("pct_holdings")),
             "n_exposed": r.get("n_exposed"),
             "tickers": r.get("exposed_tickers") or [],
             "avg_direction": r.get("avg_direction"),
@@ -165,7 +166,7 @@ def _dominant_html(item: dict) -> str:
         f'<div style="font-size:1.6rem;font-weight:800;color:#E8EEFF;margin:4px 0 2px;">'
         f'{item["factor"]}</div>'
         f'<div style="font-size:0.9rem;color:#8892AA;">'
-        f'{item.get("pct_holdings", 0):g}% of your holdings move with this factor '
+        f'{item.get("pct_portfolio", item.get("pct_holdings", 0)):g}% of your portfolio weight moves with this factor '
         f'({", ".join((item.get("tickers") or [])[:6])}).</div>'
     )
 
@@ -196,7 +197,8 @@ def render_command_center_html(payload: dict) -> str:
             body = (f'{s["ticker"]} — {s["headline"]} '
                     f'<span style="color:{accent};">({_delta_str(s.get("delta"))})</span>')
         elif s["kind"] == "exposure":
-            body = f'Shared {s["factor"]} exposure · {s.get("pct_holdings",0):g}% of holdings'
+            body = (f'Shared {s["factor"]} exposure · '
+                    f'{s.get("pct_portfolio", s.get("pct_holdings", 0)):g}% of portfolio weight')
         else:  # vulnerable
             body = f'Most challenged: <b>{s["ticker"]}</b> · {s.get("score",0):g} ({s.get("driver","")})'
         sec_html += (f'<div style="font-size:0.82rem;color:#C3CBE0;padding:7px 0;'

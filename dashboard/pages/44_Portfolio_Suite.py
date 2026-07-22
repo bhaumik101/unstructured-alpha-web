@@ -1,21 +1,21 @@
 # pages/44_Portfolio_Suite.py
-# Unstructured Alpha — Portfolio Suite (Pro)
+# Unstructured Alpha — Portfolio Intelligence (Pro)
 # Combines: Portfolio Backtest · Macro Stress Tester · Signal Backtester ·
 #           Portfolio Macro Analyzer · Basket Builder
 # All tools in one Pro-gated hub.
 
 import streamlit as st
 
-st.set_page_config(page_title="Portfolio Suite — UA", layout="wide")
+st.set_page_config(page_title="Portfolio Intelligence — UA", layout="wide")
 
 from utils.header import render_header, render_sidebar_base, render_page_header, disclose_unavailable_signals
 from utils.theme import inject_premium_css, PLOTLY_CONFIG
 from utils.billing import require_pro
 
-render_header("Portfolio Suite")
+render_header("Portfolio Intelligence")
 _portfolio_section = render_sidebar_base(
-    page_title="Portfolio Suite",
-    sections=("Portfolio Backtest", "Stress Tester", "Signal Backtester", "Macro Exposure", "Basket Builder"),
+    page_title="Portfolio Intelligence",
+    sections=("Holdings", "Macro Exposure", "Stress Tester", "Portfolio Backtest", "Signal Backtester", "Basket Builder"),
     section_key="portfolio_suite_section_rail",
 )
 try:
@@ -25,11 +25,11 @@ except Exception:
     pass
 inject_premium_css()
 
-require_pro(page_name="Portfolio Suite")
+require_pro(page_name="Portfolio Intelligence")
 
 render_page_header(
-    "Portfolio Suite",
-    "Every portfolio-level tool in one place — backtest, stress test, signal combination, exposure analysis, and basket building.",
+    "Portfolio Intelligence",
+    "Save the portfolio you actually own, then monitor its macro exposure, scenario risk, signal history, and concentration from one workspace.",
     icon="",
 )
 
@@ -39,6 +39,130 @@ render_page_header(
 # the page's own logic uses, so no extra network cost.
 from utils.signals_cache import get_all_signal_scores as _gas_disc
 disclose_unavailable_signals(_gas_disc())
+
+
+# ── Persistent portfolio context ─────────────────────────────────────────────
+# One source of truth feeds every tool below. A watchlist is a set of ideas; a
+# portfolio is an owned book with weights, so the two must not be conflated.
+from utils.portfolio_workspace import get_default_holdings, parse_holdings_text, replace_default_holdings
+
+_portfolio_user = st.session_state.get("user")
+_saved_holdings = get_default_holdings(_portfolio_user["id"]) if _portfolio_user else []
+_workspace_holdings = [
+    {
+        "ticker": row["ticker"],
+        "weight": float(row["weight_pct"]),
+        "shares": row.get("shares"),
+        "cost_basis": row.get("cost_basis"),
+    }
+    for row in _saved_holdings
+]
+
+
+if _portfolio_section == "Holdings":
+    import pandas as pd
+
+    st.markdown("#### Your saved portfolio")
+    st.caption(
+        "These positions persist across sessions and power Portfolio Macro X-Ray, "
+        "scenario analysis, and the personalized daily intelligence workspace. "
+        "Weights are normalized to 100% when saved."
+    )
+
+    if _workspace_holdings:
+        _holdings_frame = pd.DataFrame([
+            {
+                "Ticker": row["ticker"],
+                "Portfolio weight": row["weight"],
+                "Shares": row.get("shares"),
+                "Cost basis": row.get("cost_basis"),
+            }
+            for row in _workspace_holdings
+        ])
+        st.dataframe(
+            _holdings_frame,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Portfolio weight": st.column_config.ProgressColumn(
+                    "Portfolio weight", min_value=0, max_value=100, format="%.1f%%"
+                ),
+                "Shares": st.column_config.NumberColumn("Shares", format="%.3f"),
+                "Cost basis": st.column_config.NumberColumn("Cost basis", format="$%.2f"),
+            },
+        )
+        _largest = max(_workspace_holdings, key=lambda row: row["weight"])
+        _summary_cols = st.columns(3)
+        _summary_cols[0].metric("Holdings", len(_workspace_holdings))
+        _summary_cols[1].metric("Total weight", f'{sum(row["weight"] for row in _workspace_holdings):.1f}%')
+        _summary_cols[2].metric("Largest position", f'{_largest["ticker"]} · {_largest["weight"]:.1f}%')
+    else:
+        st.info(
+            "No portfolio is saved yet. Paste the stocks you own below to activate weighted "
+            "portfolio exposure and daily monitoring."
+        )
+
+    _default_portfolio_text = "\n".join(
+        f'{row["ticker"]}, {row["weight"]:.4g}' for row in _workspace_holdings
+    )
+    with st.form("portfolio_holdings_form"):
+        _portfolio_text = st.text_area(
+            "Holdings — one per line",
+            value=_default_portfolio_text,
+            placeholder="NVDA, 30\nAAPL, 25\nMSFT, 20\nXOM, 15\nJPM, 10",
+            height=180,
+            help="Use TICKER, weight%. If weights are omitted, positions are equal-weighted.",
+        )
+        _save_portfolio = st.form_submit_button(
+            "Save portfolio", type="primary", use_container_width=True
+        )
+
+    if _save_portfolio:
+        try:
+            from utils.symbols import get_symbol_index
+            _known_symbols = set(get_symbol_index())
+        except Exception:
+            from utils.config import TICKERS
+            _known_symbols = set(TICKERS)
+        _parsed_holdings, _rejected_holdings = parse_holdings_text(
+            _portfolio_text, valid_symbols=_known_symbols
+        )
+        if not _parsed_holdings and _portfolio_text.strip():
+            st.error("No valid US-listed ticker symbols were found. Check the symbols and try again.")
+        else:
+            replace_default_holdings(_portfolio_user["id"], _parsed_holdings)
+            st.session_state.pop("stress_holdings", None)
+            st.session_state.pop("macro_holdings", None)
+            st.session_state["ps_macro_analyzed"] = False
+            try:
+                from utils.analytics import Event, track
+                track(
+                    Event.PORTFOLIO_SAVED,
+                    user_id=_portfolio_user["id"],
+                    properties={"holdings_count": len(_parsed_holdings)},
+                )
+            except Exception:
+                pass
+            if _rejected_holdings:
+                st.warning(
+                    "Saved the valid holdings. Skipped: " + ", ".join(_rejected_holdings[:8])
+                )
+            else:
+                st.success("Portfolio saved. Every Portfolio Intelligence view now uses these weights.")
+            st.rerun()
+
+    if _workspace_holdings:
+        st.markdown("---")
+        st.markdown("#### Continue your workflow")
+        _next_cols = st.columns(3)
+        if _next_cols[0].button("Analyze macro exposure", use_container_width=True):
+            st.session_state["portfolio_suite_section_rail"] = "Macro Exposure"
+            st.rerun()
+        if _next_cols[1].button("Run a stress scenario", use_container_width=True):
+            st.session_state["portfolio_suite_section_rail"] = "Stress Tester"
+            st.rerun()
+        if _next_cols[2].button("Open Today's Brief", use_container_width=True):
+            st.switch_page("pages/2_Today_Digest.py")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -355,7 +479,7 @@ if _portfolio_section == "Stress Tester":
     all_tickers = list(TICKERS.keys())
 
     if "stress_holdings" not in st.session_state:
-        st.session_state.stress_holdings = [{"ticker":"NVDA","weight":25},{"ticker":"AAPL","weight":20},{"ticker":"JPM","weight":15}]
+        st.session_state.stress_holdings = [dict(row) for row in _workspace_holdings]
 
     holdings = st.session_state.stress_holdings
     add_c1, add_c2, add_c3 = st.columns([2,1,1])
@@ -363,7 +487,10 @@ if _portfolio_section == "Stress Tester":
     new_w = add_c2.number_input("Weight %", 1, 100, 10, key="stress_add_w")
     if add_c3.button("Add", key="stress_add_btn") and new_t:
         holdings.append({"ticker": new_t, "weight": new_w})
-        st.session_state.stress_holdings = holdings
+        _persisted = replace_default_holdings(_portfolio_user["id"], holdings)
+        st.session_state.stress_holdings = [
+            {"ticker": row["ticker"], "weight": row["weight_pct"]} for row in _persisted
+        ]
         st.rerun()
 
     if holdings:
@@ -528,13 +655,7 @@ if _portfolio_section == "Macro Exposure":
     from utils.config import TICKERS as TICKER_META2
 
     if "macro_holdings" not in st.session_state:
-        st.session_state.macro_holdings = [
-            {"ticker": "NVDA", "weight": 30},
-            {"ticker": "XOM",  "weight": 20},
-            {"ticker": "JPM",  "weight": 20},
-            {"ticker": "UNH",  "weight": 15},
-            {"ticker": "CAT",  "weight": 15},
-        ]
+        st.session_state.macro_holdings = [dict(row) for row in _workspace_holdings]
 
     # ── Paste / import holdings ────────────────────────────────────────────────
     # Import a real portfolio in one shot instead of adding tickers one by one.
@@ -576,6 +697,7 @@ if _portfolio_section == "Macro Exposure":
                     for _h in _hold:
                         _h["weight"] = _eq
                 st.session_state.macro_holdings = _hold
+                replace_default_holdings(_portfolio_user["id"], _hold)
                 st.session_state["ps_macro_analyzed"] = False  # require an explicit re-analyze
                 _msg = f"Imported {len(_hold)} holding(s)."
                 if len(_seen) > MAX_PORTFOLIO_HOLDINGS:
@@ -613,6 +735,12 @@ if _portfolio_section == "Macro Exposure":
                        "(Keeps the exposure scan fast and within memory.)")
         else:
             st.session_state.macro_holdings.append({"ticker": ma_new_t, "weight": ma_new_w})
+            _persisted = replace_default_holdings(
+                _portfolio_user["id"], st.session_state.macro_holdings
+            )
+            st.session_state.macro_holdings = [
+                {"ticker": row["ticker"], "weight": row["weight_pct"]} for row in _persisted
+            ]
             st.rerun()
 
     holdings2 = st.session_state.macro_holdings
@@ -660,7 +788,9 @@ if _portfolio_section == "Macro Exposure":
             with st.spinner("Building your Portfolio Macro X-Ray…"):
                 for _h in holdings2:
                     try:
-                        _px_inputs.append(_px_holding_read(_h["ticker"]))
+                        _px_row = _px_holding_read(_h["ticker"])
+                        _px_row["weight"] = float(_h.get("weight", 0) or 0)
+                        _px_inputs.append(_px_row)
                     except Exception:
                         continue
             if _px_inputs:

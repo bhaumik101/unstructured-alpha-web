@@ -216,6 +216,34 @@ watchlist = Table(
     UniqueConstraint("user_id", "ticker", name="uq_watchlist_user_ticker"),
 )
 
+# Persistent portfolio workspace. Watchlists answer "what do I monitor?";
+# portfolios answer "what do I actually own, and in what proportion?" Keeping
+# those concepts separate lets Portfolio Intelligence calculate weighted
+# exposure without treating every watched idea as an equal-sized position.
+portfolios = Table(
+    "portfolios", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("name", String(96), nullable=False, server_default="'My Portfolio'"),
+    Column("is_default", Integer, nullable=False, server_default="1"),
+    Column("created_at", String(64), nullable=False),
+    Column("updated_at", String(64), nullable=False),
+    UniqueConstraint("user_id", "name", name="uq_portfolio_user_name"),
+)
+
+portfolio_holdings = Table(
+    "portfolio_holdings", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("portfolio_id", Integer, ForeignKey("portfolios.id"), nullable=False),
+    Column("ticker", String(16), nullable=False),
+    Column("weight_pct", Float, nullable=False),
+    Column("shares", Float),
+    Column("cost_basis", Float),
+    Column("created_at", String(64), nullable=False),
+    Column("updated_at", String(64), nullable=False),
+    UniqueConstraint("portfolio_id", "ticker", name="uq_portfolio_holding_ticker"),
+)
+
 # One evolving investment thesis per user/security. This is deliberately
 # user-scoped: unlike the canonical Confluence Score, thesis language, horizon,
 # risk conditions, and outcome notes are private decision-journal data.
