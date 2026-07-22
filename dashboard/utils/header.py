@@ -2403,6 +2403,45 @@ def render_sidebar_base(
     """
     selected_section: str | None = None
     with st.sidebar:
+        if sections:
+            _options = list(sections)
+            _default = default_section if default_section in _options else _options[0]
+            # The page-local navigator belongs at the top of the sidebar, before
+            # account/settings chrome, so it is immediately discoverable. The
+            # radio itself remains sticky while the main research canvas scrolls.
+            st.markdown(
+                """
+                <style>
+                [data-testid="stSidebar"] [data-testid="stRadio"]:has(input[aria-label="Page section"]) {
+                    position: sticky;
+                    top: 0.75rem;
+                    z-index: 20;
+                    background: rgba(10, 14, 24, 0.97);
+                    border: 1px solid rgba(107, 127, 191, 0.20);
+                    border-radius: 10px;
+                    padding: 8px 10px 10px;
+                    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<div style="font-size:0.60rem;font-weight:800;color:#8C9BC8;'
+                f'letter-spacing:0.13em;text-transform:uppercase;margin:2px 0 5px;">'
+                f'{page_title or "On this page"}</div>',
+                unsafe_allow_html=True,
+            )
+            selected_section = st.radio(
+                "Page section",
+                _options,
+                index=_options.index(_default),
+                key=section_key or f"section_rail_{(page_title or 'page').lower().replace(' ', '_')}",
+                label_visibility="collapsed",
+            )
+            st.caption("Choose a section. Only this section is loaded. This menu stays available while you scroll.")
+            st.divider()
+
         # Account info — most pages no longer require login (per explicit
         # user request), so an anonymous visitor is a completely normal,
         # expected case here, not an edge case. This sidebar block is just
@@ -2426,25 +2465,6 @@ def render_sidebar_base(
         # Dark mode toggle — persists preference in localStorage
         render_dark_mode_toggle()
         st.divider()
-
-        if sections:
-            _options = list(sections)
-            _default = default_section if default_section in _options else _options[0]
-            st.markdown(
-                f'<div style="font-size:0.60rem;font-weight:800;color:#6B7FBF;'
-                f'letter-spacing:0.13em;text-transform:uppercase;margin:2px 0 5px;">'
-                f'{page_title or "On this page"}</div>',
-                unsafe_allow_html=True,
-            )
-            selected_section = st.radio(
-                "Page section",
-                _options,
-                index=_options.index(_default),
-                key=section_key or f"section_rail_{(page_title or 'page').lower().replace(' ', '_')}",
-                label_visibility="collapsed",
-            )
-            st.caption("Only this section is loaded.")
-            st.divider()
 
         # AI Assistant quick-access
         st.markdown(

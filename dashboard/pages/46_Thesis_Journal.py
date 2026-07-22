@@ -32,6 +32,32 @@ require_pro(
     benefit="Build a durable decision record tied to live scores, prices, risks, and review outcomes.",
 )
 
+st.info(
+    "**Use the journal in two steps:** start or update a thesis from Ticker Deep "
+    "Dive, then return here to review active decisions and record closed or "
+    "invalidated outcomes. Every entry is private to your account."
+)
+_new_ticker_col, _new_action_col, _new_space_col = st.columns([2, 2, 4])
+with _new_ticker_col:
+    _new_thesis_ticker = st.text_input(
+        "Ticker for a new thesis",
+        value=st.session_state.get("selected_ticker", ""),
+        placeholder="e.g. NVDA",
+        key="journal_new_thesis_ticker",
+        max_chars=10,
+    ).strip().upper()
+with _new_action_col:
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button(
+        "Start Thesis in Deep Dive",
+        type="primary",
+        use_container_width=True,
+        disabled=not bool(_new_thesis_ticker),
+    ):
+        st.session_state["selected_ticker"] = _new_thesis_ticker
+        st.session_state["dive_section"] = "Thesis Workspace"
+        st.switch_page("pages/3_Ticker_Deep_Dive.py")
+
 _status_map = {
     "Active Theses": "active",
     "Closed Decisions": "closed",
@@ -53,8 +79,8 @@ else:
 
 if not _theses:
     st.info(
-        "No decisions are in this section yet. Open a ticker in Ticker Deep Dive and choose "
-        "Thesis Workspace from the side rail to create one."
+        "No decisions are in this section yet. Enter a ticker above and select "
+        "**Start Thesis in Deep Dive** to create your first decision record."
     )
     if st.button("Open Ticker Deep Dive", type="primary"):
         st.switch_page("pages/3_Ticker_Deep_Dive.py")

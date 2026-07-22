@@ -299,6 +299,45 @@ try:
 except Exception:
     pass
 
+# ── Research workflow actions ────────────────────────────────────────────────
+# The Thesis Workspace used to exist only as a sidebar radio option, which was
+# easy to miss and made the separate Journal page feel disconnected. Keep the
+# rail for fast section switching, but expose the three natural next actions at
+# the point where the user has chosen a ticker.
+st.markdown(
+    "**Next step:** save your reasoning, review prior decisions, or export this "
+    "ticker's research. The section menu remains available in the left sidebar."
+)
+_workflow_thesis, _workflow_journal, _workflow_export = st.columns(3)
+if _workflow_thesis.button(
+    "Create or Update Thesis",
+    key=f"open_thesis_workspace_{ticker_input}",
+    type="primary",
+    use_container_width=True,
+    help="Open the private thesis form for this ticker",
+):
+    st.session_state["dive_section"] = "Thesis Workspace"
+    st.rerun()
+if _workflow_journal.button(
+    "Open Thesis Journal",
+    key=f"open_thesis_journal_{ticker_input}",
+    use_container_width=True,
+    help="Review every saved active, closed, or invalidated thesis",
+):
+    st.switch_page("pages/46_Thesis_Journal.py")
+if _workflow_export.button(
+    "Export PDF Report",
+    key=f"open_pdf_export_{ticker_input}",
+    use_container_width=True,
+    help="Open the PDF exporter with this ticker already selected",
+):
+    st.session_state["export_ticker"] = ticker_input
+    st.switch_page("pages/28_Export.py")
+st.caption(
+    "Thesis Workspace records your stance, catalysts, risks, invalidation rule, "
+    "and review outcome. Thesis Journal organizes those saved decisions over time."
+)
+
 relevant_sig_ids = _auto_sig_ids
 
 # Also let user add/remove signals
