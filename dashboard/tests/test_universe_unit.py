@@ -5,22 +5,21 @@ degrade gracefully to the static universe when no DB is present, which is
 exactly what these tests exercise alongside the pure merge/normalise logic.
 """
 
-import sys
-import types
-
 import pytest
 
-_stub = types.ModuleType("utils.config")
-_stub.TICKERS = {
+STUB_TICKERS = {
     "AAPL": {"name": "Apple Inc.", "sector": "Technology"},
     "MSFT": {"name": "Microsoft", "sector": "Technology"},
     "XOM":  {"name": "Exxon", "sector": "Energy"},
 }
-_stub.SIGNALS = {}
-_stub.CATEGORIES = {}
-sys.modules.setdefault("utils.config", _stub)
 
-from utils import universe as u  # noqa: E402
+from utils import universe as u
+
+
+@pytest.fixture(autouse=True)
+def _stub_universe(monkeypatch):
+    monkeypatch.setattr(u, "TICKERS", STUB_TICKERS)
+    monkeypatch.setattr(u, "get_dynamic_universe", lambda: [])
 
 
 def test_normalize():
@@ -35,9 +34,11 @@ def test_merge_universe():
     assert u.merge_universe(["A", "b"], ["c"]) == ["A", "B", "C"]       # iterable static
 
 
-def test_resolve_meta():
+def test_resolve_meta(monkeypatch):
     r = u.resolve_meta("AAPL")
     assert r["name"] == "Apple Inc." and r["sector"] == "Technology"
+    import yfinance as yf
+    monkeypatch.setattr(yf, "Ticker", lambda _ticker: (_ for _ in ()).throw(RuntimeError("offline")))
     r2 = u.resolve_meta("ZZZZ")   # unknown → yfinance unavailable → bare fallback
     assert r2["name"] == "ZZZZ" and r2["sector"] == ""
 

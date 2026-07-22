@@ -146,33 +146,43 @@ ROUTED_PAGES = [
 
 
 @pytest.fixture
-def app_test():
+def app_test(monkeypatch):
     """
-    Returns a factory that gives back a *freshly run* AppTest already
-    switched to the requested page.
+    Returns a factory that directly executes the requested page.
 
-    Every page is now gated behind a login (utils.auth_ui.require_login()),
-    so before the first .run(), this injects a fake logged-in user directly
-    into session_state -- bypassing the actual login form, which is tested
-    on its own terms in tests/test_auth_and_multitenancy_unit.py. Without
-    this, every page-render test would just be testing the login screen.
+    Before the first .run(), this injects a fake Pro user directly into
+    session_state. Authentication, free-tier gates, and anonymous behavior are
+    tested separately; page behavior tests must be able to reach every paid
+    workflow instead of stopping at an upgrade prompt.
 
-    IMPORTANT: streamlit.testing.v1.AppTest.switch_page() does NOT
-    automatically rerun the app — you must call .run() again after
-    switching, or you're silently asserting against whatever page ran
-    last (usually the home page), not the one you think you're testing.
-    This bit us once already; this fixture exists specifically so no
-    test can make that mistake again.
+    IMPORTANT: AppTest.switch_page() no longer changes the active script for
+    this app's st.navigation setup in the installed Streamlit release. It
+    silently leaves Home rendered, creating false passes and false failures.
+    Page behavior is therefore tested by executing the page file directly;
+    app.py routing and anonymous-session behavior have separate tests.
+
+    Direct page execution has no navigation registry, so st.page_link and
+    st.switch_page cannot resolve internal pages. Links are covered
+    structurally in app.py; switch intents are recorded in session state so
+    action tests can still verify the exact destination.
     """
     from streamlit.testing.v1 import AppTest
+    import streamlit as st
+
+    monkeypatch.setattr(st, "page_link", lambda *args, **kwargs: None)
+
+    def _record_page_switch(page_path: str, *args, **kwargs) -> None:
+        st.session_state["_test_switch_page"] = page_path
+
+    monkeypatch.setattr(st, "switch_page", _record_page_switch)
 
     def _make(page_path: str = None, timeout: int = 120):
-        at = AppTest.from_file(str(DASHBOARD_ROOT / "app.py"), default_timeout=timeout)
+        target = DASHBOARD_ROOT / (page_path or "app.py")
+        at = AppTest.from_file(str(target), default_timeout=timeout)
         at.session_state["user"] = {"id": 1, "email": "test@example.com"}
+        at.session_state["_tier_1"] = "pro"
+        at.session_state["_sync_done_1"] = True
         at.run()
-        if page_path:
-            at.switch_page(page_path)
-            at.run()
         return at
 
     return _make

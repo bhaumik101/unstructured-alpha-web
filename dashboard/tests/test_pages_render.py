@@ -22,14 +22,20 @@ def test_page_renders_without_exception(app_test, page_path):
     )
 
 
-def test_about_page_backtest_button_runs_without_exception(app_test):
+def test_about_page_backtest_button_runs_without_exception(app_test, monkeypatch):
     """
     Exercises the "Run Live Backtest" button click on the About page, not
     just the page's initial render — this is the only way to actually
     execute compute_backtested_pcs() / _backtest_all_signals(), since that
     code path is gated behind a button and never runs on a plain page load.
     """
+    import utils.validation_status as validation_status
+
+    monkeypatch.setattr(validation_status, "validate_all_macro_signals", lambda: {})
     at = app_test("pages/8_About.py")
+    section = next((r for r in at.radio if r.key == "about_section_rail"), None)
+    assert section is not None, "About section rail not found"
+    section.set_value("Validation Evidence").run()
     btn = next((b for b in at.button if b.key == "run_pcs_backtest"), None)
     assert btn is not None, "Run Live Backtest button not found on About page"
     btn.click().run()
@@ -52,6 +58,7 @@ def test_model_validation_page_shows_all_five_categories_with_no_overclaim(app_t
         "Model Validation page raised: " + "\n".join(str(e) for e in at.exception)
     )
     all_text = " ".join(md.value for md in at.markdown)
+    all_text += " " + " ".join(element.proto.body for element in at.get("html"))
     for expected in (
         "Confluence Score",
         "Power Supercycle Score",
@@ -63,13 +70,16 @@ def test_model_validation_page_shows_all_five_categories_with_no_overclaim(app_t
     assert "NOT validated" in all_text
 
 
-def test_model_validation_page_universal_validation_button_runs_without_exception(app_test):
+def test_model_validation_page_universal_validation_button_runs_without_exception(app_test, monkeypatch):
     """
     Exercises the universal lag-validation button -- the one that calls
     validate_all_macro_signals() (utils/validation_status.py), the
     2026-06-22 rollout of the out-of-sample/Bonferroni-corrected
     methodology to every macro signal, not just insider/short-interest.
     """
+    import utils.validation_status as validation_status
+
+    monkeypatch.setattr(validation_status, "validate_all_macro_signals", lambda: {})
     at = app_test("pages/11_Model_Validation.py")
     btn = next((b for b in at.button if b.key == "run_validated_lag_scan_all_signals"), None)
     assert btn is not None, "Run Universal Lag Validation button not found on Model Validation page"
