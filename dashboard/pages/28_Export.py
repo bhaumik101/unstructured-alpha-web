@@ -137,6 +137,28 @@ def _pdf_safe_text(value, limit: int | None = None) -> str:
     return text[:limit] if limit is not None else text
 
 
+def _optional_score_value(value) -> float | None:
+    """Return the numeric score from an optional-evidence result.
+
+    Ticker scoring returns insider, short-interest, and 13F evidence as
+    structured dictionaries such as ``{"status": "bullish", "score": 72}``.
+    Export historically treated those results as raw numbers, which made live
+    PDF generation compare a dictionary with an integer. Keep the PDF boundary
+    tolerant of both the canonical dictionary shape and legacy numeric values.
+    """
+    if isinstance(value, dict):
+        value = value.get("score")
+    if value is None:
+        return None
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(score):
+        return None
+    return float(np.clip(score, 0.0, 100.0))
+
+
 def build_pdf(
     ticker: str,
     company_name: str,
@@ -145,9 +167,9 @@ def build_pdf(
     all_signals: dict,
     price_metrics: dict,
     generated_at: str,
-    insider_score: float | None = None,
-    short_interest_score: float | None = None,
-    thirteenf_score: float | None = None,
+    insider_score: object | None = None,
+    short_interest_score: object | None = None,
+    thirteenf_score: object | None = None,
     insider_tx: list | None = None,
     thirteenf_fund_rows: list | None = None,
 ) -> bytes:
@@ -348,9 +370,9 @@ def build_pdf(
 
     # ── Positioning & Alternative Data ────────────────────────────────────────
     _alt_data = [
-        ("Insider Activity",  insider_score),
-        ("Short Interest",    short_interest_score),
-        ("13F Institutional", thirteenf_score),
+        ("Insider Activity",  _optional_score_value(insider_score)),
+        ("Short Interest",    _optional_score_value(short_interest_score)),
+        ("13F Institutional", _optional_score_value(thirteenf_score)),
     ]
     _has_alt = any(v is not None for _, v in _alt_data)
     if _has_alt:
