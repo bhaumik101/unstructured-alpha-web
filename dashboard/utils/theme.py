@@ -1049,18 +1049,17 @@ _MODERN_UI_CSS = """
 .stButton > button:not([data-testid="baseButton-primary"]) {
   background: rgba(22,26,40,0.92) !important;
   border: 1px solid rgba(255,255,255,0.10) !important;
-  color: #B8C0D4 !important;
+  color: #D5DAE3 !important;
   box-shadow: 0 1px 3px rgba(0,0,0,0.30),
               inset 0 1px 0 rgba(255,255,255,0.04) !important;
 }
 .stButton > button[data-testid="baseButton-secondary"]:hover,
 .stButton > button:not([data-testid="baseButton-primary"]):hover {
   background: rgba(32,38,58,0.95) !important;
-  border-color: rgba(0,213,102,0.38) !important;
+  border-color: #536174 !important;
   color: #E8EEFF !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.35),
-              0 0 0 1px rgba(0,213,102,0.10) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35) !important;
 }
 .stButton > button[data-testid="baseButton-secondary"]:active,
 .stButton > button:not([data-testid="baseButton-primary"]):active {
@@ -1070,21 +1069,23 @@ _MODERN_UI_CSS = """
 
 /* — Primary — */
 .stButton > button[data-testid="baseButton-primary"] {
-  background: linear-gradient(135deg, #00D566 0%, #00A847 100%) !important;
-  border: 1px solid rgba(0,213,102,0.38) !important;
-  color: #001A0B !important;
+  background: #2E6654 !important;
+  border: 1px solid #477D6B !important;
+  color: #F1F3F5 !important;
   font-weight: 700 !important;
-  box-shadow: 0 4px 16px rgba(0,213,102,0.30) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.28) !important;
 }
 .stButton > button[data-testid="baseButton-primary"]:hover {
-  filter: brightness(1.08) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 6px 24px rgba(0,213,102,0.42) !important;
+  background: #397461 !important;
+  border-color: #5A8E7D !important;
+  filter: none !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.32) !important;
 }
 .stButton > button[data-testid="baseButton-primary"]:active {
   transform: translateY(0) scale(0.975) !important;
   filter: brightness(0.96) !important;
-  box-shadow: 0 2px 8px rgba(0,213,102,0.20) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.28) !important;
 }
 
 /* — Download — */
@@ -1137,15 +1138,32 @@ section[data-testid="stSidebar"] .stButton > button:hover {
   border-radius: 8px !important;
   transition: border-color 0.16s ease, box-shadow 0.16s ease !important;
 }
+[data-testid="stSelectbox"] [data-baseweb="select"] span,
+[data-testid="stSelectbox"] [data-baseweb="select"] input,
+[data-testid="stMultiSelect"] [data-baseweb="select"] span,
+[data-testid="stMultiSelect"] [data-baseweb="select"] input {
+  color: #D8DDE5 !important;
+  -webkit-text-fill-color: #D8DDE5 !important;
+}
+[data-testid="stSelectbox"] [data-baseweb="select"] svg,
+[data-testid="stMultiSelect"] [data-baseweb="select"] svg {
+  fill: #9DA7B7 !important;
+  color: #9DA7B7 !important;
+}
+[data-testid="stMultiSelect"] span[data-baseweb="tag"] {
+  background: #252C38 !important;
+  border: 1px solid #3B4554 !important;
+  color: #D8DDE5 !important;
+}
 [data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child:hover,
 [data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child:hover {
-  border-color: rgba(0,213,102,0.38) !important;
-  box-shadow: 0 0 0 1px rgba(0,213,102,0.10) !important;
+  border-color: #536174 !important;
+  box-shadow: 0 0 0 1px rgba(126,140,160,0.10) !important;
 }
 [data-testid="stSelectbox"] [data-baseweb="select"] > div:first-child:focus-within,
 [data-testid="stMultiSelect"] [data-baseweb="select"] > div:first-child:focus-within {
-  border-color: rgba(0,213,102,0.55) !important;
-  box-shadow: 0 0 0 2px rgba(0,213,102,0.14) !important;
+  border-color: #718096 !important;
+  box-shadow: 0 0 0 2px rgba(113,128,150,0.16) !important;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -1282,8 +1300,24 @@ section[data-testid="stSidebar"] .stButton > button:hover {
 [data-testid="stRadio"] label {
   font-family: Inter, -apple-system, sans-serif !important;
   font-size: 0.85rem !important;
-  color: #B8C0D4 !important;
+  color: #C8CED8 !important;
   transition: color 0.14s ease !important;
+}
+
+/* Segmented controls and pills use neutral selected states. Selection remains
+   obvious through surface and border contrast rather than neon text. */
+[data-testid="stButtonGroup"] button,
+[data-testid="stButtonGroup"] label {
+  background: #151A22 !important;
+  border-color: #313946 !important;
+  color: #C8CED8 !important;
+}
+[data-testid="stButtonGroup"] button[aria-checked="true"],
+[data-testid="stButtonGroup"] button[aria-pressed="true"],
+[data-testid="stButtonGroup"] label:has(input:checked) {
+  background: #2A3340 !important;
+  border-color: #687587 !important;
+  color: #F0F2F5 !important;
 }
 [data-testid="stCheckbox"] label:hover,
 [data-testid="stRadio"] label:hover {

@@ -2046,11 +2046,12 @@ def render_header(page_subtitle: str = "") -> None:
     if _uid:
         try:
             from utils.prediction_log import (
-                get_unread_notification_count, get_recent_notifications, mark_all_read
+                clear_notifications, get_unread_notification_count,
+                get_recent_notifications, mark_all_read,
             )
             _unread = get_unread_notification_count(_uid)
             _badge_text = f" {_unread if _unread < 100 else '99+'}" if _unread > 0 else ""
-            _notification_api = (get_recent_notifications, mark_all_read)
+            _notification_api = (get_recent_notifications, mark_all_read, clear_notifications)
             with _bell_col:
                 if st.button(
                     f"Notifications{_badge_text}",
@@ -2093,8 +2094,8 @@ def render_header(page_subtitle: str = "") -> None:
                     '<div class="ua-notification-title">System Notifications</div>',
                     unsafe_allow_html=True,
                 )
-                _get_recent_notifications, _mark_all_read = _notification_api
-                _notifs = _get_recent_notifications(limit=10)
+                _get_recent_notifications, _mark_all_read, _clear_notifications = _notification_api
+                _notifs = _get_recent_notifications(limit=10, user_id=_uid)
                 if not _notifs:
                     st.caption(
                         "No notifications yet. Convergence events and prediction resolutions will appear here."
@@ -2123,13 +2124,25 @@ def render_header(page_subtitle: str = "") -> None:
                             f'</div>',
                             unsafe_allow_html=True,
                         )
-                if _unread > 0 and st.button(
-                    "Mark all read",
-                    key="_notif_mark_read",
-                    use_container_width=True,
-                ):
-                    _mark_all_read(_uid)
-                    st.rerun()
+                if _notifs:
+                    _read_col, _clear_col = st.columns(2)
+                    if _unread > 0 and _read_col.button(
+                        "Mark read",
+                        key="_notif_mark_read",
+                        use_container_width=True,
+                    ):
+                        _mark_all_read(_uid)
+                        st.rerun()
+                    if _clear_col.button(
+                        "Clear",
+                        key="_notif_clear",
+                        use_container_width=True,
+                        help="Remove all current notifications from your feed",
+                    ):
+                        if _clear_notifications(_uid):
+                            st.rerun()
+                        else:
+                            st.error("Could not clear notifications. Try again.")
 
 
 @st.cache_data(ttl=60, max_entries=1, show_spinner=False)

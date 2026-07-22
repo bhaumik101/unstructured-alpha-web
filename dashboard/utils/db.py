@@ -475,6 +475,16 @@ notification_reads = Table(
     UniqueConstraint("user_id", "notification_id", name="uq_notif_read"),
 )
 
+# Per-user notification-feed clear cursor. Clearing the tray records the newest
+# global notification visible at that moment; it never deletes the underlying
+# event or affects another user, and any later event appears normally.
+notification_clear_state = Table(
+    "notification_clear_state", metadata,
+    Column("user_id", Integer, ForeignKey("users.id"), primary_key=True),
+    Column("cleared_through_id", Integer, nullable=False, server_default="0"),
+    Column("cleared_at", String(64), nullable=False),
+)
+
 
 # Referral Program (added 2026-07-04). Tracks referral relationships from
 # signup through conversion to reward. One row per referee email — a user
