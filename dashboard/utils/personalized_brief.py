@@ -6,7 +6,7 @@ import json
 from html import escape
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from utils import db
 from utils.db import score_components, score_snapshots
@@ -21,7 +21,13 @@ def _load_evidence_for_positions(positions: list[dict], *, source: str) -> list[
     with db.engine.begin() as conn:
         snapshots = conn.execute(
             select(score_snapshots)
-            .where(score_snapshots.c.ticker.in_(tickers))
+            .where(
+                score_snapshots.c.ticker.in_(tickers),
+                or_(
+                    score_snapshots.c.score_kind == "full",
+                    score_snapshots.c.score_kind.is_(None),
+                ),
+            )
             .order_by(score_snapshots.c.snapshot_date.desc())
         ).mappings().all()
         component_rows = conn.execute(

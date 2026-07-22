@@ -1754,7 +1754,8 @@ with _q2:
             "**Pro** ($20/mo, 7-day free trial) adds: morning email digest at 7 AM ET, watchlist alerts evaluated every two hours, "
             "Discord/Slack webhook delivery, daily signal-flip tweets via @UnstructuredAlpha, "
             "saved-screen monitoring, Portfolio Intelligence with an evidence-constrained executive review, "
-            "read-only score API access, Signal Backtester, Factor Exposure, and all future Pro features. "
+            "a daily Decision Queue across holdings, catalysts, and theses, read-only score API access, "
+            "Signal Backtester, Factor Exposure, and all future Pro features. "
             "No long-term commitment."
         )
     with st.expander("Is this financial advice?"):

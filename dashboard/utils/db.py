@@ -295,6 +295,23 @@ api_keys = Table(
     UniqueConstraint("user_id", "name", name="uq_api_key_user_name"),
 )
 
+# Durable triage state for the Pro Decision Queue. The evidence hash makes a
+# completed item reopen automatically when its underlying facts change, rather
+# than permanently hiding future score moves or catalysts for that ticker.
+decision_queue_states = Table(
+    "decision_queue_states", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False),
+    Column("item_key", String(32), nullable=False),
+    Column("evidence_hash", String(64), nullable=False),
+    Column("status", String(16), nullable=False, server_default="open"),
+    Column("snoozed_until", String(10)),
+    Column("note", Text),
+    Column("created_at", String(64), nullable=False),
+    Column("updated_at", String(64), nullable=False),
+    UniqueConstraint("user_id", "item_key", name="uq_decision_queue_user_item"),
+)
+
 # One evolving investment thesis per user/security. This is deliberately
 # user-scoped: unlike the canonical Confluence Score, thesis language, horizon,
 # risk conditions, and outcome notes are private decision-journal data.
