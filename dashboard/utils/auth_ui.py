@@ -371,7 +371,7 @@ def render_auth_forms(cookies: CookieManager, key_prefix: str = "") -> None:
 
 def require_login() -> dict:
     """
-    Returns the logged-in user dict ({"id", "email"}) if already
+    Returns the logged-in user identity ({"id", "email", "display_name"}) if already
     authenticated. Otherwise renders a full-page login/signup gate (or the
     email-verification step, if mid-signup) and calls st.stop() -- this
     function never returns None; it either returns a real, verified user

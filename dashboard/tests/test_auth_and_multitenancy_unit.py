@@ -90,6 +90,36 @@ def test_login_is_case_insensitive_on_email():
     assert user["email"] == "eve@example.com"
 
 
+def test_display_name_is_normalized_and_returned_by_login():
+    created = auth.signup("identity@example.com", "supersecret1")
+    auth.verify_email("identity@example.com", _latest_code("identity@example.com"))
+
+    saved = auth.update_display_name(created["id"], "  Bhaumik   Giri  ")
+    user = auth.login("identity@example.com", "supersecret1")
+
+    assert saved == "Bhaumik Giri"
+    assert user["display_name"] == "Bhaumik Giri"
+
+
+def test_remembered_identity_includes_display_name():
+    created = auth.signup("remember-name@example.com", "supersecret1")
+    auth.verify_email("remember-name@example.com", _latest_code("remember-name@example.com"))
+    auth.update_display_name(created["id"], "Research Lead")
+    token = auth.issue_remember_token(created["id"])
+
+    remembered = auth.verify_remember_token(token)
+
+    assert remembered["display_name"] == "Research Lead"
+
+
+def test_display_name_requires_a_professional_length():
+    created = auth.signup("name-rules@example.com", "supersecret1")
+    with pytest.raises(auth.AuthError):
+        auth.update_display_name(created["id"], "A")
+    with pytest.raises(auth.AuthError):
+        auth.update_display_name(created["id"], "x" * 49)
+
+
 def test_login_fails_with_wrong_password():
     auth.signup("frank@example.com", "supersecret1")
     with pytest.raises(auth.AuthError):
@@ -325,7 +355,11 @@ def test_issue_remember_token_returns_a_usable_token_and_verify_succeeds():
     assert isinstance(token, str) and len(token) > 20  # secrets.token_urlsafe(32) -- a real, long token
 
     verified = auth.verify_remember_token(token)
-    assert verified == {"id": user["id"], "email": "remember1@example.com"}
+    assert verified == {
+        "id": user["id"],
+        "email": "remember1@example.com",
+        "display_name": None,
+    }
 
 
 def test_verify_remember_token_rejects_garbage_token():
