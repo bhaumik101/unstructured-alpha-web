@@ -12,7 +12,7 @@ EXPORT = Path(__file__).resolve().parents[1] / "pages" / "28_Export.py"
 def _export_functions():
     source = EXPORT.read_text(encoding="utf-8")
     tree = ast.parse(source)
-    wanted = {"_fmt_shares", "_pdf_safe_text", "build_pdf"}
+    wanted = {"_fmt_shares", "_pdf_safe_text", "_optional_score_value", "build_pdf"}
     nodes = [
         node for node in tree.body
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name in wanted
@@ -53,6 +53,24 @@ def test_pdf_accepts_unicode_provider_names():
         generated_at="2026-07-22 12:00 UTC",
         insider_tx=[{"insider_name": "O’Neil", "title": "Chief—Officer", "shares": 10}],
         thirteenf_fund_rows=[{"fund_name": "Müller → Capital", "shares": 20}],
+    )
+    assert pdf.startswith(b"%PDF-")
+    assert len(pdf) > 1_000
+
+
+def test_pdf_accepts_canonical_optional_score_records():
+    functions = _export_functions()
+    pdf = functions["build_pdf"](
+        ticker="AMD",
+        company_name="Advanced Micro Devices",
+        score=72,
+        score_status="bullish",
+        all_signals={},
+        price_metrics={},
+        generated_at="2026-07-22 13:45 UTC",
+        insider_score={"status": "bullish", "score": 72},
+        short_interest_score={"status": "no_data"},
+        thirteenf_score={"status": "neutral", "score": "58"},
     )
     assert pdf.startswith(b"%PDF-")
     assert len(pdf) > 1_000
