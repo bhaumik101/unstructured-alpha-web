@@ -6,11 +6,13 @@ WHY: Streamlit ships a single-page app whose ~MB JS bundle downloads BEFORE any 
 our Python runs. During that window the browser shows a blank (dark, via our theme)
 screen. Nothing in our app code can paint there — the only lever is the HTML page
 Streamlit itself serves. This injects a full-viewport, on-brand loader (exact app
-background #0B0D12, logo, animated bar) right after <body>, plus a self-removal
-script with multiple hard timeouts so it can NEVER permanently cover the app.
+background #0B0D12, logo, animated bar) right after <body>. The loader remains
+until Streamlit has rendered real page content, its run/spinner indicators are
+gone, and the DOM has settled; a hard timeout ensures it can never cover an error
+forever.
 
 SAFETY:
-- Idempotent (skips if the marker is already present).
+- Repeatable (updates an existing current or legacy injection in-place).
 - Fully wrapped in try/except and ALWAYS exits 0 — a failure here must never fail
   the build or leave a half-written file (writes only after a successful transform).
 - Trivially reversible: remove this step from render.yaml's buildCommand; the next
@@ -24,6 +26,8 @@ import re
 import sys
 
 MARKER = "ua-boot-splash"
+START_MARKER = "<!-- ua-boot-splash:start -->"
+END_MARKER = "<!-- ua-boot-splash:end -->"
 
 
 def _load_facts() -> list:
@@ -46,6 +50,7 @@ def _load_facts() -> list:
 def _build_splash() -> str:
     facts_json = json.dumps(_load_facts())
     return """
+<!-- ua-boot-splash:start -->
 <div id="ua-boot-splash" role="status" aria-label="Loading">
   <div class="ua-boot-inner">
     <svg class="ua-boot-hex" viewBox="0 0 100 100" width="132" height="132" aria-hidden="true">
@@ -115,20 +120,101 @@ def _build_splash() -> str:
     s.classList.add('ua-hide');
     setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},600);
   }
-  function ready(){
-    var app=document.querySelector('[data-testid="stAppViewContainer"]')
-            ||document.querySelector('section.main')
-            ||document.querySelector('.stApp');
-    return !!(app && app.querySelector('[data-testid="stVerticalBlock"], .main, .block-container, section'));
+  var started=Date.now();
+  var lastMutation=started;
+  var MIN_VISIBLE_MS=900;
+  var SETTLE_MS=450;
+  var HARD_TIMEOUT_MS=45000;
+
+  function appRoot(){
+    return document.querySelector('[data-testid="stAppViewContainer"]')
+      ||document.querySelector('.stApp');
   }
-  var tries=0;
-  var iv=setInterval(function(){tries++;if(ready()||tries>120){clearInterval(iv);hide();}},150);
-  // Hard fallbacks — the splash must never persist.
-  window.addEventListener('load',function(){setTimeout(hide,2500);});
-  setTimeout(function(){clearInterval(iv);hide();},15000);
+  function hasRenderedContent(){
+    var app=appRoot();
+    if(!app)return false;
+    var main=app.querySelector('[data-testid="stMainBlockContainer"], .block-container, section.main');
+    if(!main)return false;
+    // Streamlit mounts empty layout containers before the Python script has
+    // produced a page. Require an actual rendered element or meaningful text.
+    return main.querySelector(
+      '[data-testid="stMarkdownContainer"], [data-testid="stMetric"], '
+      +'[data-testid="stDataFrame"], [data-testid="stPlotlyChart"], '
+      +'[data-testid="stAlert"], [data-testid="stForm"], button, input, canvas, iframe'
+    )!==null || (main.textContent||'').trim().length>24;
+  }
+  function isStreamlitBusy(){
+    // The header running icon is Streamlit's authoritative script-run signal.
+    // Page-level spinners/skeletons cover long provider calls inside that run.
+    return !!document.querySelector(
+      '[data-testid="stStatusWidgetRunningIcon"], [data-testid="stSpinner"], '
+      +'[data-testid="stSkeleton"], [data-testid="stProgress"]'
+    );
+  }
+  function ready(){
+    var now=Date.now();
+    return now-started>=MIN_VISIBLE_MS
+      && hasRenderedContent()
+      && !isStreamlitBusy()
+      && now-lastMutation>=SETTLE_MS;
+  }
+
+  var observer=new MutationObserver(function(mutations){
+    // Ignore the splash's own rotating fact animation. Only application DOM
+    // changes extend the settling window.
+    for(var j=0;j<mutations.length;j++){
+      var target=mutations[j].target;
+      var targetEl=target.nodeType===1?target:target.parentElement;
+      if(!(targetEl && targetEl.closest && targetEl.closest('#ua-boot-splash'))){
+        lastMutation=Date.now();
+        break;
+      }
+    }
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+
+  var iv=setInterval(function(){
+    if(ready()){
+      clearInterval(iv);
+      observer.disconnect();
+      hide();
+    }
+  },100);
+  // Safety only: never use window.load as readiness because it fires before
+  // Streamlit's websocket-backed Python run has completed.
+  setTimeout(function(){clearInterval(iv);observer.disconnect();hide();},HARD_TIMEOUT_MS);
 })();
 </script>
+<!-- ua-boot-splash:end -->
 """.replace("__UA_FACTS_JSON__", facts_json)
+
+
+def _inject_or_replace(html: str, splash: str) -> tuple[str, int, str]:
+    """Inject the splash, or replace an older injected version in-place."""
+    if START_MARKER in html and END_MARKER in html:
+        pattern = re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER)
+        updated, count = re.subn(
+            pattern, lambda _match: splash.strip(), html, count=1, flags=re.DOTALL
+        )
+        return updated, count, "updated"
+
+    # Backward-compatible replacement for deployments created before explicit
+    # boundary markers were added. The legacy block always begins with this
+    # unique div and ends at its own script tag.
+    if '<div id="ua-boot-splash"' in html:
+        pattern = r'<div id="ua-boot-splash".*?</script>\s*'
+        updated, count = re.subn(
+            pattern, lambda _match: splash.strip() + "\n", html, count=1, flags=re.DOTALL
+        )
+        return updated, count, "upgraded"
+
+    updated, count = re.subn(
+        r"(<body[^>]*>)",
+        lambda match: match.group(1) + splash,
+        html,
+        count=1,
+    )
+    return updated, count, "injected"
 
 
 def main() -> None:
@@ -140,17 +226,14 @@ def main() -> None:
             return
         with open(index_path, "r", encoding="utf-8") as fh:
             html = fh.read()
-        if MARKER in html:
-            print("[boot-splash] already injected — skipping", flush=True)
-            return
         splash = _build_splash()
-        new_html, n = re.subn(r"(<body[^>]*>)", lambda m: m.group(1) + splash, html, count=1)
+        new_html, n, action = _inject_or_replace(html, splash)
         if n != 1:
-            print("[boot-splash] <body> tag not found — skipping (left untouched)", flush=True)
+            print("[boot-splash] injection target not found — skipping (left untouched)", flush=True)
             return
         with open(index_path, "w", encoding="utf-8") as fh:
             fh.write(new_html)
-        print(f"[boot-splash] injected branded splash into {index_path}", flush=True)
+        print(f"[boot-splash] {action} branded splash in {index_path}", flush=True)
     except Exception as exc:  # never fail the build
         print(f"[boot-splash] skipped due to error: {exc}", flush=True)
 

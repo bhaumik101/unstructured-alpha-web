@@ -148,3 +148,50 @@ def test_boot_splash_fact_loader_never_raises():
     m = _load_boot_module()
     facts = m._load_facts()
     assert isinstance(facts, list) and len(facts) >= 3
+
+
+def test_boot_splash_waits_for_the_streamlit_run_to_finish():
+    """An empty mounted app shell is not a completed Streamlit page."""
+    m = _load_boot_module()
+    splash = m._build_splash()
+
+    assert 'stStatusWidgetRunningIcon' in splash
+    assert 'stSpinner' in splash
+    assert 'hasRenderedContent()' in splash
+    assert 'MutationObserver' in splash
+    assert 'now-lastMutation>=SETTLE_MS' in splash
+
+
+def test_boot_splash_has_no_early_window_load_dismissal():
+    """Browser load completes before Streamlit's websocket script run."""
+    m = _load_boot_module()
+    splash = m._build_splash()
+
+    assert "window.addEventListener('load'" not in splash
+    assert 'setTimeout(hide,2500)' not in splash
+    assert 'HARD_TIMEOUT_MS=45000' in splash
+
+
+def test_boot_splash_injector_replaces_current_version():
+    m = _load_boot_module()
+    old = m._build_splash().replace("HARD_TIMEOUT_MS=45000", "HARD_TIMEOUT_MS=15000")
+    html = f"<html><body>{old}<main>app</main></body></html>"
+
+    updated, count, action = m._inject_or_replace(html, m._build_splash())
+
+    assert count == 1 and action == "updated"
+    assert "HARD_TIMEOUT_MS=15000" not in updated
+    assert updated.count(m.START_MARKER) == 1
+
+
+def test_boot_splash_injector_upgrades_unmarked_legacy_version():
+    m = _load_boot_module()
+    legacy = m._build_splash().replace(m.START_MARKER, "").replace(m.END_MARKER, "")
+    legacy = legacy.replace("HARD_TIMEOUT_MS=45000", "HARD_TIMEOUT_MS=15000")
+    html = f"<html><body>{legacy}<main>app</main></body></html>"
+
+    updated, count, action = m._inject_or_replace(html, m._build_splash())
+
+    assert count == 1 and action == "upgraded"
+    assert "HARD_TIMEOUT_MS=15000" not in updated
+    assert updated.count(m.START_MARKER) == 1
