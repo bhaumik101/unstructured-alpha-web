@@ -257,6 +257,7 @@ def test_migrate_users_table_grandfathers_existing_accounts(tmp_path, monkeypatc
         from sqlalchemy import select
         row = conn.execute(select(db.users).where(db.users.c.email == "preexisting@example.com")).mappings().first()
     assert row["email_verified"]  # grandfathered in, not locked out
+    assert row["onboarding_completed_at"]  # existing members are not interrupted
 
     # A signup() AFTER migration must still default to unverified.
     auth.signup("brandnew@example.com", "supersecret1")
@@ -264,6 +265,7 @@ def test_migrate_users_table_grandfathers_existing_accounts(tmp_path, monkeypatc
         from sqlalchemy import select
         row2 = conn.execute(select(db.users).where(db.users.c.email == "brandnew@example.com")).mappings().first()
     assert not row2["email_verified"]
+    assert row2["onboarding_completed_at"] is None
 
 
 # ── multi-tenant isolation ────────────────────────────────────────────────────

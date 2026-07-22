@@ -133,6 +133,7 @@ ROUTED_PAGES = [
     "pages/44_Portfolio_Suite.py",
     "pages/45_Options_Flow.py",
     "pages/46_Thesis_Journal.py",
+    "pages/47_Account_Setup.py",
 ]
 
 # pages/2_Signal_Analysis.py and pages/7_Macro_Monitor.py used to be kept

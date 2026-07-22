@@ -79,6 +79,7 @@ pg = st.navigation(
         "": [
             st.Page("pages/home_page.py",      title="Home",             default=True),
             st.Page("pages/29_Upgrade.py",     title="Upgrade to Pro", url_path="upgrade-to-pro"),
+            st.Page("pages/47_Account_Setup.py", title="Account Setup", url_path="welcome"),
         ],
         # ── Today ─────────────────────────────────────────────────────────────
         "Today": [
@@ -173,5 +174,18 @@ try:
     current_user = try_restore_session(_cookies)
 except Exception:
     current_user = None  # treat as anonymous; page auth checks handle the rest
+
+# Newly verified accounts get one focused setup pass before entering the full
+# product. Existing accounts are grandfathered by the schema migration. The
+# session guard prevents a redirect loop while pages/47_Account_Setup.py runs.
+if current_user and not st.session_state.get("_account_setup_route_attempted"):
+    try:
+        from utils.account_setup import needs_account_setup
+        _needs_account_setup = needs_account_setup(current_user.get("id"))
+    except Exception:
+        _needs_account_setup = False  # never gate access on a transient DB issue
+    if _needs_account_setup:
+        st.session_state["_account_setup_route_attempted"] = True
+        st.switch_page("pages/47_Account_Setup.py")
 
 pg.run()

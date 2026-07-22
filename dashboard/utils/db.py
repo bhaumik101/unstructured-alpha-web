@@ -49,6 +49,7 @@
 #      directory causes real SQLite disk I/O errors, confirmed live).
 
 import os
+from datetime import datetime, timezone
 
 import streamlit as st
 from sqlalchemy import (
@@ -193,6 +194,14 @@ users = Table(
     # Deliberately does NOT affect the canonical Confluence Score. Migrated via
     # the generic TEXT path in _migrate_users_table().
     Column("risk_profile", Text),
+    # Focused account setup (added 2026-07-22). Existing accounts are
+    # grandfathered as complete by _migrate_users_table(); newly created
+    # accounts remain NULL until they finish or explicitly skip setup.
+    Column("onboarding_completed_at", String(64)),
+    # The user's preferred briefing channel. This is kept separate from
+    # digest_opted_in because morning email is Pro-only, while a Free user can
+    # still express that preference during setup and activate it on upgrade.
+    Column("digest_preference", String(24)),
 )
 
 watchlist = Table(
@@ -581,6 +590,12 @@ def _migrate_users_table() -> None:
         if any(c.name == "email_verified" for c in new_cols):
             # Grandfather in every account that existed before this column did.
             conn.execute(update(users).values(email_verified=True))
+        if any(c.name == "onboarding_completed_at" for c in new_cols):
+            # Do not interrupt existing members with a newly introduced setup
+            # flow. New signups created after this migration retain NULL.
+            conn.execute(update(users).values(
+                onboarding_completed_at=datetime.now(timezone.utc).isoformat()
+            ))
         # digest_opted_in: new accounts default False, no backfill needed.
         # subscription_tier: existing accounts default 'free' — already handled by column DEFAULT above.
 
