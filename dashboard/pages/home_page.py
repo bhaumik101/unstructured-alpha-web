@@ -419,7 +419,24 @@ if not _anon_user:
     try:
         from utils import alerts_db as _cc_adb
         _cc_user = st.session_state.get("user")
-        _cc_wl = [r["ticker"] for r in (_cc_adb.get_watchlist(_cc_user["id"]) or [])] if _cc_user else []
+        _cc_positions = []
+        if _cc_user:
+            try:
+                from utils.portfolio_workspace import get_default_holdings as _cc_saved_holdings
+                _cc_positions = [
+                    {"ticker": row["ticker"], "weight": float(row["weight_pct"])}
+                    for row in _cc_saved_holdings(_cc_user["id"])
+                ]
+            except Exception:
+                _cc_positions = []
+        # A saved portfolio is authoritative. Until a member creates one, their
+        # watchlist remains a useful equal-weighted activation fallback.
+        if not _cc_positions and _cc_user:
+            _cc_positions = [
+                {"ticker": row["ticker"], "weight": 1.0}
+                for row in (_cc_adb.get_watchlist(_cc_user["id"]) or [])
+            ]
+        _cc_wl = [row["ticker"] for row in _cc_positions]
         if _cc_wl:
             from utils.command_center import build_command_center, render_command_center_html
             from utils.portfolio_xray import build_portfolio_xray
@@ -442,9 +459,11 @@ if not _anon_user:
 
             _cc_inputs = []
             with st.spinner("Building your command center…"):
-                for _t in _cc_wl[:12]:
+                for _position in _cc_positions[:12]:
                     try:
-                        _cc_inputs.append(_cc_read(_t))
+                        _cc_row = _cc_read(_position["ticker"])
+                        _cc_row["weight"] = _position["weight"]
+                        _cc_inputs.append(_cc_row)
                     except Exception:
                         continue
             if _cc_inputs:

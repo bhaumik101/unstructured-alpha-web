@@ -403,6 +403,7 @@ PRO_FEATURES = [
 # Contextual Pro (Phase 16): each gated page names the SPECIFIC value it unlocks,
 # so the gate reads like "here's what you're missing" instead of a generic pitch.
 _PAGE_BENEFIT = {
+    "Portfolio Intelligence":  "Save weighted holdings and monitor macro exposure, scenario risk, and concentration across your real portfolio.",
     "Portfolio Suite":         "See risk decomposition, factor exposure, and macro concentration across your whole portfolio in one view.",
     "Options Flow":            "Track live unusual options activity — large, aggressive trades as they print.",
     "Stock Recommender":       "Get ranked equity ideas screened by the macro signals currently in your favor.",

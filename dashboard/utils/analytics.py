@@ -62,6 +62,7 @@ class Event:
     TICKER_SEARCHED        = "ticker_searched"
     TICKER_DEEP_DIVE       = "ticker_deep_dive_viewed"
     WATCHLIST_UPDATED      = "watchlist_updated"
+    PORTFOLIO_SAVED        = "portfolio_saved"
 
     # Conversion events
     UPGRADE_CTA_CLICKED    = "upgrade_cta_clicked"

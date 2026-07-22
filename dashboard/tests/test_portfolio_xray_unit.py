@@ -1,9 +1,8 @@
 """
 Unit tests for utils/portfolio_xray.py — the Portfolio Macro X-Ray engine.
 Now factor grouping is by MACRO-FACTOR FAMILY (Rates / Credit / Capex&Tech / …)
-via utils.taxonomy, not the old sector `category`. HERMETIC: stubs both
-utils.config (for the compat import) and utils.taxonomy (so it runs regardless
-of the real taxonomy file); the real taxonomy's registry coverage is proven
+via utils.taxonomy, not the old sector `category`. The taxonomy is stubbed so
+the aggregation fixtures stay compact; the real registry coverage is proven
 separately in test_foundation_unit.py.
 """
 
@@ -12,12 +11,6 @@ import types
 import math
 
 import pytest
-
-# stub config (portfolio_xray still imports SIGNALS/CATEGORIES for compat)
-_cfg = types.ModuleType("utils.config")
-_cfg.SIGNALS = {}
-_cfg.CATEGORIES = {}
-sys.modules.setdefault("utils.config", _cfg)
 
 # stub taxonomy — maps the test's signal ids to real macro factor families
 _tax = types.ModuleType("utils.taxonomy")
@@ -77,6 +70,21 @@ def test_portfolio_factor_families():
     assert {"rates", "credit"} <= set(r["factor"] for r in pl["risks"])
     # factor names render as real macro families, not sector enums
     assert any(r["name"] == "Rates" for r in pl["factors"])
+
+
+def test_portfolio_score_and_exposure_respect_position_weights():
+    positions = _portfolio()
+    positions[0]["weight"] = 80
+    positions[1]["weight"] = 10
+    positions[2]["weight"] = 10
+    pl = px.build_portfolio_xray(positions)
+    assert pl["portfolio_score"] == 59.7
+    factors = {row["factor"]: row for row in pl["factors"]}
+    assert factors["rates"]["pct_portfolio"] == 90
+    assert factors["credit"]["pct_portfolio"] == 10
+    assert {row["ticker"]: row["weight_pct"] for row in pl["holdings"]} == {
+        "AMZN": 10.0, "JPM": 10.0, "NVDA": 80.0,
+    }
 
 
 def test_most_exposed_and_hidden_correlations():

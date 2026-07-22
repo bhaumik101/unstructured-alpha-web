@@ -404,7 +404,7 @@ if user:
             st.switch_page("pages/3_Ticker_Deep_Dive.py")
         if _p2.button("Signal Backtests", use_container_width=True, key="pro_backtest"):
             st.switch_page("pages/35_Signal_Strategy.py")
-        if _p3.button("Portfolio Suite", use_container_width=True, key="pro_portfolio"):
+        if _p3.button("Portfolio Intelligence", use_container_width=True, key="pro_portfolio"):
             st.switch_page("pages/44_Portfolio_Suite.py")
         if _p4.button("AI Assistant", use_container_width=True, key="pro_ai"):
             st.switch_page("pages/9_AI_Assistant.py")

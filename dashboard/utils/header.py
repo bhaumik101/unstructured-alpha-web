@@ -1881,7 +1881,7 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
       <div class="ua-tnav-drop">
         <a href="/my-watchlist">My Watchlist</a>
         <a class="pro-link" href="/thesis-journal">Thesis Journal</a>
-        <a class="pro-link" href="/portfolio-suite">Portfolio Suite</a>
+        <a class="pro-link" href="/portfolio-suite">Portfolio Intelligence</a>
       </div>
     </div>
 
