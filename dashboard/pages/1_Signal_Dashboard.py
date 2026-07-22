@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from utils.config import CATEGORIES, SIGNALS, TICKERS
-from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_data_unavailable_banner, render_footer
+from utils.header import render_header, render_sidebar_base, render_page_header, ticker_chips, render_data_unavailable_banner, render_data_quality_strip, render_footer
 from utils.score_history import get_signal_flips, get_signal_trends, get_signal_streaks, compute_signal_correlation_matrix
 from utils.signals_cache import get_all_signal_scores
 from utils.analysis import compute_signal_confidence
@@ -74,7 +74,7 @@ if _signal_section == "Signal Library":
         st.markdown(
             render_data_freshness(
                 source="FRED / EIA / SEC EDGAR / FINRA / yfinance",
-                cadence=f"Cached up to 2 hours · computed ~{_load_ts}",
+                cadence=f"Cached up to 6 hours · computed ~{_load_ts}",
             ),
             unsafe_allow_html=True,
         )
@@ -161,6 +161,7 @@ if _signal_section == "Signal Library":
         sum(1 for sv in all_signals.values() if sv.get("unavailable") or sv.get("error")),
         len(all_signals),
     )
+    render_data_quality_strip(all_signals)
 
     # ── Mode + Display Toggles ────────────────────────────────────────────────────
     col_mode, col_display, col_spacer = st.columns([2, 2, 3])

@@ -113,6 +113,7 @@ pg = st.navigation(
             st.Page("pages/11_Model_Validation.py",   title="Model Validation",    url_path="model-validation"),
             st.Page("pages/30_Track_Record_Live.py",  title="Track Record",        url_path="track-record"),
             st.Page("pages/39_How_Signals_Work.py",   title="How Signals Work",    url_path="how-signals-work"),
+            st.Page("pages/48_Data_Trust.py",         title="Data Trust Center",   url_path="data-trust"),
             # merged out of visible nav (duplicate of Portfolio Suite's backtester):
             st.Page("pages/35_Signal_Strategy.py",    title="Signal Strategy",     url_path="signal-strategy"),
         ],

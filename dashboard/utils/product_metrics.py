@@ -37,8 +37,8 @@ PRIMARY_SOURCES: dict[str, str] = {
 ACTIVE_SOURCE_COUNT: int = len(PRIMARY_SOURCES)
 
 # ── Refresh / recency copy ────────────────────────────────────────────────────
-SCORE_REFRESH_HOURS: int = 2
-SCORE_REFRESH_DESCRIPTION: str = "updated every ~2 hours"
+SCORE_REFRESH_HOURS: int = 6
+SCORE_REFRESH_DESCRIPTION: str = "updated every ~6 hours"
 LAST_MODEL_UPDATE: str = "2026-07-13"
 
 # ── Pricing (kept here so copy never disagrees with billing) ─────────────────

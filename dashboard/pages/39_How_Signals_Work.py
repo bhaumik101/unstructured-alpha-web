@@ -78,7 +78,7 @@ if _method_section == "What Are Signals":
         ("", "Based on public data", "Every signal uses official government or exchange data sources. No proprietary estimates, no surveys of uncertain reliability."),
         ("", "Historically leading", "We only include signals that have shown statistically measurable lead times ahead of market moves — typically 4 to 16 weeks."),
         ("", "Percentile-scored", "Raw data values are converted to 0–100 percentile scores relative to the past 12 months so they are directly comparable across signals."),
-        ("", "Updated every ~2 hours", "Signal data is refreshed approximately every 2 hours from live API feeds. Timestamps are shown on every signal card."),
+        ("", "Updated every ~6 hours", "Signal data is refreshed approximately every 6 hours from live API feeds. Timestamps are shown on every signal card."),
     ]:
         st.markdown(f"""
 <div style="background:rgba(18,21,30,0.7);border:1px solid rgba(255,255,255,0.07);
@@ -414,7 +414,7 @@ if _method_section == "FAQ":
          "Some signals require a minimum number of data points to calculate a reliable percentile. If a series has been recently added or if the data source returned too few observations, the signal defaults to 'insufficient data' rather than showing a potentially misleading score."),
 
         ("How often does data refresh?",
-         "Most signals refresh approximately every 2 hours via Streamlit's cache layer. FRED economic series refresh daily or weekly depending on release frequency. Short interest (FINRA) is biweekly. The timestamp on each signal card shows the last confirmed data point."),
+         "Most signals refresh approximately every 6 hours via Streamlit's cache layer. FRED economic series refresh daily or weekly depending on release frequency. Short interest (FINRA) is biweekly. The timestamp on each signal card shows the last confirmed data point."),
 
         ("What is the rolling window?",
          "252 trading days — approximately one calendar year. This captures a full economic cycle of seasonal variation without overweighting distant historical regimes. A shorter window (e.g., 90 days) would be too sensitive to recent extremes. A longer window would dilute the signal's responsiveness."),

@@ -40,7 +40,7 @@ disclose_unavailable_signals(_gas_disc())
 
 def _build_live_signal_context() -> str:
     """
-    Call get_all_signal_scores() (shared 2-hour cache — no extra HTTP hit)
+    Call get_all_signal_scores() (shared 6-hour cache — no extra HTTP hit)
     and format the result into a compact live-context block for the system
     prompt. Returns an empty string on any failure so the assistant still
     works if signal scoring is unavailable.
