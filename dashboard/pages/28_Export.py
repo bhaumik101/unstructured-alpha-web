@@ -14,6 +14,7 @@ import streamlit as st
 from utils.header import (
     render_header, render_page_header, render_sidebar_base,
     render_guided_steps, disclose_unavailable_signals, count_unavailable_signals,
+    render_data_quality_strip,
 )
 from utils.signals_cache import get_all_signal_scores
 from utils.theme import inject_skeleton_css, skeleton_cards
@@ -502,6 +503,7 @@ all_signals = get_all_signal_scores()
 # Data-integrity disclosure. Exported files preserve the same provider-availability
 # warning and never contain placeholder observations.
 disclose_unavailable_signals(all_signals)
+render_data_quality_strip(all_signals)
 _sk.empty()
 
 # Real per-ticker correlation-weighted Confluence Score

@@ -1,6 +1,6 @@
 """
 Every routed page must render with zero exceptions, with no API keys
-configured (the worst case: every signal falls back to synthetic data,
+configured (the worst case: every signal is explicitly unavailable,
 every price fetch may fail). This is the single most important regression
 test in this suite — it is the automated version of the manual "ast.parse +
 AppTest across all pages" check that's been run by hand after every change

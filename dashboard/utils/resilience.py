@@ -32,6 +32,8 @@ import time
 import requests
 from requests.adapters import HTTPAdapter
 
+from utils.provider_health import record_provider_event
+
 try:  # urllib3 ships with requests; guard just in case
     from urllib3.util.retry import Retry
     _HAS_RETRY = True
@@ -106,6 +108,12 @@ def get_breaker(name: str, **kw) -> CircuitBreaker:
         return b
 
 
+def circuit_states() -> dict[str, str]:
+    """Return a safe snapshot for the Data Trust Center."""
+    with _breakers_lock:
+        return {name: breaker.state() for name, breaker in _breakers.items()}
+
+
 # ── Shared HTTP session ───────────────────────────────────────────────────────
 _session: requests.Session | None = None
 _session_lock = threading.Lock()
@@ -147,13 +155,32 @@ def resilient_get(url: str, *, provider: str, **kwargs) -> requests.Response:
     """
     br = get_breaker(provider)
     if not br.allow():
+        record_provider_event(provider, success=False, error_type="CircuitOpen")
         raise CircuitOpenError(f"circuit_open:{provider}")
+    started = time.perf_counter()
     try:
         r = get_session().get(url, **kwargs)
-        br.record_success()
+        operational = r.status_code < 500 and r.status_code != 429
+        if operational:
+            br.record_success()
+        else:
+            br.record_failure()
+        record_provider_event(
+            provider,
+            success=operational,
+            latency_ms=(time.perf_counter() - started) * 1000,
+            error_type=None if operational else f"HTTP_{r.status_code}",
+            status_code=r.status_code,
+        )
         return r
-    except Exception:
+    except Exception as exc:
         br.record_failure()
+        record_provider_event(
+            provider,
+            success=False,
+            latency_ms=(time.perf_counter() - started) * 1000,
+            error_type=type(exc).__name__,
+        )
         raise
 
 
@@ -162,11 +189,30 @@ def resilient_post(url: str, *, provider: str, **kwargs) -> requests.Response:
     idempotent) — the breaker still provides fast-fail when the provider is down."""
     br = get_breaker(provider)
     if not br.allow():
+        record_provider_event(provider, success=False, error_type="CircuitOpen")
         raise CircuitOpenError(f"circuit_open:{provider}")
+    started = time.perf_counter()
     try:
         r = get_session().post(url, **kwargs)
-        br.record_success()
+        operational = r.status_code < 500 and r.status_code != 429
+        if operational:
+            br.record_success()
+        else:
+            br.record_failure()
+        record_provider_event(
+            provider,
+            success=operational,
+            latency_ms=(time.perf_counter() - started) * 1000,
+            error_type=None if operational else f"HTTP_{r.status_code}",
+            status_code=r.status_code,
+        )
         return r
-    except Exception:
+    except Exception as exc:
         br.record_failure()
+        record_provider_event(
+            provider,
+            success=False,
+            latency_ms=(time.perf_counter() - started) * 1000,
+            error_type=type(exc).__name__,
+        )
         raise

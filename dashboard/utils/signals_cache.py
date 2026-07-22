@@ -19,7 +19,7 @@ PROBLEM SOLVED:
     - User C opens Stock Screener → SEPARATE cache key, scores computed AGAIN
 
   With a single shared function, all five pages draw from the SAME cache entry.
-  One set of score computations per 2-hour window, regardless of which page
+  One set of score computations per 6-hour window, regardless of which page
   the first visitor lands on.
 
 USAGE (all five pages now do this):
@@ -62,6 +62,7 @@ import pandas as pd
 import streamlit as st
 
 from utils.config import SIGNALS
+from utils.product_metrics import SCORE_REFRESH_HOURS
 
 # Parallel cold-warm width. The loop is network-bound (each signal is a cached
 # FRED/EIA/etc fetch), so we can use many more workers than CPUs — a cold cache
@@ -92,6 +93,10 @@ def _error_result(cfg: dict) -> dict:
         "pcs":           cfg.get("pcs", 5),
         "unavailable":   True,
         "error":         True,
+        "provider":      cfg.get("source", "unknown"),
+        "data_state":    "unavailable",
+        "retrieved_at":  None,
+        "cache_age_seconds": None,
     }
 
 
@@ -116,12 +121,16 @@ def _score_one_signal(sig_id: str, cfg: dict, start: str, end: str) -> tuple[str
             "pcs":          cfg.get("pcs", 5),
             "unavailable":  False,
             "error":        False,
+            "provider":     s.attrs.get("provider", cfg.get("source", "unknown")),
+            "data_state":   s.attrs.get("data_state", "live"),
+            "retrieved_at": s.attrs.get("retrieved_at"),
+            "cache_age_seconds": s.attrs.get("cache_age_seconds"),
         }
     except Exception:
         return sig_id, _error_result(cfg)
 
 
-@st.cache_data(ttl=21600, show_spinner=False, max_entries=1)  # 6h — signals are daily; the shared score cache backs every page
+@st.cache_data(ttl=SCORE_REFRESH_HOURS * 3600, show_spinner=False, max_entries=1)
 def get_all_signal_scores(_v: int = 1) -> dict:
     """
     Fetch and score every signal in the SIGNALS library, in parallel.

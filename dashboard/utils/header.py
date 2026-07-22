@@ -1450,6 +1450,43 @@ def disclose_unavailable_signals(all_signals: dict) -> int:
     return n_unavailable
 
 
+def render_data_quality_strip(all_signals: dict) -> None:
+    """Show compact, reusable provenance and freshness context."""
+    if not all_signals:
+        return
+    from utils.provider_health import summarize_signal_quality
+
+    quality = summarize_signal_quality(all_signals)
+    available = quality["total"] - quality["unavailable"]
+    secondary = []
+    if quality["cached_live"]:
+        secondary.append(f'{quality["cached_live"]} cached live')
+    if quality["delayed"]:
+        secondary.append(f'{quality["delayed"]} delayed')
+    detail = " · ".join(secondary) or "all available observations within expected cadence"
+    st.markdown(
+        f"""
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;
+                    flex-wrap:wrap;background:#0F141C;border:1px solid rgba(0,200,224,0.20);
+                    border-left:3px solid #00AFC4;border-radius:8px;padding:11px 14px;
+                    margin:0 0 16px;font-family:Inter,sans-serif;">
+          <div>
+            <div style="font-size:0.67rem;font-weight:750;letter-spacing:0.09em;
+                        text-transform:uppercase;color:#8ECAD3;">Data quality</div>
+            <div style="font-size:0.78rem;color:#C6CEDD;margin-top:3px;">
+              <strong style="color:#E7ECF5;">{available} of {quality['total']} signals available</strong>
+              <span style="color:#7F8BA3;"> · {detail}. No synthetic observations.</span>
+            </div>
+          </div>
+          <a href="/data-trust" style="font-size:0.70rem;color:#9EDBE3;text-decoration:none;
+                    font-weight:700;white-space:nowrap;border:1px solid rgba(0,200,224,0.22);
+                    border-radius:6px;padding:6px 9px;">View data trust</a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def ticker_label(ticker: str) -> str:
     """'TICKER (Full Company Name)' when the company name is known, else just the ticker."""
     company = TICKERS.get(ticker, {}).get("name", "")
@@ -1830,6 +1867,7 @@ a.ua-tnav-item.active { color: #00D566 !important; background: rgba(0,213,102,0.
         <a href="/model-validation">Model Validation</a>
         <a href="/track-record">Track Record</a>
         <a href="/how-signals-work">How Signals Work</a>
+        <a href="/data-trust">Data Trust Center</a>
       </div>
     </div>
 
@@ -2507,7 +2545,7 @@ def render_footer(page: str = "") -> None:
                     <span style="color:#8892AA;font-weight:600;">yfinance</span> (price data)
                 </div>
                 <div style="font-size:0.63rem;color:#4A5280;margin-top:3px;">
-                    Signal data cached every ~2 hours. Scores are not real-time.
+                    Signal data cached every ~6 hours. Scores are not real-time.
                     © {_year} Unstructured Alpha. All rights reserved.
                 </div>
             </div>

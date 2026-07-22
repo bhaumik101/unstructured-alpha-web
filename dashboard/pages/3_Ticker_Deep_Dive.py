@@ -67,7 +67,7 @@ from utils.score_cache import (
     set_session_result,
 )
 from utils.performance import record_timing
-from utils.header import render_header, render_sidebar_base, render_page_header, render_guided_steps, go_to_ticker, ticker_chips, ticker_label, render_data_unavailable_banner, render_footer
+from utils.header import render_header, render_sidebar_base, render_page_header, render_guided_steps, go_to_ticker, ticker_chips, ticker_label, render_data_unavailable_banner, render_data_quality_strip, render_footer
 from utils.analysis import compute_signal_confidence
 from utils.theme import (
     confluence_gauge_svg, style_area_chart, style_chart,
@@ -128,7 +128,7 @@ st.markdown("""
             <div style="font-size:0.82rem;color:#B8C0D4;line-height:1.6;">
                 Type any ticker → get a <b style="color:#E8EEFF;">Confluence Score (0–100)</b> from
                 43 live macro signals, a bull/bear case in plain English, insider activity, earnings
-                catalysts, and signal-by-signal breakdown. Updated every 2 hours from primary sources.
+                catalysts, and signal-by-signal breakdown. Updated every 6 hours from primary sources.
             </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
@@ -501,6 +501,16 @@ render_data_unavailable_banner(
     sum(1 for s in signal_data.values() if is_unavailable(s)),
     len(signal_data),
 )
+render_data_quality_strip({
+    sid: {
+        "data": series,
+        "config": SIGNALS.get(sid, {}),
+        "unavailable": is_unavailable(series),
+        "error": False,
+        "data_state": getattr(series, "attrs", {}).get("data_state", "live"),
+    }
+    for sid, series in signal_data.items()
+})
 
 # Opportunistic score snapshot -- runs once per ticker view, regardless of
 # which section a visitor lands on, since the score

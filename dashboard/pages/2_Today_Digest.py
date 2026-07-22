@@ -6,7 +6,7 @@ logged-in users. The "morning brief" for the platform — one page that
 answers "what changed and what should I look at today?"
 
 Data freshness is deliberately tiered:
-- Signal Pulse: fetched live, cached 2 hours (40 HTTP calls is real cost,
+- Signal Pulse: fetched live, cached 6 hours (40 HTTP calls is real cost,
   not something to redo on every page refresh; 2h is honest for
   monthly/weekly signals whose values don't change intraday anyway).
 - Score Movers: pulled from score_snapshots (the DB built organically by
@@ -327,7 +327,7 @@ elif _brief_section == "Market Intelligence":
         )
         st.html(render_signal_legend())
 
-    with st.spinner("Loading signal pulse (cached 2 hours)…"):
+    with st.spinner("Loading signal pulse (cached 6 hours)…"):
         _all_scores = get_all_signal_scores()
 
     # "as of" reflects when this page rendered, which is close enough — the data

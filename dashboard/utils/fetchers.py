@@ -27,7 +27,7 @@ import os
 import io
 import zipfile
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
@@ -36,6 +36,12 @@ import streamlit as st
 import yfinance as yf
 
 from utils.resilience import resilient_get, resilient_post  # shared session + circuit breakers
+from utils.provider_health import (
+    canonical_provider,
+    get_last_known_good,
+    record_provider_event,
+    remember_last_known_good,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -390,44 +396,89 @@ def fetch_signal_series(cfg: dict, start: str, end: str) -> pd.Series:
     in one place means adding a new source type (like "arxiv") only has to
     happen once instead of being duplicated across five page-level loops.
     """
-    src = cfg.get("source")
+    src = str(cfg.get("source") or "unknown")
+    ids = cfg.get("series_ids") or [cfg.get("series_id", "")]
+    if isinstance(ids, str):
+        ids = [ids]
+    cache_key = f"{src}:{'|'.join(str(item) for item in ids)}:{start}:{end}"
+    # Most sources report transport health in resilient_get/post. These two
+    # clients manage their own HTTP internally, so dispatch is their only
+    # privacy-safe telemetry boundary. Avoid double-counting other providers.
+    records_dispatch_health = src.startswith("yfinance") or src == "google_trends"
     try:
         if src == "fred":
-            return fetch_fred(cfg["series_id"], start, end, api_key=_get_fred_key())
+            result = fetch_fred(cfg["series_id"], start, end, api_key=_get_fred_key())
         elif src == "eia":
-            return fetch_eia(cfg["series_id"], start, end, api_key=_get_eia_key())
+            result = fetch_eia(cfg["series_id"], start, end, api_key=_get_eia_key())
         elif src == "yfinance":
-            return fetch_price(cfg["series_id"], start, end)
+            result = fetch_price(cfg["series_id"], start, end)
         elif src in ("yfinance_basket", "yfinance_multi"):
-            return fetch_basket(cfg.get("series_ids", [cfg.get("series_id", "SPY")]), start, end)
+            result = fetch_basket(cfg.get("series_ids", [cfg.get("series_id", "SPY")]), start, end)
         elif src == "yfinance_ratio":
             ids = cfg.get("series_ids", [])
             if len(ids) < 2:
-                return pd.Series(dtype=float)
-            s1 = fetch_price(ids[0], start, end)
-            s2 = fetch_price(ids[1], start, end)
-            if s1.empty or s2.empty:
-                return pd.Series(dtype=float)
-            combined = pd.concat([s1, s2], axis=1, join="inner").dropna()
-            if combined.empty or (combined.iloc[:, 1] == 0).any():
-                return pd.Series(dtype=float)
-            result = (combined.iloc[:, 0] / combined.iloc[:, 1])
-            result.name = "ratio"
-            return result
+                result = pd.Series(dtype=float)
+            else:
+                s1 = fetch_price(ids[0], start, end)
+                s2 = fetch_price(ids[1], start, end)
+                combined = pd.concat([s1, s2], axis=1, join="inner").dropna()
+                if s1.empty or s2.empty or combined.empty or (combined.iloc[:, 1] == 0).any():
+                    result = pd.Series(dtype=float)
+                else:
+                    result = (combined.iloc[:, 0] / combined.iloc[:, 1])
+                    result.name = "ratio"
         elif src == "arxiv":
-            return fetch_arxiv_velocity(query=cfg.get("series_id", "quantum computing"))
+            result = fetch_arxiv_velocity(query=cfg.get("series_id", "quantum computing"))
         elif src == "fda":
-            return fetch_fda_approval_velocity()
+            result = fetch_fda_approval_velocity()
         elif src == "google_trends":
-            return fetch_google_trends_fear(terms=cfg.get("series_id", "market crash,recession"))
+            result = fetch_google_trends_fear(terms=cfg.get("series_id", "market crash,recession"))
         elif src == "fedspeaks":
-            return fetch_fedspeaks_hawkishness(series_id=cfg.get("series_id", "fomc_hawkishness"))
+            result = fetch_fedspeaks_hawkishness(series_id=cfg.get("series_id", "fomc_hawkishness"))
         elif src == "ny_fed_gscpi":
-            return fetch_ny_fed_gscpi(start, end)
+            result = fetch_ny_fed_gscpi(start, end)
         else:
-            return pd.Series(dtype=float)
-    except Exception:
-        return pd.Series(dtype=float)
+            result = pd.Series(dtype=float)
+
+        attrs = getattr(result, "attrs", {})
+        failed = result is None or result.empty or bool(attrs.get("fetch_error"))
+        if not failed:
+            result = result.copy()
+            result.attrs.update({
+                "provider": canonical_provider(src),
+                "data_state": "live",
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "stale": False,
+            })
+            remember_last_known_good(cache_key, result, provider=src)
+            if records_dispatch_health:
+                record_provider_event(src, success=True)
+            return result
+
+        if records_dispatch_health:
+            record_provider_event(src, success=False, error_type=attrs.get("error_type", "EmptyResponse"))
+        cached = get_last_known_good(cache_key)
+        if cached is not None:
+            return cached
+        if result is None:
+            result = pd.Series(dtype=float)
+        result.attrs.setdefault("provider", canonical_provider(src))
+        result.attrs.setdefault("fetch_error", True)
+        result.attrs.setdefault("error_type", "EmptyResponse")
+        return result
+    except Exception as exc:
+        if records_dispatch_health:
+            record_provider_event(src, success=False, error_type=type(exc).__name__)
+        cached = get_last_known_good(cache_key)
+        if cached is not None:
+            return cached
+        result = pd.Series(dtype=float)
+        result.attrs.update({
+            "provider": canonical_provider(src),
+            "fetch_error": True,
+            "error_type": type(exc).__name__,
+        })
+        return result
 
 
 @st.cache_data(ttl=7200, show_spinner=False, max_entries=40)

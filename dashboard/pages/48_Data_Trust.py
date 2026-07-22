@@ -1,0 +1,170 @@
+"""Public data lineage, freshness, and provider-health transparency."""
+
+from datetime import datetime
+
+import pandas as pd
+import streamlit as st
+
+from utils.header import render_footer, render_header, render_page_header, render_sidebar_base
+from utils.provider_health import (
+    canonical_provider,
+    freshness_for_signal,
+    provider_health_snapshot,
+    provider_label,
+    summarize_signal_quality,
+)
+from utils.resilience import circuit_states
+from utils.signals_cache import get_all_signal_scores
+
+
+st.set_page_config(page_title="Data Trust Center — UA", layout="wide")
+render_header("Data Trust Center")
+section = render_sidebar_base(
+    page_title="Data Trust Center",
+    sections=("Coverage Overview", "Provider Health", "Signal Freshness", "Methodology"),
+    section_key="data_trust_section_rail",
+)
+render_page_header(
+    "Data Trust Center",
+    "See which real-world sources are available, how current each observation is, and how provider failures are handled.",
+    live_stat="No synthetic data",
+)
+
+
+def _status_label(state: str) -> str:
+    return {
+        "fresh": "Fresh",
+        "cached_live": "Cached live",
+        "delayed": "Delayed",
+        "unavailable": "Unavailable",
+        "operational": "Operational",
+        "degraded": "Degraded",
+        "not_checked": "Not checked",
+    }.get(state, state.replace("_", " ").title())
+
+
+def _time_label(value: str | None) -> str:
+    if not value:
+        return "—"
+    try:
+        return datetime.fromisoformat(value).strftime("%b %d, %H:%M UTC")
+    except Exception:
+        return str(value)[:19].replace("T", " ")
+
+
+signals = {} if section == "Methodology" else get_all_signal_scores()
+
+if section == "Coverage Overview":
+    quality = summarize_signal_quality(signals)
+    available = quality["total"] - quality["unavailable"]
+    cols = st.columns(4)
+    cols[0].metric("Available signals", f"{available} / {quality['total']}")
+    cols[1].metric("Fresh", quality["fresh"])
+    cols[2].metric("Cached live", quality["cached_live"])
+    cols[3].metric("Unavailable", quality["unavailable"])
+
+    st.markdown(
+        """
+        <div style="background:#0F141C;border:1px solid rgba(0,200,224,.18);border-radius:9px;
+                    padding:16px 18px;margin:14px 0 22px;font-family:Inter,sans-serif;">
+          <div style="font-size:.68rem;color:#8ECAD3;text-transform:uppercase;letter-spacing:.10em;
+                      font-weight:750;">Integrity standard</div>
+          <div style="font-size:.86rem;color:#D9E0EC;line-height:1.6;margin-top:6px;">
+            Unstructured Alpha never fills a missing observation with a fabricated value. A live-source
+            failure is excluded, or—when this service has already fetched a genuine result—the last
+            successful observation may remain visible as <strong style="color:#B7DCE2;">cached live</strong>
+            with its age disclosed.
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    coverage: dict[str, dict] = {}
+    for signal in signals.values():
+        fresh = freshness_for_signal(signal)
+        key = canonical_provider(fresh["provider"])
+        row = coverage.setdefault(key, {"Provider": provider_label(key), "Signals": 0, "Available": 0,
+                                        "Fresh": 0, "Cached live": 0, "Delayed": 0, "Unavailable": 0})
+        row["Signals"] += 1
+        if fresh["state"] != "unavailable":
+            row["Available"] += 1
+        row[_status_label(fresh["state"])] += 1
+    frame = pd.DataFrame(coverage.values()).sort_values(["Unavailable", "Provider"], ascending=[False, True])
+    st.markdown("### Coverage by provider")
+    st.caption("Availability reflects the current shared signal snapshot; delayed data can still be valid for weekly or monthly releases.")
+    st.dataframe(frame, hide_index=True, width="stretch")
+
+elif section == "Provider Health":
+    rows = []
+    for provider in provider_health_snapshot(circuit_states()):
+        rows.append({
+            "Provider": provider["label"],
+            "Status": _status_label(provider["state"]),
+            "Circuit": provider["circuit"].replace("_", " ").title(),
+            "Expected cadence": provider["expected_cadence"],
+            "Checks": provider["requests"],
+            "Avg latency": f'{provider["latency_ms"]:.0f} ms' if provider["latency_ms"] is not None else "—",
+            "Last success": _time_label(provider["last_success"]),
+            "Last error": provider["last_error"] or "—",
+        })
+    st.markdown("### Current provider health")
+    st.caption(
+        "This is a privacy-safe view of outbound calls made by the current web service process. "
+        "Not checked means no call has been observed since the service last started; it does not mean the provider is down."
+    )
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    st.info("Circuit breakers pause repeated calls to an unhealthy provider, reducing page delays and unnecessary API usage.")
+
+elif section == "Signal Freshness":
+    rows = []
+    for signal_id, signal in signals.items():
+        fresh = freshness_for_signal(signal)
+        cfg = signal.get("config") or {}
+        fallback_age = fresh.get("cache_age_seconds")
+        rows.append({
+            "Signal": signal.get("name") or cfg.get("name") or signal_id,
+            "Category": str(signal.get("category") or cfg.get("category") or "Other").replace("_", " ").title(),
+            "Provider": provider_label(fresh["provider"]),
+            "Frequency": str(cfg.get("frequency") or "Provider dependent").replace("_", " ").title(),
+            "Last observation": fresh["last_observation"] or "—",
+            "Fallback age": f"{fallback_age / 3600:.1f} hr" if fallback_age is not None else "—",
+            "State": _status_label(fresh["state"]),
+            "Score": None if fresh["state"] == "unavailable" else round(float(signal.get("score", 50)), 1),
+        })
+    state_filter = st.segmented_control(
+        "Show",
+        ["All", "Fresh", "Cached live", "Delayed", "Unavailable"],
+        default="All",
+        key="data_trust_state_filter",
+    )
+    if state_filter and state_filter != "All":
+        rows = [row for row in rows if row["State"] == state_filter]
+    st.caption("Freshness thresholds respect each signal's release frequency; a monthly series is not judged like a daily market price.")
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+
+else:
+    st.markdown("### What each state means")
+    definitions = [
+        ("Fresh", "The latest real observation is within the expected window for that signal's release frequency."),
+        ("Cached live", "A provider call failed, so the service is showing a labeled copy of a genuine result fetched earlier by this running service."),
+        ("Delayed", "Real data exists, but the latest observation is older than expected for its configured cadence."),
+        ("Unavailable", "No trustworthy observation is available. The signal is excluded rather than assigned a placeholder value."),
+        ("Degraded provider", "A recent call failed or a circuit breaker is testing recovery. Other providers continue independently."),
+    ]
+    for title, body in definitions:
+        st.markdown(f"**{title}**")
+        st.write(body)
+
+    st.markdown("### Reliability safeguards")
+    st.write(
+        "Provider requests use pooled connections, bounded retries for safe idempotent calls, timeouts, and independent circuit breakers. "
+        "Telemetry records only provider name, outcome, latency, status class, and time—never API keys, request URLs, or response payloads."
+    )
+    st.markdown("### Scoring contract")
+    st.write(
+        "Unavailable signals do not receive a synthetic neutral observation. Coverage warnings appear wherever a partial source set could affect interpretation, "
+        "and the Data Trust Center exposes that coverage in one place."
+    )
+
+render_footer(page="signals")

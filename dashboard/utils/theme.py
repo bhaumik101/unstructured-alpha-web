@@ -1998,7 +1998,7 @@ def render_signal_legend() -> str:
 
 def render_data_freshness(
     source: str = "FRED / EIA / SEC EDGAR",
-    cadence: str = "Updated every ~2 hours",
+    cadence: str = "Updated every ~6 hours",
     note: str = "",
 ) -> str:
     """

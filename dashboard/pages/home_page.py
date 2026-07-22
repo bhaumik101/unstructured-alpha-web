@@ -357,7 +357,7 @@ st.markdown(
     f'</div>'
     f'<div style="display:flex;justify-content:space-between;margin-top:7px;">'
     f'<div style="font-size:0.60rem;color:#00D566;font-weight:600;">▲ Bullish {_bar_bull}</div>'
-    f'<div style="font-size:0.60rem;color:#6B7FBF;">Updated every 2 hours</div>'
+    f'<div style="font-size:0.60rem;color:#6B7FBF;">Updated every 6 hours</div>'
     f'<div style="font-size:0.60rem;color:#FF4444;font-weight:600;">Bearish {_bar_bear} ▼</div>'
     f'</div>'
     f'</div>',
@@ -492,7 +492,7 @@ if _anon_user:
         See all 47 macro signals sorted by strength. Filter by category.
         Each card explains what the signal means in plain English.
       </div>
-      <div style="font-size:0.70rem;color:#A78BFA;font-weight:600;">→ Free · Signals update every 2 hours</div>
+      <div style="font-size:0.70rem;color:#A78BFA;font-weight:600;">→ Free · Signals update every 6 hours</div>
     </div>
 
     <div style="flex:1;min-width:200px;background:rgba(0,200,224,0.06);
@@ -1238,7 +1238,7 @@ st.markdown("""
 <div style="font-size:1.1rem;font-weight:800;color:#E8EEFF;font-family:Inter,sans-serif;
             margin-bottom:4px;letter-spacing:-0.3px;">Sector Rotation Signal Map — live preview</div>
 <div style="font-size:0.80rem;color:#8892AA;margin-bottom:16px;font-family:Inter,sans-serif;">
-    Which sectors do the signals currently favor? Updated every 2 hours.
+    Which sectors do the signals currently favor? Updated every 6 hours.
 </div>
 """, unsafe_allow_html=True)
 

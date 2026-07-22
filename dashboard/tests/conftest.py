@@ -4,7 +4,7 @@ Shared fixtures for the Unstructured Alpha regression suite.
 Run with:  pytest tests/  (from the dashboard/ directory)
 
 These tests run fully offline-safe: pages that fetch live data (FRED, EIA,
-yfinance) are expected to fall back to synthetic data or an empty Series
+yfinance) are expected to fall back to explicitly unavailable empty results
 when network access is unavailable, and that fallback path itself is part
 of what's under test — a page should never raise, even with zero network
 access and zero API keys configured.
@@ -134,6 +134,7 @@ ROUTED_PAGES = [
     "pages/45_Options_Flow.py",
     "pages/46_Thesis_Journal.py",
     "pages/47_Account_Setup.py",
+    "pages/48_Data_Trust.py",
 ]
 
 # pages/2_Signal_Analysis.py and pages/7_Macro_Monitor.py used to be kept
