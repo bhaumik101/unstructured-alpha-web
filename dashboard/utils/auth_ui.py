@@ -169,7 +169,8 @@ def _render_verification_form(cookies: CookieManager, key_prefix: str = "") -> N
                 cookies.save()
                 st.session_state["_remember_token"] = token
                 st.session_state.pop("pending_verification_email", None)
-                st.rerun()
+                st.session_state["_account_setup_route_attempted"] = True
+                st.switch_page("pages/47_Account_Setup.py")
             except AuthError as e:
                 st.error(str(e))
 

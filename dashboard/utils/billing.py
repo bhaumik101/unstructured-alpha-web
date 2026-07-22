@@ -244,14 +244,22 @@ def handle_checkout_success(session_id: str, user_id: int) -> dict:
         except Exception as exc:
             logger.warning("mark_referral_converted failed for user %s: %s", user_id, exc)
 
-        # Auto-opt into morning digest and record trial end date.
-        # New Pro users get digest by default — they can turn it off in settings.
+        # Activate the member's saved briefing preference and record trial end.
+        # Legacy accounts with no saved preference retain the historical Pro
+        # default (morning email on); setup users who chose in-app remain off.
         # trial_end_at lets the day-6 reminder cron identify who to email.
         try:
-            from sqlalchemy import update as sa_update
+            from sqlalchemy import select as sa_select, update as sa_update
             from utils.db import engine, users
 
-            extra: dict = {"digest_opted_in": True}
+            with engine.connect() as conn:
+                saved_preference = conn.execute(
+                    sa_select(users.c.digest_preference).where(users.c.id == user_id)
+                ).scalar_one_or_none()
+            extra: dict = {
+                "digest_opted_in": saved_preference != "in_app",
+                "digest_preference": saved_preference or "morning_email",
+            }
             if sub and sub.get("trial_end"):
                 extra["trial_end_at"] = datetime.fromtimestamp(
                     sub["trial_end"], tz=timezone.utc

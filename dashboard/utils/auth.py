@@ -542,7 +542,10 @@ def update_display_name(user_id: int, display_name: str) -> str:
 def set_digest_optin(user_id: int, opted_in: bool) -> None:
     """Toggle the morning digest opt-in for a user."""
     with db.engine.begin() as conn:
-        conn.execute(update(users).where(users.c.id == user_id).values(digest_opted_in=opted_in))
+        conn.execute(update(users).where(users.c.id == user_id).values(
+            digest_opted_in=opted_in,
+            digest_preference="morning_email" if opted_in else "in_app",
+        ))
 
 
 def get_digest_optin(user_id: int) -> bool:
