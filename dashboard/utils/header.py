@@ -1458,8 +1458,8 @@ def _render_topnav() -> None:
     """
     # Pro members see a small "PRO" badge in place of the "Upgrade" CTA;
     # admins see an "ADMIN" badge. Tier is read via effective_is_pro() (DB-backed,
-    # session-cached) because the session user dict only holds {id, email} —
-    # it does NOT carry subscription_tier, so reading that key always failed.
+    # session-cached) because the safe session identity intentionally does not
+    # carry subscription_tier, so reading that key would always fail.
     from utils.billing import effective_is_pro, is_admin
     _hdr_user = st.session_state.get("user")
     _hdr_admin = is_admin(_hdr_user)
@@ -2046,11 +2046,12 @@ def render_header(page_subtitle: str = "") -> None:
     if _uid:
         try:
             from utils.prediction_log import (
-                get_unread_notification_count, get_recent_notifications, mark_all_read
+                clear_notifications, get_unread_notification_count,
+                get_recent_notifications, mark_all_read,
             )
             _unread = get_unread_notification_count(_uid)
             _badge_text = f" {_unread if _unread < 100 else '99+'}" if _unread > 0 else ""
-            _notification_api = (get_recent_notifications, mark_all_read)
+            _notification_api = (get_recent_notifications, mark_all_read, clear_notifications)
             with _bell_col:
                 if st.button(
                     f"Notifications{_badge_text}",
@@ -2066,7 +2067,14 @@ def render_header(page_subtitle: str = "") -> None:
     # Account widget — all users
     with _acct_col:
         if _hdr_user:
-            with st.popover("Account", use_container_width=True):
+            _identity_name = (_hdr_user.get("display_name") or "Account").strip()
+            _identity_button = _identity_name if len(_identity_name) <= 20 else f"{_identity_name[:19]}…"
+            with st.popover(_identity_button, use_container_width=True):
+                if _hdr_user.get("display_name"):
+                    st.text(_hdr_user["display_name"])
+                    st.caption(_hdr_user.get("email", ""))
+                if st.button("My Profile", key="topright_profile", use_container_width=True):
+                    st.switch_page("pages/32_Profile.py")
                 if st.button("Log Out", key="topright_logout", use_container_width=True):
                     logout()
                     st.rerun()
@@ -2086,8 +2094,8 @@ def render_header(page_subtitle: str = "") -> None:
                     '<div class="ua-notification-title">System Notifications</div>',
                     unsafe_allow_html=True,
                 )
-                _get_recent_notifications, _mark_all_read = _notification_api
-                _notifs = _get_recent_notifications(limit=10)
+                _get_recent_notifications, _mark_all_read, _clear_notifications = _notification_api
+                _notifs = _get_recent_notifications(limit=10, user_id=_uid)
                 if not _notifs:
                     st.caption(
                         "No notifications yet. Convergence events and prediction resolutions will appear here."
@@ -2116,13 +2124,25 @@ def render_header(page_subtitle: str = "") -> None:
                             f'</div>',
                             unsafe_allow_html=True,
                         )
-                if _unread > 0 and st.button(
-                    "Mark all read",
-                    key="_notif_mark_read",
-                    use_container_width=True,
-                ):
-                    _mark_all_read(_uid)
-                    st.rerun()
+                if _notifs:
+                    _read_col, _clear_col = st.columns(2)
+                    if _unread > 0 and _read_col.button(
+                        "Mark read",
+                        key="_notif_mark_read",
+                        use_container_width=True,
+                    ):
+                        _mark_all_read(_uid)
+                        st.rerun()
+                    if _clear_col.button(
+                        "Clear",
+                        key="_notif_clear",
+                        use_container_width=True,
+                        help="Remove all current notifications from your feed",
+                    ):
+                        if _clear_notifications(_uid):
+                            st.rerun()
+                        else:
+                            st.error("Could not clear notifications. Try again.")
 
 
 @st.cache_data(ttl=60, max_entries=1, show_spinner=False)
@@ -2385,9 +2405,10 @@ def render_sidebar_base(
         # render_header() (utils.auth_ui.render_account_widget()).
         user = st.session_state.get("user")
         if user:
+            _sidebar_identity = html_escape(user.get("display_name") or user.get("email", "Account"))
             st.markdown(
                 f'<div style="font-size:0.78rem;color:#8892AA;margin-bottom:4px;">'
-                f'Logged in as<br><b style="color:#E8EEFF;">{user["email"]}</b></div>',
+                f'Signed in as<br><b style="color:#E8EEFF;">{_sidebar_identity}</b></div>',
                 unsafe_allow_html=True,
             )
             if st.button("Log Out", key="sidebar_logout", use_container_width=True):

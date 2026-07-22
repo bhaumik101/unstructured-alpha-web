@@ -87,6 +87,16 @@ class AccountLockedError(AuthError):
     """
 
 
+def _user_payload(row) -> dict:
+    """Return the safe identity fields carried in authenticated sessions."""
+    display_name = row.get("display_name") if hasattr(row, "get") else None
+    return {
+        "id": row["id"],
+        "email": row["email"],
+        "display_name": display_name or None,
+    }
+
+
 def _validate_email(email: str) -> str:
     email = email.strip().lower()
     if not _EMAIL_RE.match(email):
@@ -208,7 +218,7 @@ def verify_email(email: str, code: str) -> dict:
     if row is None:
         raise AuthError("No account found with that email.")
     if row["email_verified"]:
-        return {"id": row["id"], "email": row["email"]}
+        return _user_payload(row)
 
     if not row.get("verification_code_hash") or not row.get("verification_code_expires_at"):
         raise AuthError("No verification code is pending for this account. Request a new one.")
@@ -262,7 +272,7 @@ def verify_email(email: str, code: str) -> dict:
             "Welcome email failed for %s: %s", row["email"], _exc
         )
 
-    return {"id": row["id"], "email": row["email"]}
+    return _user_payload(row)
 
 
 def login(email: str, password: str) -> dict:
@@ -333,7 +343,7 @@ def login(email: str, password: str) -> dict:
             last_login_at=_now_iso(),
         ))
 
-    return {"id": row["id"], "email": row["email"]}
+    return _user_payload(row)
 
 
 def issue_remember_token(user_id: int) -> str:
@@ -362,14 +372,19 @@ def issue_remember_token(user_id: int) -> str:
 def verify_remember_token(token: str) -> dict | None:
     """
     Look up a raw token (as read back from the browser cookie) by its
-    hash. Returns the user dict ({"id", "email"}) if it matches a
+    hash. Returns the safe identity dict ({"id", "email", "display_name"}) if it matches a
     non-expired row, else None -- callers treat None as "fall through to
     the normal login form," not as an error, since an expired or
     already-revoked cookie is an entirely expected, non-exceptional case.
     """
     with db.engine.begin() as conn:
         row = conn.execute(
-            select(remember_tokens.c.user_id, remember_tokens.c.expires_at, users.c.email)
+            select(
+                remember_tokens.c.user_id,
+                remember_tokens.c.expires_at,
+                users.c.email,
+                users.c.display_name,
+            )
             .join(users, users.c.id == remember_tokens.c.user_id)
             .where(remember_tokens.c.token_hash == _hash_code(token))
         ).mappings().first()
@@ -397,7 +412,11 @@ def verify_remember_token(token: str) -> dict | None:
     except Exception:
         pass  # never block session restore for a timestamp write failure
 
-    return {"id": row["user_id"], "email": row["email"]}
+    return {
+        "id": row["user_id"],
+        "email": row["email"],
+        "display_name": row.get("display_name") or None,
+    }
 
 
 def revoke_remember_token(token: str) -> None:
@@ -508,11 +527,16 @@ def get_full_profile(user_id: int) -> dict | None:
     return dict(row)
 
 
-def update_display_name(user_id: int, display_name: str) -> None:
-    """Save or clear the display name for a user."""
-    name = display_name.strip()[:64] if display_name else None
+def update_display_name(user_id: int, display_name: str) -> str:
+    """Validate and save the friendly identity shown throughout the product."""
+    name = " ".join((display_name or "").split())
+    if len(name) < 2:
+        raise AuthError("Display name must be at least 2 characters.")
+    if len(name) > 48:
+        raise AuthError("Display name must be 48 characters or fewer.")
     with db.engine.begin() as conn:
         conn.execute(users.update().where(users.c.id == user_id).values(display_name=name))
+    return name
 
 
 def set_digest_optin(user_id: int, opted_in: bool) -> None:

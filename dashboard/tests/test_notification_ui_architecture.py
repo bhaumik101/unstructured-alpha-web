@@ -20,8 +20,14 @@ def test_notification_feed_is_deferred_until_the_tray_is_open():
     open_guard = HEADER.index(
         'if _uid and _notification_api and st.session_state.get("_notification_tray_open", False):'
     )
-    feed_fetch = HEADER.index("_get_recent_notifications(limit=10)")
+    feed_fetch = HEADER.index("_get_recent_notifications(limit=10, user_id=_uid)")
     assert feed_fetch > open_guard
+
+
+def test_notification_tray_exposes_per_user_clear_action():
+    assert "clear_notifications" in HEADER
+    assert 'key="_notif_clear"' in HEADER
+    assert '"Clear"' in HEADER
 
 
 def test_notification_content_is_escaped_before_html_rendering():

@@ -357,6 +357,10 @@ def get_unread_notification_count(user_id: int | None) -> int:
                     .where(db.system_notifications.c.created_at >= cutoff)
                 ).fetchall()
                 return len(rows)
+            cleared_through = conn.execute(
+                select(db.notification_clear_state.c.cleared_through_id)
+                .where(db.notification_clear_state.c.user_id == user_id)
+            ).scalar() or 0
             read_ids = conn.execute(
                 select(db.notification_reads.c.notification_id)
                 .where(db.notification_reads.c.user_id == user_id)
@@ -364,6 +368,7 @@ def get_unread_notification_count(user_id: int | None) -> int:
             all_ids = conn.execute(
                 select(db.system_notifications.c.id)
                 .where(db.system_notifications.c.created_at >= cutoff)
+                .where(db.system_notifications.c.id > cleared_through)
             ).scalars().all()
         return len(set(all_ids) - set(read_ids))
     except Exception:
@@ -486,18 +491,50 @@ def get_signal_accuracy_stats() -> list[dict]:
     return results
 
 
-def get_recent_notifications(limit: int = 20) -> list[dict]:
-    """Return the most recent system notifications for the bell feed."""
+def get_recent_notifications(limit: int = 20, user_id: int | None = None) -> list[dict]:
+    """Return recent feed items not cleared by the requesting user."""
     try:
         with db.engine.begin() as conn:
-            rows = conn.execute(
+            query = (
                 select(db.system_notifications)
                 .order_by(db.system_notifications.c.id.desc())
                 .limit(limit)
-            ).mappings().all()
+            )
+            if user_id is not None:
+                cleared_through = conn.execute(
+                    select(db.notification_clear_state.c.cleared_through_id)
+                    .where(db.notification_clear_state.c.user_id == user_id)
+                ).scalar() or 0
+                query = query.where(db.system_notifications.c.id > cleared_through)
+            rows = conn.execute(query).mappings().all()
         return [dict(r) for r in rows]
     except Exception:
         return []
+
+
+def clear_notifications(user_id: int) -> bool:
+    """Hide all current feed items for one user while preserving future ones."""
+    try:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        with db.engine.begin() as conn:
+            latest_id = conn.execute(
+                select(db.system_notifications.c.id)
+                .order_by(db.system_notifications.c.id.desc())
+                .limit(1)
+            ).scalar() or 0
+            stmt = db.upsert_stmt(db.notification_clear_state, ["user_id"]).values(
+                user_id=user_id,
+                cleared_through_id=latest_id,
+                cleared_at=now_iso,
+            )
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["user_id"],
+                set_={"cleared_through_id": latest_id, "cleared_at": now_iso},
+            )
+            conn.execute(stmt)
+        return True
+    except Exception:
+        return False
 
 
 def mark_all_read(user_id: int) -> None:
@@ -505,8 +542,13 @@ def mark_all_read(user_id: int) -> None:
     try:
         now_iso = datetime.now(timezone.utc).isoformat()
         with db.engine.begin() as conn:
+            cleared_through = conn.execute(
+                select(db.notification_clear_state.c.cleared_through_id)
+                .where(db.notification_clear_state.c.user_id == user_id)
+            ).scalar() or 0
             all_ids = conn.execute(
                 select(db.system_notifications.c.id)
+                .where(db.system_notifications.c.id > cleared_through)
             ).scalars().all()
             existing = set(conn.execute(
                 select(db.notification_reads.c.notification_id)
