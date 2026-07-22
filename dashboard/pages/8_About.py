@@ -555,11 +555,19 @@ Most platforms that show a composite "smart score" disclose none of this.
 </div>
 """, unsafe_allow_html=True)
 
-    with st.spinner("Running validation suite…"):
-        try:
-            _val_results = validate_all_macro_signals()
-        except Exception:
-            _val_results = {}
+    _val_results = st.session_state.get("_about_validation_results")
+    if st.button(
+        "Run live validation",
+        key="run_pcs_backtest",
+        help="Runs the full out-of-sample validation pass. Results are retained for this session.",
+    ):
+        with st.spinner("Running validation suite…"):
+            try:
+                _val_results = validate_all_macro_signals()
+                st.session_state["_about_validation_results"] = _val_results
+            except Exception as _validation_error:
+                _val_results = {}
+                st.warning(f"Live validation is unavailable right now: {_validation_error}")
 
     if _val_results:
         import pandas as pd
@@ -585,4 +593,4 @@ Most platforms that show a composite "smart score" disclose none of this.
     else:
         _static = get_static_validation_summary()
         st.markdown(f"<pre style='font-size:0.75rem;color:#8892AA;'>{_static}</pre>", unsafe_allow_html=True)
-        st.caption("Live backtest unavailable — showing cached summary.")
+        st.caption("Showing the published validation summary. Run live validation to refresh the evidence.")

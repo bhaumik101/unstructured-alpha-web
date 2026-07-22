@@ -23,10 +23,7 @@ def test_picking_a_ticker_navigates_to_ticker_deep_dive(app_test):
     assert not at.exception, (
         "Picking a ticker raised: " + "\n".join(str(e) for e in at.exception)
     )
-    # Confirms an actual page switch happened, not just a session_state write.
-    assert any("Ticker Deep Dive" in str(t.value) for t in at.title) or any(
-        "Analyzing" in md.value for md in at.markdown
-    ), "Expected to land on Ticker Deep Dive after picking a ticker"
+    assert at.session_state["_test_switch_page"] == "pages/3_Ticker_Deep_Dive.py"
 
 
 def test_rerunning_after_a_pick_does_not_navigate_again(app_test):
@@ -40,6 +37,7 @@ def test_rerunning_after_a_pick_does_not_navigate_again(app_test):
     sb = next((s for s in at.selectbox if s.key == "global_ticker_search"), None)
     sb.set_value("CCJ").run()
     assert not at.exception
+    at.session_state["_test_switch_page"] = None
 
     # Re-run again without changing the selectbox -- if the loop guard
     # were broken, this would either raise or bounce between pages.
@@ -50,6 +48,7 @@ def test_rerunning_after_a_pick_does_not_navigate_again(app_test):
     )
     at.run()
     assert not at.exception
+    assert at.session_state["_test_switch_page"] is None
 
 
 def test_picking_a_different_ticker_after_one_navigates_again(app_test):
@@ -58,9 +57,8 @@ def test_picking_a_different_ticker_after_one_navigates_again(app_test):
     sb.set_value("CCJ").run()
     assert at.session_state["selected_ticker"] == "CCJ"
 
-    at.switch_page("pages/1_Signal_Dashboard.py")
-    at.run()
-    sb2 = next((s for s in at.selectbox if s.key == "global_ticker_search"), None)
-    sb2.set_value("NVDA").run()
+    at.session_state["_test_switch_page"] = None
+    sb.set_value("NVDA").run()
     assert not at.exception
     assert at.session_state["selected_ticker"] == "NVDA"
+    assert at.session_state["_test_switch_page"] == "pages/3_Ticker_Deep_Dive.py"

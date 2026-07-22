@@ -7,19 +7,15 @@ signal↔ticker impact map, so we stub utils.config in sys.modules before import
 Every numeric assertion has a hand-derived expected value in its comment.
 """
 
-import sys
-import types
-
 import pytest
 
-_stub = types.ModuleType("utils.config")
-_stub.CATEGORIES = {
+STUB_CATEGORIES = {
     "financials": {"name": "Financials & Credit"},
     "energy":     {"name": "Energy & Oil"},
     "macro":      {"name": "Macro & Liquidity"},
     "ai_infrastructure": {"name": "AI Infrastructure"},
 }
-_stub.SIGNALS = {
+STUB_SIGNALS = {
     "hy_spread":         {"name": "High-Yield Credit Spread", "category": "financials",
                           "relevant_tickers": ["JPM", "XLF"], "description": "Credit stress gauge; wider spreads signal risk-off."},
     "crude_inventories": {"name": "Crude Inventories", "category": "energy",
@@ -31,26 +27,33 @@ _stub.SIGNALS = {
     "semiconductor_etf": {"name": "Semiconductor Capex", "category": "ai_infrastructure",
                           "relevant_tickers": ["NVDA"], "description": "Chip capex."},
 }
-_stub.TICKERS = {
+STUB_TICKERS = {
     "JPM":  {"sector": "Financial Services", "signals": ["hy_spread"]},
     "XLF":  {"sector": "Financials ETF",     "signals": ["hy_spread"]},
     "XOM":  {"sector": "Energy",             "signals": ["crude_inventories"]},
     "SPY":  {"sector": "ETF",                "signals": ["vix", "hy_spread"]},
     "NVDA": {"sector": "Technology",         "signals": ["semiconductor_etf"]},
 }
-sys.modules.setdefault("utils.config", _stub)
 
 # stub utils.taxonomy — what_changed now groups "affects" by macro-factor family
-_tax = types.ModuleType("utils.taxonomy")
 _TAXMAP = {"hy_spread": "credit", "crude_inventories": "energy", "insider_x": "growth",
            "vix": "volatility", "semiconductor_etf": "capex_tech"}
 _TAXNAMES = {"credit": "Credit", "energy": "Energy", "growth": "Growth",
              "volatility": "Volatility & Positioning", "capex_tech": "Capex & Technology"}
-_tax.factor_family_of = lambda s: _TAXMAP.get(s, "growth")
-_tax.factor_family_name = lambda f: _TAXNAMES.get(f, f.replace("_", " ").title())
-sys.modules["utils.taxonomy"] = _tax
+from utils import what_changed as wc
 
-from utils import what_changed as wc  # noqa: E402
+
+@pytest.fixture(autouse=True)
+def _stub_what_changed_config(monkeypatch):
+    monkeypatch.setattr(wc, "SIGNALS", STUB_SIGNALS)
+    monkeypatch.setattr(wc, "TICKERS", STUB_TICKERS)
+    monkeypatch.setattr(wc, "CATEGORIES", STUB_CATEGORIES)
+    monkeypatch.setattr(wc.taxonomy, "factor_family_of", lambda s: _TAXMAP.get(s, "growth"))
+    monkeypatch.setattr(
+        wc.taxonomy,
+        "factor_family_name",
+        lambda f: _TAXNAMES.get(f, f.replace("_", " ").title()),
+    )
 
 
 def _diff():

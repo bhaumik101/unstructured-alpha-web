@@ -522,8 +522,26 @@ score_status       = {
 insider_score      = _score_result.get("insider_score")
 short_interest_score = _score_result.get("short_interest_score")
 thirteenf_score    = _score_result.get("thirteenf_score")
-_insider_tx        = _score_result.get("insider_tx") or []
-_thirteenf_rows    = _score_result.get("thirteenf_fund_rows") or []
+
+
+def _record_list(value) -> list[dict]:
+    """Normalize provider table shapes without truth-testing DataFrames."""
+    if value is None:
+        return []
+    if hasattr(value, "to_dict"):
+        try:
+            return value.to_dict(orient="records")
+        except TypeError:
+            pass
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return []
+
+
+_insider_tx        = _record_list(_score_result.get("insider_tx"))
+_thirteenf_rows    = _record_list(_score_result.get("thirteenf_fund_rows"))
 
 # Preview metrics
 with st.spinner(f"Loading {ticker_input} price data…"):

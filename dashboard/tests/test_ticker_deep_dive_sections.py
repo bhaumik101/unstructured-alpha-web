@@ -29,18 +29,15 @@ def _all_markdown_text(at):
     return " ".join(md.value for md in at.markdown)
 
 
-def test_viewing_a_ticker_records_a_score_snapshot(app_test):
+def test_overview_does_not_record_a_macro_score_as_full_history(app_test):
     """
-    The score-snapshot write (utils/score_history.py, wired in right
-    after compute_full_ticker_score()) must actually happen on a normal
-    page view, not just exist as dead code. Uses get_score_history()
-    directly rather than asserting an exact count -- this suite's tests
-    share one real (temp, file-based) SQLite DB for the whole session
-    (see tests/conftest.py), not a fresh in-memory one per test, so other
-    tests may have already visited the same default ticker (CCJ) earlier
-    in the run. "At least one row now exists" is what's actually
-    guaranteed; an exact count would be testing test-execution order, not
-    the feature.
+    Overview intentionally computes the cheaper macro+momentum score. It must
+    never persist that partial metric as an authoritative full-score snapshot.
+
+    This assertion compares before/after counts because the suite shares one
+    temporary SQLite database and an earlier test may legitimately have stored
+    a full CCJ score. The invariant is that opening Overview does not add or
+    overwrite full-score history with its different metric.
     """
     from utils.score_history import get_score_history
     from utils.db import init_db
@@ -52,14 +49,7 @@ def test_viewing_a_ticker_records_a_score_snapshot(app_test):
         "Ticker Deep Dive view raised: " + "\n".join(str(e) for e in at.exception)
     )
     history = get_score_history("CCJ")
-    warnings = " ".join(w.value for w in at.warning)
-    if "Provisional score" in warnings:
-        # A provider outage must not be persisted as today's authoritative full
-        # score. This is the expected offline-test path.
-        assert len(history) == len(before)
-    else:
-        assert len(history) >= 1, "Expected a complete score snapshot row for CCJ after viewing it"
-        assert history[-1]["score"] is not None
+    assert history == before
 
 
 def test_sector_percentile_section_renders_without_exception(app_test):

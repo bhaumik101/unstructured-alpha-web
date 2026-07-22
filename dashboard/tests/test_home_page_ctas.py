@@ -37,3 +37,4 @@ def test_cta_button_navigates_to_expected_page(app_test, key, target_page):
     assert not at.exception, (
         f"Clicking {key!r} raised: " + "\n".join(str(e) for e in at.exception)
     )
+    assert at.session_state["_test_switch_page"] == target_page

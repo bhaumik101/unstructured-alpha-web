@@ -223,10 +223,16 @@ def fire_alerts_for_user(user_id: int, alerts: list[dict]) -> int:
     Look up this user's webhook URL and fire all given alerts to it.
     Returns 0 immediately if no webhook is configured — safe to call always.
     """
-    url = get_webhook_url(user_id)
-    if not url:
+    try:
+        url = get_webhook_url(user_id)
+        if not url:
+            return 0
+        return fire_alerts(url, alerts)
+    except Exception:
+        # This path is commonly called from a background alert thread. A DB
+        # migration race, shutdown, or transient connection error must not
+        # escape the thread and pollute page/test execution.
         return 0
-    return fire_alerts(url, alerts)
 
 
 # ── Test-fire helper (used by Watchlist settings UI) ─────────────────────────
