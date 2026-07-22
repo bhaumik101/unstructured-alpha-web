@@ -13,7 +13,7 @@ import streamlit as st
 
 from utils.header import (
     render_header, render_page_header, render_sidebar_base,
-    disclose_unavailable_signals, count_unavailable_signals,
+    render_guided_steps, disclose_unavailable_signals, count_unavailable_signals,
 )
 from utils.signals_cache import get_all_signal_scores
 from utils.theme import inject_skeleton_css, skeleton_cards
@@ -469,10 +469,15 @@ if _requested_export_ticker:
     st.session_state["export_ticker_input"] = _requested_export_ticker
 _prefill = st.session_state.get("export_ticker_input", "NVDA")
 
-st.info(
-    "**How PDF export works:** confirm the ticker, select **Generate PDF Report**, "
-    "then use the download button that appears below. Reports use live available "
-    "sources only and clearly label any unavailable coverage."
+render_guided_steps(
+    "Build a presentation-ready research report",
+    [
+        ("Confirm the company", "Review the ticker and live score preview before generating the report."),
+        ("Generate the report", "Select Generate PDF Report to package the current score, signals, positioning, and methodology."),
+        ("Download and share", "Use the download action when it appears. Any unavailable live coverage remains clearly disclosed."),
+    ],
+    eyebrow="PDF report workflow",
+    intro="The exported report uses the same live evidence shown across Unstructured Alpha and never substitutes synthetic observations.",
 )
 
 col_ticker, col_btn, col_space = st.columns([2, 2, 4])

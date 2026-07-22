@@ -67,7 +67,7 @@ from utils.score_cache import (
     set_session_result,
 )
 from utils.performance import record_timing
-from utils.header import render_header, render_sidebar_base, render_page_header, go_to_ticker, ticker_chips, ticker_label, render_data_unavailable_banner, render_footer
+from utils.header import render_header, render_sidebar_base, render_page_header, render_guided_steps, go_to_ticker, ticker_chips, ticker_label, render_data_unavailable_banner, render_footer
 from utils.analysis import compute_signal_confidence
 from utils.theme import (
     confluence_gauge_svg, style_area_chart, style_chart,
@@ -218,41 +218,25 @@ if ticker_input not in TICKERS:
 
 # ── First-visit onboarding callout ──────────────────────────────────────────
 if not st.session_state.get("_tdd_onboarded"):
-    st.markdown("""
-<div style="background:rgba(0,200,224,0.05);border:1px solid rgba(0,200,224,0.18);
-            border-radius:12px;padding:16px 22px;margin-bottom:16px;font-family:Inter,sans-serif;">
-  <div style="font-size:0.60rem;font-weight:700;letter-spacing:0.14em;color:#00C8E0;
-              text-transform:uppercase;margin-bottom:10px;">HOW TO USE THIS PAGE</div>
-  <div style="display:flex;gap:16px;flex-wrap:wrap;">
-    <div style="flex:1;min-width:160px;">
-      <div style="font-size:0.70rem;font-weight:700;color:#E8EEFF;margin-bottom:3px;">1 · Read the score</div>
-      <div style="font-size:0.74rem;color:#8892AA;line-height:1.5;">
-        The <b style="color:#B8C0D4;">Confluence Score (0–100)</b> tells you how many macro signals
-        are aligned with historical conditions that preceded strength in this sector.
-        ≥65 = tailwind · ≤35 = headwind · 36–64 = mixed.
-      </div>
-    </div>
-    <div style="width:1px;background:rgba(255,255,255,0.06);flex-shrink:0;"></div>
-    <div style="flex:1;min-width:160px;">
-      <div style="font-size:0.70rem;font-weight:700;color:#E8EEFF;margin-bottom:3px;">2 · Check confidence</div>
-      <div style="font-size:0.74rem;color:#8892AA;line-height:1.5;">
-        Below the score you'll see a confidence summary — High ◆ means the score is driven by
-        strong z-score deviations with confirming momentum. Low ○ means signals are within
-        normal ranges and the read is weaker.
-      </div>
-    </div>
-    <div style="width:1px;background:rgba(255,255,255,0.06);flex-shrink:0;"></div>
-    <div style="flex:1;min-width:160px;">
-      <div style="font-size:0.70rem;font-weight:700;color:#E8EEFF;margin-bottom:3px;">3 · Dig into signals</div>
-      <div style="font-size:0.74rem;color:#8892AA;line-height:1.5;">
-        Scroll to <b style="color:#B8C0D4;">Signal Table</b> to see every contributing signal, or switch
-        to <b style="color:#B8C0D4;">Deep Correlation Scan</b> to see which signals historically lead
-        this ticker's price.
-      </div>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    render_guided_steps(
+        "Turn a ticker into an evidence-backed research view",
+        [
+            (
+                "Read the Confluence Score",
+                "Use the 0–100 score as the first read: 65 or higher signals a macro tailwind, 35 or lower a headwind, and the middle range is mixed.",
+            ),
+            (
+                "Confirm the evidence quality",
+                "Review confidence and signal breadth before acting. Strong deviations with confirming momentum carry more weight than a quiet, low-confidence reading.",
+            ),
+            (
+                "Open the supporting research",
+                "Use the section rail for signal detail, historical correlations, earnings context, ownership data, and your private thesis workspace.",
+            ),
+        ],
+        eyebrow="Ticker research workflow",
+        intro="Start with the headline read, verify what supports it, then move into the evidence that matters for your decision.",
+    )
     st.session_state["_tdd_onboarded"] = True
 
 st.markdown(f"### Analyzing: **{ticker_input}** — {company_name_hint}")
