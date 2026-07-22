@@ -1399,9 +1399,9 @@ if section == "Overview":
         _fig_hist = style_chart(_fig_hist, height=220, hovermode="x unified", legend=False)
         st.plotly_chart(_fig_hist, use_container_width=True, config=PLOTLY_CONFIG, theme=None)
         st.caption(
-            f"{len(_score_hist)} recorded day(s) for {ticker_input} — built up only from actual visits to "
-            "this page (this app has no scheduler to snapshot every ticker daily), so a short or gappy "
-            "history reflects real traffic, not a bug."
+            f"{len(_score_hist)} recorded day(s) for {ticker_input}. Core coverage is refreshed by "
+            "scheduled scoring passes; on-demand names also build history when researched, so a short "
+            "or gappy series means fewer real snapshots were available."
         )
     else:
         st.caption(
@@ -1417,17 +1417,18 @@ if section == "Overview":
         st.markdown(
             f'<div class="ua-spotlight" style="--ua-spotlight-accent:{_pct_color};padding:10px 16px;margin:8px 0;">'
             f'<span style="font-weight:700;color:{_pct_color};">{ticker_input} sits at the '
-            f'{_pct:.0f}th percentile among {_sector_pct["n_peers"]} sector peers</span> '
-            f'<span style="color:#8892AA;">(score {score_val:.0f} vs. sector peer average '
-            f'{_sector_pct["sector_avg"]:.0f})</span></div>',
+            f'#{_sector_pct["rank"]} of {_sector_pct["universe_size"]} · '
+            f'{_pct:.0f}th percentile among recent sector peers</span> '
+            f'<span style="color:#8892AA;">(score {score_val:.0f} · '
+            f'{_sector_pct["delta_vs_median"]:+.0f} vs. peer median '
+            f'{_sector_pct["sector_median"]:.0f})</span></div>',
             unsafe_allow_html=True,
         )
         with st.expander("Which peers, and as of when?"):
             st.caption(
-                "Peer scores are each peer's MOST RECENTLY RECORDED score, not a live recomputation "
-                "(see utils/score_history.py) -- two peers shown here may be from different days, "
-                "since this site has no scheduler to re-score every ticker daily, only what's actually "
-                "been viewed."
+                f'Using {_sector_pct["n_peers"]} of {_sector_pct["n_possible_peers"]} available peers. '
+                "Only full Confluence Scores recorded in the last 30 days are compared; "
+                "each row keeps its actual as-of date and no missing peer is estimated."
             )
             st.dataframe(
                 pd.DataFrame(_sector_pct["peer_scores"]), use_container_width=True, hide_index=True,

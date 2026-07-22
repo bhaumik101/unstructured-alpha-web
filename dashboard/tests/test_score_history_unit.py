@@ -15,6 +15,7 @@ from sqlalchemy import create_engine
 from utils import db
 from utils.score_history import (
     compute_sector_percentile,
+    compute_sector_percentiles,
     get_latest_signal_states,
     get_score_history,
     record_all_signal_snapshots,
@@ -120,6 +121,73 @@ def test_sector_percentile_peer_scores_include_as_of_date():
     result = compute_sector_percentile("UNP", score=80.0)
     assert result["error"] is None
     assert all("as_of" in p and "ticker" in p and "score" in p for p in result["peer_scores"])
+
+
+def test_sector_context_reports_rank_median_and_coverage():
+    record_score_snapshot("CSX", 40.0, "BEAR", "Mixed")
+    record_score_snapshot("NSC", 50.0, "NEUTRAL", "Mixed")
+    record_score_snapshot("CP", 60.0, "NEUTRAL", "Mixed")
+
+    result = compute_sector_percentile("UNP", score=55.0)
+
+    assert result["rank"] == 2
+    assert result["universe_size"] >= 4
+    assert result["sector_median"] == 50.0
+    assert result["delta_vs_median"] == 5.0
+    assert result["n_possible_peers"] >= result["n_peers"]
+
+
+def test_sector_context_never_mixes_score_kinds():
+    record_score_snapshot("CSX", 80.0, "BULL", "High", kind="macro_momentum")
+    record_score_snapshot("NSC", 45.0, "NEUTRAL", "Mixed", kind="full")
+
+    contexts = compute_sector_percentiles([
+        {"ticker": "UNP", "score": 55.0, "score_kind": "full"},
+    ])
+
+    peers = contexts["UNP"]["peer_scores"]
+    assert {row["ticker"] for row in peers} == {"NSC"}
+    assert all(row["score_kind"] == "full" for row in peers)
+
+
+def test_sector_context_excludes_stale_peer_scores():
+    old_day = (datetime.now(timezone.utc) - timedelta(days=45)).strftime("%Y-%m-%d")
+    with db.engine.begin() as conn:
+        conn.execute(db.score_snapshots.insert().values(
+            ticker="CSX",
+            snapshot_date=old_day,
+            score=90.0,
+            case="BULL",
+            conviction="High",
+            created_at=datetime.now(timezone.utc).isoformat(),
+            score_kind="full",
+        ))
+
+    result = compute_sector_percentile("UNP", score=50.0, max_age_days=30)
+
+    assert result["error"] is not None
+    assert result["n_peers"] == 0
+
+
+def test_score_history_can_be_filtered_to_one_score_kind():
+    now = datetime.now(timezone.utc)
+    with db.engine.begin() as conn:
+        for offset, kind, score in ((2, "full", 45.0), (1, "macro_momentum", 75.0)):
+            conn.execute(db.score_snapshots.insert().values(
+                ticker="MIXEDKIND",
+                snapshot_date=(now - timedelta(days=offset)).strftime("%Y-%m-%d"),
+                score=score,
+                case="NEUTRAL",
+                conviction="Mixed",
+                created_at=now.isoformat(),
+                score_kind=kind,
+            ))
+
+    full_rows = get_score_history("MIXEDKIND", kind="full")
+    macro_rows = get_score_history("MIXEDKIND", kind="macro_momentum")
+
+    assert [row["score"] for row in full_rows] == [45.0]
+    assert [row["score"] for row in macro_rows] == [75.0]
 
 
 def test_history_returned_oldest_first_and_respects_days_limit():
