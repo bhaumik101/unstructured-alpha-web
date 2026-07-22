@@ -12,7 +12,7 @@ gone, and the DOM has settled; a hard timeout ensures it can never cover an erro
 forever.
 
 SAFETY:
-- Idempotent (skips if the marker is already present).
+- Repeatable (updates an existing current or legacy injection in-place).
 - Fully wrapped in try/except and ALWAYS exits 0 — a failure here must never fail
   the build or leave a half-written file (writes only after a successful transform).
 - Trivially reversible: remove this step from render.yaml's buildCommand; the next
@@ -26,6 +26,8 @@ import re
 import sys
 
 MARKER = "ua-boot-splash"
+START_MARKER = "<!-- ua-boot-splash:start -->"
+END_MARKER = "<!-- ua-boot-splash:end -->"
 
 
 def _load_facts() -> list:
@@ -48,6 +50,7 @@ def _load_facts() -> list:
 def _build_splash() -> str:
     facts_json = json.dumps(_load_facts())
     return """
+<!-- ua-boot-splash:start -->
 <div id="ua-boot-splash" role="status" aria-label="Loading">
   <div class="ua-boot-inner">
     <svg class="ua-boot-hex" viewBox="0 0 100 100" width="132" height="132" aria-hidden="true">
@@ -182,7 +185,36 @@ def _build_splash() -> str:
   setTimeout(function(){clearInterval(iv);observer.disconnect();hide();},HARD_TIMEOUT_MS);
 })();
 </script>
+<!-- ua-boot-splash:end -->
 """.replace("__UA_FACTS_JSON__", facts_json)
+
+
+def _inject_or_replace(html: str, splash: str) -> tuple[str, int, str]:
+    """Inject the splash, or replace an older injected version in-place."""
+    if START_MARKER in html and END_MARKER in html:
+        pattern = re.escape(START_MARKER) + r".*?" + re.escape(END_MARKER)
+        updated, count = re.subn(
+            pattern, lambda _match: splash.strip(), html, count=1, flags=re.DOTALL
+        )
+        return updated, count, "updated"
+
+    # Backward-compatible replacement for deployments created before explicit
+    # boundary markers were added. The legacy block always begins with this
+    # unique div and ends at its own script tag.
+    if '<div id="ua-boot-splash"' in html:
+        pattern = r'<div id="ua-boot-splash".*?</script>\s*'
+        updated, count = re.subn(
+            pattern, lambda _match: splash.strip() + "\n", html, count=1, flags=re.DOTALL
+        )
+        return updated, count, "upgraded"
+
+    updated, count = re.subn(
+        r"(<body[^>]*>)",
+        lambda match: match.group(1) + splash,
+        html,
+        count=1,
+    )
+    return updated, count, "injected"
 
 
 def main() -> None:
@@ -194,17 +226,14 @@ def main() -> None:
             return
         with open(index_path, "r", encoding="utf-8") as fh:
             html = fh.read()
-        if MARKER in html:
-            print("[boot-splash] already injected — skipping", flush=True)
-            return
         splash = _build_splash()
-        new_html, n = re.subn(r"(<body[^>]*>)", lambda m: m.group(1) + splash, html, count=1)
+        new_html, n, action = _inject_or_replace(html, splash)
         if n != 1:
-            print("[boot-splash] <body> tag not found — skipping (left untouched)", flush=True)
+            print("[boot-splash] injection target not found — skipping (left untouched)", flush=True)
             return
         with open(index_path, "w", encoding="utf-8") as fh:
             fh.write(new_html)
-        print(f"[boot-splash] injected branded splash into {index_path}", flush=True)
+        print(f"[boot-splash] {action} branded splash in {index_path}", flush=True)
     except Exception as exc:  # never fail the build
         print(f"[boot-splash] skipped due to error: {exc}", flush=True)
 
