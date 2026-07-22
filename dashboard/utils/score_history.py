@@ -22,7 +22,7 @@
 
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from utils import db
 from utils.db import score_snapshots, signal_snapshots, score_components, upsert_stmt
@@ -281,7 +281,7 @@ def explain_move_smart(ticker: str) -> dict:
     return best or explain_move(ticker, days_back=7)
 
 
-def get_score_history(ticker: str, days: int = 180) -> list[dict]:
+def get_score_history(ticker: str, days: int = 180, kind: str | None = None) -> list[dict]:
     """
     Return up to `days` worth of snapshot rows for `ticker`, oldest first
     -- exactly what's actually been recorded, no interpolation or
@@ -290,12 +290,16 @@ def get_score_history(ticker: str, days: int = 180) -> list[dict]:
     treat that as "not enough history yet," never synthesize a fake trend.
     """
     ticker = ticker.upper().strip()
+    query = select(score_snapshots).where(score_snapshots.c.ticker == ticker)
+    if kind == "full":
+        query = query.where(
+            or_(score_snapshots.c.score_kind == "full", score_snapshots.c.score_kind.is_(None))
+        )
+    elif kind:
+        query = query.where(score_snapshots.c.score_kind == kind)
     with db.engine.begin() as conn:
         rows = conn.execute(
-            select(score_snapshots)
-            .where(score_snapshots.c.ticker == ticker)
-            .order_by(score_snapshots.c.snapshot_date.desc())
-            .limit(days)
+            query.order_by(score_snapshots.c.snapshot_date.desc()).limit(days)
         ).mappings().all()
     return [dict(r) for r in reversed(rows)]
 
@@ -1067,7 +1071,120 @@ def get_score_velocity_stats(ticker: str, window_days: int = 5) -> dict | None:
     }
 
 
-def compute_sector_percentile(ticker: str, score: float, max_peers: int = 6) -> dict:
+def compute_sector_percentiles(
+    positions: list[dict],
+    max_peers: int = 6,
+    max_age_days: int = 30,
+) -> dict[str, dict]:
+    """Build same-score-kind sector context for many tickers in one DB read."""
+    normalized: list[dict] = []
+    for item in positions or []:
+        try:
+            ticker = str(item.get("ticker", "")).upper().strip()
+            score = float(item["score"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if ticker:
+            normalized.append({
+                "ticker": ticker,
+                "score": score,
+                "score_kind": str(item.get("score_kind") or "full"),
+            })
+
+    peer_map = {
+        item["ticker"]: get_sector_peers(item["ticker"], max_peers=max_peers)
+        for item in normalized
+    }
+    peer_tickers = sorted({peer for peers in peer_map.values() for peer in peers})
+    latest: dict[tuple[str, str], dict] = {}
+    if peer_tickers:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, int(max_age_days)))).strftime("%Y-%m-%d")
+        with db.engine.begin() as conn:
+            rows = conn.execute(
+                select(score_snapshots)
+                .where(score_snapshots.c.ticker.in_(peer_tickers))
+                .where(score_snapshots.c.snapshot_date >= cutoff)
+                .order_by(score_snapshots.c.snapshot_date.desc())
+            ).mappings().all()
+        for row in rows:
+            row_kind = str(row.get("score_kind") or "full")
+            latest.setdefault((str(row["ticker"]), row_kind), dict(row))
+
+    contexts: dict[str, dict] = {}
+    for item in normalized:
+        ticker = item["ticker"]
+        peers = peer_map.get(ticker) or []
+        if not peers:
+            contexts[ticker] = {
+                "error": "No sector peers found for this ticker",
+                "n_peers": 0,
+                "n_possible_peers": 0,
+                "score_kind": item["score_kind"],
+            }
+            continue
+
+        peer_scores = []
+        for peer in peers:
+            row = latest.get((peer, item["score_kind"]))
+            if row:
+                peer_scores.append({
+                    "ticker": peer,
+                    "score": float(row["score"]),
+                    "as_of": row["snapshot_date"],
+                    "score_kind": item["score_kind"],
+                })
+        if not peer_scores:
+            contexts[ticker] = {
+                "error": (
+                    f"No same-type sector peer scores were recorded in the last "
+                    f"{max(1, int(max_age_days))} days"
+                ),
+                "n_peers": 0,
+                "n_possible_peers": len(peers),
+                "score_kind": item["score_kind"],
+            }
+            continue
+
+        scores = [row["score"] for row in peer_scores]
+        score = item["score"]
+        rank = 1 + sum(1 for peer_score in scores if peer_score > score)
+        universe_size = len(scores) + 1
+        percentile = (
+            100.0 if universe_size == 1
+            else 100.0 * (universe_size - rank) / (universe_size - 1)
+        )
+        sorted_scores = sorted(scores)
+        middle = len(sorted_scores) // 2
+        sector_median = (
+            sorted_scores[middle]
+            if len(sorted_scores) % 2
+            else (sorted_scores[middle - 1] + sorted_scores[middle]) / 2.0
+        )
+        contexts[ticker] = {
+            "error": None,
+            "percentile": round(percentile, 1),
+            "rank": rank,
+            "universe_size": universe_size,
+            "n_peers": len(peer_scores),
+            "n_possible_peers": len(peers),
+            "peer_scores": peer_scores,
+            "sector_avg": round(sum(scores) / len(scores), 1),
+            "sector_median": round(sector_median, 1),
+            "delta_vs_median": round(score - sector_median, 1),
+            "score_kind": item["score_kind"],
+            "oldest_peer_as_of": min(row["as_of"] for row in peer_scores),
+            "newest_peer_as_of": max(row["as_of"] for row in peer_scores),
+        }
+    return contexts
+
+
+def compute_sector_percentile(
+    ticker: str,
+    score: float,
+    max_peers: int = 6,
+    score_kind: str = "full",
+    max_age_days: int = 30,
+) -> dict:
     """
     Where `score` (the ticker's CURRENT, just-computed score) ranks
     against its sector peers' most recently RECORDED scores.
@@ -1089,31 +1206,13 @@ def compute_sector_percentile(ticker: str, score: float, max_peers: int = 6) -> 
     peer's `as_of` date so a caller (or the UI) can show that, not just
     the number.
     """
-    peers = get_sector_peers(ticker, max_peers=max_peers)
-    if not peers:
-        return {"error": "No sector peers found for this ticker", "n_peers": 0}
-
-    peer_scores = []
-    for peer in peers:
-        hist = get_score_history(peer, days=30)
-        if hist:
-            peer_scores.append({"ticker": peer, "score": hist[-1]["score"], "as_of": hist[-1]["snapshot_date"]})
-
-    if not peer_scores:
-        return {
-            "error": "None of this ticker's sector peers have a recent recorded score yet",
-            "n_peers": 0,
-        }
-
-    all_scores = [p["score"] for p in peer_scores] + [score]
-    rank = sum(1 for s in all_scores if s <= score)
-    percentile = round(100.0 * rank / len(all_scores), 1)
-    sector_avg = round(sum(p["score"] for p in peer_scores) / len(peer_scores), 1)
-
-    return {
-        "error": None,
-        "percentile": percentile,
-        "n_peers": len(peer_scores),
-        "peer_scores": peer_scores,
-        "sector_avg": sector_avg,
-    }
+    return compute_sector_percentiles(
+        [{"ticker": ticker, "score": score, "score_kind": score_kind}],
+        max_peers=max_peers,
+        max_age_days=max_age_days,
+    ).get(ticker.upper().strip(), {
+        "error": "No sector peers found for this ticker",
+        "n_peers": 0,
+        "n_possible_peers": 0,
+        "score_kind": score_kind,
+    })

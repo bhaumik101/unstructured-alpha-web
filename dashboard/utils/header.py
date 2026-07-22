@@ -459,6 +459,26 @@ div[data-testid="stExpander"] { background: rgba(18,21,30,0.6) !important; borde
     border: 1px solid rgba(255,255,255,0.08) !important;
     background: rgba(18,21,30,0.8) !important; color: #C8D0E4 !important;
 }
+
+/* Global ticker search submit: keep the action legible at every viewport.
+   Streamlit's default form-button padding could leave only a few pixels for
+   the label in a nested column, wrapping "Open" one character per line. */
+.st-key-global_ticker_submit button,
+[data-testid="stFormSubmitButton"] button[key="global_ticker_submit"] {
+    min-width: 138px !important;
+    min-height: 42px !important;
+    padding: 0.55rem 1rem !important;
+    background: #1D2634 !important;
+    border: 1px solid rgba(143,154,173,0.30) !important;
+    color: #DCE2EC !important;
+    box-shadow: none !important;
+}
+.st-key-global_ticker_submit button p,
+[data-testid="stFormSubmitButton"] button[key="global_ticker_submit"] p {
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: keep-all !important;
+}
 .stButton > button:hover {
     border-color: rgba(0,213,102,0.4) !important; color: #00D566 !important;
     box-shadow: 0 0 14px rgba(0,213,102,0.12) !important;
@@ -1565,9 +1585,8 @@ def render_global_ticker_search() -> None:
     A compact form keeps Enter-to-open behavior, resolves unique company names,
     and only scans the cached directory after submission.
 
-    NAVIGATION-LOOP GUARD: only a submitted form can navigate, and the last
-    resolved ticker is retained as a second line of defense against repeat
-    navigation during reruns.
+    Only a submitted form can navigate, so normal Streamlit reruns never bounce
+    the user back to Deep Dive. Re-submitting the same ticker remains valid.
     """
     # Search the FULL US-listed universe (~12.6k symbols via utils.symbols), not
     # just our 280 scored tickers. The cached directory stays server-side and is
@@ -1585,10 +1604,10 @@ def render_global_ticker_search() -> None:
     if not _sym_idx:
         _sym_idx = {ticker: ticker_label(ticker) for ticker in sorted(TICKERS)}
 
-    _, search_col, _ = st.columns([3, 2.2, 1.4])
+    _, search_col, _ = st.columns([2.3, 3.5, 1.0])
     with search_col:
         with st.form("global_ticker_search_form", border=False):
-            query_col, submit_col = st.columns([4.2, 1.0], vertical_alignment="bottom")
+            query_col, submit_col = st.columns([4.5, 1.6], vertical_alignment="bottom")
             with query_col:
                 query = st.text_input(
                     "Jump to a ticker",
@@ -1598,7 +1617,7 @@ def render_global_ticker_search() -> None:
                 )
             with submit_col:
                 submitted = st.form_submit_button(
-                    "Open",
+                    "Analyze ticker",
                     key="global_ticker_submit",
                     use_container_width=True,
                 )
@@ -1610,8 +1629,7 @@ def render_global_ticker_search() -> None:
         hint = f" Try one of: {', '.join(candidates)}." if candidates else ""
         st.caption(f"Enter an exact ticker or a unique company name.{hint}")
         return
-    if picked and picked != st.session_state.get("_last_global_ticker_search"):
-        st.session_state["_last_global_ticker_search"] = picked
+    if picked:
         st.session_state["selected_ticker"] = picked
         st.switch_page("pages/3_Ticker_Deep_Dive.py")
 

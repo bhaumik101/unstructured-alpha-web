@@ -29,7 +29,7 @@ from utils.theme import (
 from utils.auth_ui import require_login
 from utils.quotes import get_batch_quotes, mini_sparkline
 from utils.auth import set_digest_optin, get_digest_optin
-from utils.score_history import get_score_history
+from utils.score_history import compute_sector_percentiles, get_score_history
 from utils.billing import get_user_tier
 from utils import webhook as _webhook
 
@@ -193,13 +193,13 @@ if _watchlist_section == "Securities":
             from utils.db import score_snapshots as _ss, engine as _e
             with _e.begin() as _c:
                 _row = _c.execute(
-                    _s(_ss.c.score, _ss.c.snapshot_date)
+                    _s(_ss.c.score, _ss.c.snapshot_date, _ss.c.score_kind)
                     .where(_ss.c.ticker == _ticker)
                     .order_by(_ss.c.snapshot_date.desc()).limit(1)
                 ).fetchone()
-            return (float(_row[0]), _row[1]) if _row else (None, None)
+            return (float(_row[0]), _row[1], str(_row[2] or "full")) if _row else (None, None, None)
         except Exception:
-            return (None, None)
+            return (None, None, None)
 
 
     _wl_idx = _wl_ticker_index()
@@ -228,14 +228,15 @@ if _watchlist_section == "Securities":
 
     # ── Live preview of what you're about to add (fast, snapshot-backed) ──────────
     if new_ticker:
-        _pv_score, _pv_asof = _wl_latest_score(new_ticker)
+        _pv_score, _pv_asof, _pv_kind = _wl_latest_score(new_ticker)
         _pv_label = _wl_idx.get(new_ticker)
         _pv_name = _pv_label.split(" — ", 1)[1] if _pv_label and " — " in _pv_label else "Not yet tracked"
         if _pv_score is not None:
             _pv_col = "#00D566" if _pv_score >= 65 else ("#FF4444" if _pv_score <= 35 else "#6B7FBF")
             _pv_right = (f'<div style="font-size:1.6rem;font-weight:900;color:{_pv_col};line-height:1;">'
                          f'{_pv_score:.0f}</div>'
-                         f'<div style="font-size:0.56rem;color:#6B7FBF;">Confluence · {_pv_asof or "—"}</div>')
+                         f'<div style="font-size:0.56rem;color:#6B7FBF;">'
+                         f'{"Confluence" if _pv_kind == "full" else "Macro + momentum"} · {_pv_asof or "—"}</div>')
         else:
             _pv_right = ('<div style="font-size:0.68rem;color:#8892AA;">No score yet</div>'
                          '<div style="font-size:0.56rem;color:#6B7FBF;">Will be scored on the next run</div>')
@@ -577,7 +578,7 @@ if _watchlist_section == "Securities":
         _watchlist_view = []
         for _row in watchlist:
             _ticker = _row["ticker"]
-            _score, _score_asof = _wl_latest_score(_ticker)
+            _score, _score_asof, _score_kind = _wl_latest_score(_ticker)
             _quote = _watch_quotes.get(_ticker, {})
             _move = _quote.get("chg_1d_pct")
             _attention = bool(
@@ -597,10 +598,23 @@ if _watchlist_section == "Securities":
                 **_row,
                 "_score": _score,
                 "_score_asof": _score_asof,
+                "_score_kind": _score_kind,
                 "_move": _move,
                 "_attention": _attention,
                 "_case": _case,
             })
+
+        _peer_contexts = compute_sector_percentiles([
+            {
+                "ticker": row["ticker"],
+                "score": row["_score"],
+                "score_kind": row["_score_kind"],
+            }
+            for row in _watchlist_view
+            if row["_score"] is not None and row["_score_kind"]
+        ])
+        for _row in _watchlist_view:
+            _row["_peer_context"] = _peer_contexts.get(_row["ticker"])
 
         _attention_count = sum(1 for _r in _watchlist_view if _r["_attention"])
         _priced_count = sum(1 for _r in _watchlist_view if _watch_quotes.get(_r["ticker"], {}).get("last") is not None)
@@ -686,11 +700,29 @@ if _watchlist_section == "Securities":
                     f"Alerts: score ≥ {row['score_bull_threshold']:.0f} / ≤ {row['score_bear_threshold']:.0f} "
                     f"· price ±{row['price_move_pct_threshold']:.1f}%"
                 )
+                _peer = row.get("_peer_context") or {}
+                if _peer and _peer.get("error") is None and "delta_vs_median" in _peer:
+                    _peer_color = (
+                        "#68A982" if _peer["delta_vs_median"] > 0
+                        else "#C77B7B" if _peer["delta_vs_median"] < 0
+                        else "#8F9AAD"
+                    )
+                    st.markdown(
+                        f'<div style="font-size:.70rem;color:{_peer_color};font-weight:700;margin-top:5px;">'
+                        f'Sector rank #{_peer["rank"]} of {_peer["universe_size"]} · '
+                        f'{_peer["delta_vs_median"]:+.0f} vs median</div>'
+                        f'<div style="font-size:.60rem;color:#7F8999;">'
+                        f'{"Confluence" if row["_score_kind"] == "full" else "Macro + momentum"} '
+                        f'peers · latest recorded within 30d</div>',
+                        unsafe_allow_html=True,
+                    )
                 # Score history sparkline — shows 30-day confluence score trend.
                 # Rising score while price is flat = early warning that macro
                 # conditions are improving before the stock reacts.
                 try:
-                    _score_hist = get_score_history(ticker, days=30)
+                    _score_hist = get_score_history(
+                        ticker, days=30, kind=row.get("_score_kind")
+                    )
                     if len(_score_hist) >= 3:
                         import plotly.graph_objects as go
                         _sh_scores = [h["score"] for h in _score_hist]

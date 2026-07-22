@@ -79,3 +79,31 @@ def test_picking_a_different_ticker_after_one_navigates_again(app_test):
     assert not at.exception
     assert at.session_state["selected_ticker"] == "NVDA"
     assert at.session_state["_test_switch_page"] == "pages/3_Ticker_Deep_Dive.py"
+
+
+def test_resubmitting_same_ticker_still_navigates(app_test):
+    at = app_test("pages/home_page.py")
+    field = next(s for s in at.text_input if s.key == "global_ticker_search")
+    submit = next(b for b in at.button if b.key == "global_ticker_submit")
+    field.set_value("CCJ")
+    submit.click().run()
+    assert at.session_state["_test_switch_page"] == "pages/3_Ticker_Deep_Dive.py"
+
+    at.session_state["_test_switch_page"] = None
+    field = next(s for s in at.text_input if s.key == "global_ticker_search")
+    submit = next(b for b in at.button if b.key == "global_ticker_submit")
+    field.set_value("CCJ")
+    submit.click().run()
+
+    assert not at.exception
+    assert at.session_state["_test_switch_page"] == "pages/3_Ticker_Deep_Dive.py"
+
+
+def test_search_action_uses_a_descriptive_non_wrapping_label():
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "utils" / "header.py").read_text()
+
+    assert '"Analyze ticker"' in source
+    assert ".st-key-global_ticker_submit button p" in source
+    assert "word-break: keep-all" in source
