@@ -8,6 +8,7 @@ from sqlalchemy import delete
 from utils import db
 from utils.notification_policy import (
     DEFAULT_POLICY,
+    POLICY_PRESETS,
     get_notification_policy,
     save_notification_policy,
 )
@@ -44,6 +45,14 @@ def test_default_policy_is_bounded_and_non_mutating():
     first = get_notification_policy(USER_A)
     first["catalyst_max_items"] = 1
     assert get_notification_policy(USER_A) == DEFAULT_POLICY
+
+
+def test_plain_language_presets_are_valid_and_progressively_bounded():
+    assert set(POLICY_PRESETS) == {"essentials", "balanced", "active"}
+    assert [POLICY_PRESETS[key]["catalyst_max_items"] for key in POLICY_PRESETS] == [2, 3, 4]
+    for preset in POLICY_PRESETS.values():
+        saved = save_notification_policy(USER_A, preset)
+        assert saved == preset
 
 
 def test_policy_is_private_and_updates_in_place():

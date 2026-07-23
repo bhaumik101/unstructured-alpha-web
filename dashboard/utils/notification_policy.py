@@ -20,6 +20,23 @@ DEFAULT_POLICY = {
     "plan_only": False,
     "review_reminders": True,
 }
+POLICY_PRESETS = {
+    "essentials": {
+        **DEFAULT_POLICY,
+        "catalyst_horizon_days": 3,
+        "catalyst_max_items": 2,
+    },
+    "balanced": {
+        **DEFAULT_POLICY,
+        "catalyst_horizon_days": 7,
+        "catalyst_max_items": 3,
+    },
+    "active": {
+        **DEFAULT_POLICY,
+        "catalyst_horizon_days": 7,
+        "catalyst_max_items": 4,
+    },
+}
 
 
 def _now() -> str:

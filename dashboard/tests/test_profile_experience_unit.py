@@ -26,6 +26,10 @@ def test_profile_exposes_functional_customization():
     assert 'with st.form("notification_policy_form")' in PROFILE
     assert "save_notification_policy" in PROFILE
     assert "Maximum catalyst items per brief" in PROFILE
+    assert "Essentials" in PROFILE
+    assert "Balanced" in PROFILE
+    assert "Active" in PROFILE
+    assert "POLICY_PRESETS" in PROFILE
 
 
 def test_display_name_updates_the_live_authenticated_session():

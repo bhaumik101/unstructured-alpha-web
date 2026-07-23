@@ -212,6 +212,9 @@ THE PAGES:
     catalyst agenda: 1/3/7-day lead window, one-to-four item hard cap, macro and earnings
     categories, saved-plan-only filtering, and post-event review reminders. The policy changes
     delivery only; it never changes scores, holdings, plans, or the canonical research record.
+    Everyday investors can apply Essentials, Balanced, or Active presets without understanding
+    every underlying control. Morning briefs and watchlist emails provide a calm Start Here cue
+    and plain-language Why It Matters context; alerts remain research prompts, not trade instructions.
 
 KEY SIGNALS:
 - ATA Trucking (PCS 9): Monthly freight tonnage. Leads ISM PMI by 6-8 weeks. FRED TRUCKD11.

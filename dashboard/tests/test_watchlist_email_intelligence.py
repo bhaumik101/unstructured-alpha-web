@@ -168,6 +168,8 @@ def test_digest_email_has_coverage_deep_links_tags_and_idempotency(monkeypatch):
     assert "/ticker-deep-dive?ticker=AAPL" in payload["html"]
     assert "/today-s-brief" in payload["html"]
     assert "unstructuredalpha.com/Watchlist" not in payload["html"]
+    assert "Today’s attention" in payload["html"]
+    assert "Start here:" in payload["html"]
 
 
 def test_watchlist_alert_email_escapes_content_and_links_research(monkeypatch):
@@ -200,6 +202,9 @@ def test_watchlist_alert_email_escapes_content_and_links_research(monkeypatch):
     assert "/ticker-deep-dive?ticker=MSFT" in payload["html"]
     assert "/my-watchlist" in payload["html"]
     assert "linear-gradient" not in payload["html"]
+    assert "Research attention" in payload["html"]
+    assert "Why it matters:" in payload["html"]
+    assert "not a buy or sell signal" in payload["html"]
 
 
 def test_saved_screen_alert_email_uses_recommender_context(monkeypatch):
@@ -270,6 +275,8 @@ def test_digest_email_renders_weighted_portfolio_intelligence(monkeypatch):
     assert "/portfolio-suite" in body
     assert "Open Portfolio Intelligence" in body
     assert "Open Watchlist" not in body
+    assert "Today’s attention" in body
+    assert "positions scored" in body
 
 
 def test_digest_email_renders_escaped_catalyst_agenda(monkeypatch):

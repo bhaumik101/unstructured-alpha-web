@@ -398,7 +398,7 @@ PRO_FEATURES = [
     "Ticker Deep Dive Pro — correlation, filings, contracts, and sentiment",
     "Decision Queue — daily evidence triage across holdings, catalysts, and theses",
     "Catalyst Command Center — verified events, portfolio exposure, private plans, and proactive digest prompts",
-    "Notification Policy Center — catalyst categories, lead time, plan filters, reminders, and hard volume caps",
+    "Notification Policy Center — simple investor presets plus advanced timing, relevance, and volume controls",
     "Thesis Journal — private decisions, invalidation rules, and outcomes",
     "Unlimited watchlist tickers (Free: 5)",
     "Morning digest email with top signal moves",

@@ -214,6 +214,7 @@ elif section == "Notifications":
     else:
         from utils.notification_policy import (
             ALLOWED_HORIZONS,
+            POLICY_PRESETS,
             get_notification_policy,
             save_notification_policy,
         )
@@ -254,6 +255,25 @@ elif section == "Notifications":
 
         with policy_col:
             st.markdown("#### Catalyst agenda")
+            st.caption("Choose a plain-language starting point, then fine-tune only if you want to.")
+            preset_cols = st.columns(3)
+            preset_specs = (
+                ("essentials", "Essentials", "Closest events · max 2"),
+                ("balanced", "Balanced", "One-week view · max 3"),
+                ("active", "Active", "Full one-week agenda · max 4"),
+            )
+            for preset_col, (preset_key, preset_label, preset_help) in zip(preset_cols, preset_specs):
+                with preset_col:
+                    st.caption(preset_help)
+                    if st.button(
+                        preset_label,
+                        key=f"notification_preset_{preset_key}",
+                        use_container_width=True,
+                        type="primary" if preset_key == "balanced" else "secondary",
+                    ):
+                        save_notification_policy(user["id"], POLICY_PRESETS[preset_key])
+                        st.success(f"{preset_label} notification style applied.")
+                        st.rerun()
             with st.form("notification_policy_form"):
                 horizon = st.selectbox(
                     "Notify me about events within",
