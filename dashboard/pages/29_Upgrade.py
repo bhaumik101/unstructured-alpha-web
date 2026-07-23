@@ -626,6 +626,7 @@ PRO_FEATS = [
     "Portfolio Fit Lab — simulate candidate impact before changing your actual holdings",
     "Decision Queue — evidence-ranked daily triage across holdings, catalysts, and theses",
     "Catalyst Command Center — weighted event risk, private plans, and proactive morning prompts",
+    "Notification Policy Center — simple investor presets with advanced timing and volume controls",
     "Read-only Pro API — integrate persisted score snapshots into your own research workflow",
     "Personalized 7 AM morning digest on your holdings",
     "Score history + 30-day sparklines + factor exposure",
@@ -893,6 +894,11 @@ st.markdown(f"""
     <td>Catalyst Command Center — verified dates, weighted exposure, private plans, and morning prompts</td>
     <td style="text-align:center;color:#8892B0;">Macro calendar</td>
     <td style="text-align:center;" class="comp-pro-col comp-yes">Personalized</td>
+</tr>
+<tr>
+    <td>Notification Policy Center — simple presets plus server-enforced relevance and volume controls</td>
+    <td style="text-align:center;" class="comp-no">—</td>
+    <td style="text-align:center;" class="comp-pro-col comp-yes">✓</td>
 </tr>
 <tr>
     <td>Portfolio Fit Lab — pre-trade factor and concentration simulation</td>

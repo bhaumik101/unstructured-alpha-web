@@ -687,6 +687,54 @@ def _build_catalyst_digest_html(items: list[dict] | None) -> str:
     </div>"""
 
 
+def _build_morning_attention_html(
+    watchlist_items: list[dict] | None,
+    catalyst_items: list[dict] | None,
+    signal_flips: list[dict] | None,
+) -> str:
+    """Give non-professional investors one calm, obvious place to start."""
+    holdings_n = len(watchlist_items or [])
+    catalysts_n = len(catalyst_items or [])
+    flips_n = len(signal_flips or [])
+    agenda = catalyst_items or []
+    review = next((item for item in agenda if item.get("delivery_type") == "review_due"), None)
+    if review:
+        focus = f'Review the saved plan for {review.get("title", "the completed event")} while the outcome is fresh.'
+    elif agenda:
+        first = agenda[0]
+        days = int(first.get("days_until", 0))
+        timing = "today" if days == 0 else "tomorrow" if days == 1 else f"in {days} days"
+        focus = f'{first.get("title", "Your next catalyst")} is {timing}. Open the evidence before the event, not after it.'
+    elif flips_n:
+        focus = f'{flips_n} signal change{"s" if flips_n != 1 else ""} deserve a quick evidence review today.'
+    else:
+        focus = "No urgent research exception is showing. Use the brief to confirm what remains unchanged."
+
+    return f"""
+    <div style="background:#FFFFFF;padding:16px 24px;border-bottom:1px solid #E5E7EB;">
+      <div style="font-size:0.60rem;font-weight:750;color:#7C3AED;text-transform:uppercase;
+                  letter-spacing:0.12em;margin-bottom:9px;">Today’s attention</div>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:10px;"><tr>
+        <td style="width:33%;padding:8px;background:#F8F7FF;text-align:center;border-right:4px solid #FFFFFF;">
+          <div style="font-size:1.05rem;font-weight:800;color:#111827;">{holdings_n}</div>
+          <div style="font-size:0.64rem;color:#6B7280;">positions scored</div>
+        </td>
+        <td style="width:33%;padding:8px;background:#F8F7FF;text-align:center;border-right:4px solid #FFFFFF;">
+          <div style="font-size:1.05rem;font-weight:800;color:#111827;">{catalysts_n}</div>
+          <div style="font-size:0.64rem;color:#6B7280;">agenda items</div>
+        </td>
+        <td style="width:33%;padding:8px;background:#F8F7FF;text-align:center;">
+          <div style="font-size:1.05rem;font-weight:800;color:#111827;">{flips_n}</div>
+          <div style="font-size:0.64rem;color:#6B7280;">signal changes</div>
+        </td>
+      </tr></table>
+      <div style="border-left:3px solid #7C3AED;padding:8px 11px;background:#FAFAFC;
+                  font-size:0.78rem;color:#374151;line-height:1.55;">
+        <span style="font-weight:750;color:#111827;">Start here:</span> {_safe(focus)}
+      </div>
+    </div>"""
+
+
 def send_digest_email(
     to_email: str,
     signal_flips: list[dict],
@@ -744,6 +792,9 @@ def send_digest_email(
         if watchlist_items else ""
     )
     catalyst_html = _build_catalyst_digest_html(catalyst_items)
+    attention_html = _build_morning_attention_html(
+        watchlist_items, catalyst_items, signal_flips
+    )
 
     # ── Seeking Alpha-style macro article ──────────────────────────────────
     if signal_scores:
@@ -918,6 +969,9 @@ def send_digest_email(
             </tr>
         </table>
     </div>
+
+    <!-- Calm, plain-language orientation for everyday investors -->
+    {attention_html}
 
     <!-- Personalised portfolio intelligence with watchlist fallback -->
     {watchlist_html}
@@ -1184,6 +1238,19 @@ def send_watchlist_alert_email(to_email: str, new_alerts: list[dict]) -> None:
         "signal_change": "Differentiator change",
         "screen_entry": "Saved screen entrant",
     }
+    ALERT_CONTEXT = {
+        "score_bull": "The research score moved above the boundary you saved. Check which evidence changed before drawing a conclusion.",
+        "score_bear": "The research score moved below the boundary you saved. Revisit the thesis and its invalidation conditions.",
+        "price_move": "Price moved enough to warrant checking whether news, a catalyst, or the underlying thesis changed.",
+        "52w_high": "A new range high changes momentum context. Confirm it alongside valuation and fundamental evidence.",
+        "52w_low": "A new range low changes risk context. Review the evidence and your recorded downside case.",
+        "signal_change": "A differentiated input changed state. Open the ticker to see whether the broader signal set confirms it.",
+        "screen_entry": "The ticker now matches a screen you saved. This is a research candidate, not a transaction instruction.",
+    }
+
+    n = len(new_alerts)
+    bullish_n = sum((a.get("direction") or "").lower() == "bullish" for a in new_alerts)
+    bearish_n = sum((a.get("direction") or "").lower() == "bearish" for a in new_alerts)
 
     alert_rows = ""
     for a in new_alerts[:10]:                       # cap at 10 in the email
@@ -1191,6 +1258,10 @@ def send_watchlist_alert_email(to_email: str, new_alerts: list[dict]) -> None:
         direction = (a.get("direction") or "neutral").lower()
         message   = _safe(a.get("message", "Threshold crossed."))
         alert_label = _safe(ALERT_LABELS.get(a.get("alert_type"), "Watchlist trigger"))
+        context = _safe(ALERT_CONTEXT.get(
+            a.get("alert_type"),
+            "A condition you chose has changed. Open the evidence before deciding whether it matters to your thesis.",
+        ))
         color     = DIRECTION_COLOR.get(direction, "#8892AA")
         icon      = DIRECTION_ICON.get(direction, "●")
         alert_rows += f"""
@@ -1206,6 +1277,10 @@ def send_watchlist_alert_email(to_email: str, new_alerts: list[dict]) -> None:
                         font-family:-apple-system,BlinkMacSystemFont,'Inter',sans-serif;">
               {message}
             </div>
+            <div style="background:#F9FAFB;border-left:3px solid {color};padding:8px 10px;
+                        margin-top:8px;font-size:0.72rem;color:#4B5563;line-height:1.5;">
+              <span style="font-weight:750;color:#111827;">Why it matters:</span> {context}
+            </div>
             <a href="{_APP_URL}/ticker-deep-dive?ticker={ticker}"
                style="display:inline-block;margin-top:8px;font-size:0.72rem;color:#5B21B6;
                       font-weight:700;text-decoration:none;">Review the full research →</a>
@@ -1220,7 +1295,6 @@ def send_watchlist_alert_email(to_email: str, new_alerts: list[dict]) -> None:
           </td>
         </tr>"""
 
-    n      = len(new_alerts)
     plural = "s" if n != 1 else ""
     tickers_short = ", ".join(sorted({_safe(a.get("ticker", "???").upper()) for a in new_alerts[:4]}))
     if n > 4:
@@ -1268,6 +1342,24 @@ def send_watchlist_alert_email(to_email: str, new_alerts: list[dict]) -> None:
     <div style="font-size:0.82rem;color:#B8C0D4;margin-top:6px;">
       {today_str} · {tickers_short}
     </div>
+  </div>
+
+  <!-- Plain-language orientation and professional visual hierarchy -->
+  <div style="background:#F8F7FF;padding:14px 28px;border-bottom:1px solid #E9E5FF;">
+    <table style="width:100%;border-collapse:collapse;"><tr>
+      <td style="vertical-align:middle;">
+        <div style="font-size:0.60rem;font-weight:750;color:#7C3AED;text-transform:uppercase;
+                    letter-spacing:0.12em;margin-bottom:3px;">Research attention</div>
+        <div style="font-size:0.78rem;color:#374151;line-height:1.5;">
+          A saved condition changed. Review the evidence; the alert itself is not a buy or sell signal.
+        </div>
+      </td>
+      <td style="text-align:right;vertical-align:middle;white-space:nowrap;padding-left:14px;">
+        <span style="font-size:0.72rem;color:#047857;font-weight:750;">▲ {bullish_n}</span>
+        <span style="font-size:0.72rem;color:#9CA3AF;padding:0 5px;">·</span>
+        <span style="font-size:0.72rem;color:#B91C1C;font-weight:750;">▼ {bearish_n}</span>
+      </td>
+    </tr></table>
   </div>
 
   <!-- Alert table -->

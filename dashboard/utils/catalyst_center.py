@@ -287,6 +287,10 @@ def build_catalyst_digest_items(
     today: date | None = None,
     horizon_days: int = 7,
     limit: int = 4,
+    include_macro_events: bool = True,
+    include_earnings: bool = True,
+    plan_only: bool = False,
+    review_reminders: bool = True,
 ) -> list[dict]:
     """Select near-term exposure and overdue plan reviews for one digest."""
     day = today or datetime.now(timezone.utc).date()
@@ -298,8 +302,15 @@ def build_catalyst_digest_items(
         days_until = int(catalyst.get("days_until", 9999))
         if not 0 <= days_until <= max(0, int(horizon_days)):
             continue
+        event_type = str(catalyst.get("event_type") or "")
+        if event_type == "macro" and not include_macro_events:
+            continue
+        if event_type == "earnings" and not include_earnings:
+            continue
         item = dict(catalyst)
         plan = plans_by_key.get(str(item.get("event_key")))
+        if plan_only and not plan:
+            continue
         item.update({
             "delivery_type": "upcoming",
             "plan_saved": bool(plan),
@@ -309,7 +320,7 @@ def build_catalyst_digest_items(
         items.append(item)
         included_keys.add(str(item.get("event_key")))
 
-    for plan in plans_by_key.values():
+    for plan in plans_by_key.values() if review_reminders else ():
         if plan.get("status") != "planned" or str(plan.get("event_key")) in included_keys:
             continue
         try:

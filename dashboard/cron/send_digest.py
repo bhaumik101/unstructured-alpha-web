@@ -392,6 +392,7 @@ def _get_user_catalyst_items(
     earnings_cache: dict[str, dict | None],
     *,
     today=None,
+    policy: dict | None = None,
 ) -> list[dict]:
     """Build a bounded catalyst brief while reusing provider calls across users."""
     from utils.catalyst_center import (
@@ -429,7 +430,18 @@ def _get_user_catalyst_items(
     except Exception as exc:
         print(f"[digest] catalyst plans unavailable for user {user_id}: {exc}", flush=True)
         plans = []
-    return build_catalyst_digest_items(catalysts, plans, today=today, horizon_days=7, limit=4)
+    policy = policy or {}
+    return build_catalyst_digest_items(
+        catalysts,
+        plans,
+        today=today,
+        horizon_days=int(policy.get("catalyst_horizon_days", 7)),
+        limit=int(policy.get("catalyst_max_items", 4)),
+        include_macro_events=bool(policy.get("include_macro_events", True)),
+        include_earnings=bool(policy.get("include_earnings", True)),
+        plan_only=bool(policy.get("plan_only", False)),
+        review_reminders=bool(policy.get("review_reminders", True)),
+    )
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -533,12 +545,22 @@ def main() -> None:
                                 watchlist_items, bias, flips
                             )
                     if portfolio_mode:
+                        try:
+                            from utils.notification_policy import get_notification_policy
+                            catalyst_policy = get_notification_policy(user_id)
+                        except Exception as exc:
+                            print(
+                                f"[digest] notification policy unavailable for user {user_id}: {exc}",
+                                flush=True,
+                            )
+                            catalyst_policy = None
                         catalyst_items = _get_user_catalyst_items(
                             user_id,
                             positions,
                             macro_events,
                             earnings_cache,
                             today=digest_today,
+                            policy=catalyst_policy,
                         )
                         print(
                             f"[digest] catalyst items for user {user_id}: {len(catalyst_items)}",

@@ -149,6 +149,29 @@ def test_digest_selects_near_events_and_recent_overdue_reviews():
     assert all(item["title"] not in {"CPI", "Old event"} for item in items)
 
 
+def test_digest_policy_filters_categories_plan_state_and_volume():
+    catalysts = [
+        {"event_key": "macro:1", "event_type": "macro", "date": date(2026, 8, 2),
+         "date_str": "2026-08-02", "title": "CPI", "days_until": 1, "priority": 90},
+        {"event_key": "earnings:A", "event_type": "earnings", "date": date(2026, 8, 2),
+         "date_str": "2026-08-02", "title": "A Earnings", "days_until": 1, "priority": 110},
+        {"event_key": "earnings:B", "event_type": "earnings", "date": date(2026, 8, 3),
+         "date_str": "2026-08-03", "title": "B Earnings", "days_until": 2, "priority": 100},
+    ]
+    plans = [{
+        "event_key": "earnings:B", "event_date": "2026-08-03", "title": "B Earnings",
+        "status": "planned", "watch_for": "Guidance",
+    }]
+
+    items = build_catalyst_digest_items(
+        catalysts, plans, today=date(2026, 8, 1), horizon_days=3, limit=1,
+        include_macro_events=False, include_earnings=True, plan_only=True,
+        review_reminders=False,
+    )
+
+    assert [item["title"] for item in items] == ["B Earnings"]
+
+
 def test_page_has_no_hardcoded_event_schedule_and_navigation_is_upgraded():
     root = Path(__file__).resolve().parents[1]
     page = (root / "pages" / "43_Events_Forecasts.py").read_text()
