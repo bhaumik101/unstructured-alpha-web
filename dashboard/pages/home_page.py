@@ -73,9 +73,17 @@ try:
         _hd = _build_home_data()
         _narrative  = generate_narrative(_raw_scores)
         _top_tkrs   = get_top_tickers(len(_raw_scores))
-    _nb, _nr, _nn = len(_hd["bull"]), len(_hd["bear"]), len(_hd["neut"])
-    _total = max(1, _nb + _nr + _nn)
-    _bias_label = _narrative["regime"]
+    # Regime HEADLINE (counts + label) comes from the SAME snapshot source and
+    # SSOT function as the sticky header bar, so the two macro reads on the
+    # landing page can never disagree again. The ticker lists below still use the
+    # live scores — those show signal names, not counts, so there's no visible
+    # contradiction. See utils/regime.py and [[macro_regime_ssot_bug]].
+    from utils.regime import compute_macro_regime as _cmr
+    from utils.score_history import get_latest_signal_states as _glss_home
+    _reg = _cmr(_glss_home(), total=len(SIGNALS))
+    _nb, _nr, _nn = _reg.bullish, _reg.bearish, _reg.neutral
+    _total = _reg.scored
+    _bias_label = _reg.label
     _data_loaded = True
 except Exception:
     _hd = {"bull": [], "bear": [], "neut": [], "sectors": {}}
@@ -314,12 +322,12 @@ st.markdown(
     f'<div style="flex:1;min-width:200px;">'
     f'<div style="display:flex;align-items:center;gap:6px;font-size:0.58rem;letter-spacing:0.18em;'
     f'color:#8892AA;margin-bottom:10px;font-weight:700;">'
-    f'<span class="ua-pulse-dot"></span>LIVE MACRO READ</div>'
+    f'<span class="ua-pulse-dot"></span>MACRO REGIME</div>'
     f'<div style="font-size:2.4rem;font-weight:900;color:{_bias_color};letter-spacing:-1px;'
     f'line-height:1.0;text-shadow:0 0 40px {_bias_color}44;">{_h.escape(_bias_label)}</div>'
     f'<div style="font-size:0.72rem;color:#6B7FBF;margin-top:8px;">'
     f'across <b style="color:#8892AA;">{len(SIGNALS)}</b> tracked signals'
-    f'{f" · {_total} scored" if _total < len(SIGNALS) else ""} · 2h cache</div>'
+    f'{f" · {_total} scored" if _total < len(SIGNALS) else ""} · daily snapshot</div>'
     f'</div>'
     # Right: counter trio
     f'<div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;">'

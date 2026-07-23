@@ -172,9 +172,20 @@ def get_all_signal_scores(_v: int = 1) -> dict:
 
     results: dict = {}
     workers = min(_SCORE_WORKERS, len(items)) or 1
-    with ThreadPoolExecutor(max_workers=workers, initializer=_init) as ex:
-        for sig_id, row in ex.map(lambda it: _score_one_signal(it[0], it[1], start, end), items):
-            results[sig_id] = row
+    # This block only runs on a cold cache miss (the 47-signal provider sweep).
+    # timed() logs a structured slow_operation event if it runs long in
+    # production, so a degraded provider that turns the sweep into a 5s stall is
+    # greppable and attributable rather than an invisible "the site feels slow".
+    try:
+        from utils.observability import timed as _timed
+    except Exception:
+        from contextlib import nullcontext as _nc
+        def _timed(*a, **k):  # noqa: ANN001 - fallback if observability import fails
+            return _nc()
+    with _timed("get_all_signal_scores", n_signals=len(items), workers=workers):
+        with ThreadPoolExecutor(max_workers=workers, initializer=_init) as ex:
+            for sig_id, row in ex.map(lambda it: _score_one_signal(it[0], it[1], start, end), items):
+                results[sig_id] = row
 
     gc.collect()
     return results
