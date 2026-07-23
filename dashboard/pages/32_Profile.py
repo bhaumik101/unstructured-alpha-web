@@ -43,7 +43,7 @@ from utils.theme import inject_premium_css  # noqa: E402
 render_header("My Profile")
 section = render_sidebar_base(
     page_title="My Profile",
-    sections=("Profile & Preferences", "Security", "API Access", "Plan & Referrals"),
+    sections=("Profile & Preferences", "Notifications", "Security", "API Access", "Plan & Referrals"),
     section_key="profile_section_rail",
 )
 inject_premium_css()
@@ -147,28 +147,6 @@ if section == "Profile & Preferences":
             except AuthError as exc:
                 st.error(str(exc))
 
-        st.divider()
-        st.markdown("### Email intelligence")
-        current_digest = bool(profile.get("digest_opted_in"))
-        if tier == "pro":
-            digest_enabled = st.toggle(
-                "Morning intelligence digest",
-                value=current_digest,
-                key="profile_digest_toggle",
-                help="Receive the morning signal and watchlist briefing at approximately 7 AM ET.",
-            )
-            st.caption("Includes signal changes, data coverage, watchlist movement, and direct research links.")
-            if digest_enabled != current_digest:
-                set_digest_optin(user["id"], digest_enabled)
-                st.success("Email preference saved.")
-                st.rerun()
-        else:
-            st.markdown(
-                '<div class="ua-profile-note">Morning intelligence email is included with Pro. '
-                'Your in-app notification feed remains available on the Free plan.</div>',
-                unsafe_allow_html=True,
-            )
-
     with preference_col:
         st.markdown("### Research preferences")
         st.caption(
@@ -219,6 +197,113 @@ if section == "Profile & Preferences":
             'Ticker Deep Dive personalized scoring, watchlist alert relevance, and research explanations.</div>',
             unsafe_allow_html=True,
         )
+
+
+elif section == "Notifications":
+    st.markdown("### Notification Policy Center")
+    st.caption(
+        "Control proactive research delivery at the source. These limits are enforced by the daily job before email HTML is built."
+    )
+    if tier != "pro":
+        st.info(
+            "Notification policies and the morning intelligence digest are included with Pro. "
+            "Your in-app notification feed remains available on Free."
+        )
+        if st.button("Upgrade to Pro", type="primary", key="profile_notifications_upgrade"):
+            st.switch_page("pages/29_Upgrade.py")
+    else:
+        from utils.notification_policy import (
+            ALLOWED_HORIZONS,
+            get_notification_policy,
+            save_notification_policy,
+        )
+
+        try:
+            notification_policy = get_notification_policy(user["id"])
+        except Exception:
+            notification_policy = {
+                "catalyst_horizon_days": 7,
+                "catalyst_max_items": 4,
+                "include_macro_events": True,
+                "include_earnings": True,
+                "plan_only": False,
+                "review_reminders": True,
+            }
+            st.warning("Saved notification controls are temporarily unavailable. Safe defaults are shown.")
+
+        delivery_col, policy_col = st.columns([0.9, 1.35], gap="large")
+        with delivery_col:
+            st.markdown("#### Delivery")
+            current_digest = bool(profile.get("digest_opted_in"))
+            digest_enabled = st.toggle(
+                "Morning intelligence email",
+                value=current_digest,
+                key="profile_digest_toggle",
+                help="One consolidated briefing each morning. This does not create a separate catalyst email or cron job.",
+            )
+            if digest_enabled != current_digest:
+                set_digest_optin(user["id"], digest_enabled)
+                st.success("Email delivery preference saved.")
+                st.rerun()
+            st.markdown(
+                '<div class="ua-profile-note"><b>Bounded delivery</b><br>'
+                'Catalysts are folded into the existing morning brief. Provider dates are fetched once per run, '
+                'shared ticker lookups are reused, and the item cap below is applied per account.</div>',
+                unsafe_allow_html=True,
+            )
+
+        with policy_col:
+            st.markdown("#### Catalyst agenda")
+            with st.form("notification_policy_form"):
+                horizon = st.selectbox(
+                    "Notify me about events within",
+                    list(ALLOWED_HORIZONS),
+                    index=list(ALLOWED_HORIZONS).index(notification_policy["catalyst_horizon_days"]),
+                    format_func=lambda days: f"{days} day" if days == 1 else f"{days} days",
+                )
+                max_items = st.slider(
+                    "Maximum catalyst items per brief",
+                    min_value=1,
+                    max_value=4,
+                    value=notification_policy["catalyst_max_items"],
+                    help="A hard per-email cap prevents repetitive or noisy event lists.",
+                )
+                include_macro = st.checkbox(
+                    "Official macro releases",
+                    value=notification_policy["include_macro_events"],
+                )
+                include_earnings = st.checkbox(
+                    "Portfolio earnings dates",
+                    value=notification_policy["include_earnings"],
+                )
+                plan_only = st.checkbox(
+                    "Only upcoming events with a saved plan",
+                    value=notification_policy["plan_only"],
+                    help="Use this for a tightly curated agenda. Review reminders remain controlled separately.",
+                )
+                review_reminders = st.checkbox(
+                    "Remind me to review recently completed events",
+                    value=notification_policy["review_reminders"],
+                )
+                save_policy = st.form_submit_button(
+                    "Save notification policy",
+                    type="primary",
+                    use_container_width=True,
+                )
+            if save_policy:
+                try:
+                    save_notification_policy(user["id"], {
+                        "catalyst_horizon_days": horizon,
+                        "catalyst_max_items": max_items,
+                        "include_macro_events": include_macro,
+                        "include_earnings": include_earnings,
+                        "plan_only": plan_only,
+                        "review_reminders": review_reminders,
+                    })
+                    st.success("Notification policy saved and active for the next digest.")
+                    st.rerun()
+                except ValueError as exc:
+                    st.error(str(exc))
 
 
 elif section == "Security":

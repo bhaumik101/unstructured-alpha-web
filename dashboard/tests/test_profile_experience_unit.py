@@ -10,7 +10,7 @@ AUTH = (ROOT / "utils" / "auth.py").read_text(encoding="utf-8")
 
 
 def test_profile_uses_focused_side_sections_instead_of_one_long_page():
-    assert 'sections=("Profile & Preferences", "Security", "API Access", "Plan & Referrals")' in PROFILE
+    assert 'sections=("Profile & Preferences", "Notifications", "Security", "API Access", "Plan & Referrals")' in PROFILE
     assert 'section_key="profile_section_rail"' in PROFILE
     assert "st.tabs(" not in PROFILE
 
@@ -23,6 +23,9 @@ def test_profile_exposes_functional_customization():
     assert "Risk tolerance" in PROFILE
     assert "Primary time horizon" in PROFILE
     assert "Evidence emphasis" in PROFILE
+    assert 'with st.form("notification_policy_form")' in PROFILE
+    assert "save_notification_policy" in PROFILE
+    assert "Maximum catalyst items per brief" in PROFILE
 
 
 def test_display_name_updates_the_live_authenticated_session():

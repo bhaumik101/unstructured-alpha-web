@@ -333,6 +333,23 @@ catalyst_plans = Table(
     UniqueConstraint("user_id", "event_key", name="uq_catalyst_plan_user_event"),
 )
 
+# Per-user controls for proactive catalyst delivery. Stored separately from the
+# broad digest opt-in so users can tune event volume without disabling the
+# morning intelligence product entirely.
+notification_policies = Table(
+    "notification_policies", metadata,
+    Column("id", Integer, primary_key=True),
+    Column("user_id", Integer, ForeignKey("users.id"), nullable=False, unique=True),
+    Column("catalyst_horizon_days", Integer, nullable=False, server_default="7"),
+    Column("catalyst_max_items", Integer, nullable=False, server_default="4"),
+    Column("include_macro_events", Boolean, nullable=False, server_default="true"),
+    Column("include_earnings", Boolean, nullable=False, server_default="true"),
+    Column("plan_only", Boolean, nullable=False, server_default="false"),
+    Column("review_reminders", Boolean, nullable=False, server_default="true"),
+    Column("created_at", String(64), nullable=False),
+    Column("updated_at", String(64), nullable=False),
+)
+
 # One evolving investment thesis per user/security. This is deliberately
 # user-scoped: unlike the canonical Confluence Score, thesis language, horizon,
 # risk conditions, and outcome notes are private decision-journal data.

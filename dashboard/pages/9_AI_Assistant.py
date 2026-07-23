@@ -208,6 +208,11 @@ THE PAGES:
     events inside seven days and recent plans awaiting review without adding another cron job.
     Missing dates and signals are excluded, never replaced with synthetic calendar entries or predictions.
 
+16. Notification Policy Center — A Pro section in My Profile that controls the server-side
+    catalyst agenda: 1/3/7-day lead window, one-to-four item hard cap, macro and earnings
+    categories, saved-plan-only filtering, and post-event review reminders. The policy changes
+    delivery only; it never changes scores, holdings, plans, or the canonical research record.
+
 KEY SIGNALS:
 - ATA Trucking (PCS 9): Monthly freight tonnage. Leads ISM PMI by 6-8 weeks. FRED TRUCKD11.
 - Rail Traffic (PCS 9): Weekly intermodal volume. Leads trade data by 4-8 weeks. FRED RAILFRTINTERMODAL.

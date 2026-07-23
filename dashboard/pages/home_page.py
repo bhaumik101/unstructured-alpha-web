@@ -1756,7 +1756,8 @@ with _q2:
             "saved-screen monitoring, Portfolio Intelligence with an evidence-constrained executive review, "
             "Portfolio Fit Lab for candidate-impact simulation, a daily Decision Queue across holdings, "
             "catalysts, and theses, a Catalyst Command Center with verified event dates, portfolio-weighted "
-            "exposure, private review plans, and proactive morning catalyst prompts, read-only score API access, "
+            "exposure, private review plans, proactive morning catalyst prompts, granular notification policies, "
+            "read-only score API access, "
             "Signal Backtester, Factor Exposure, and all future Pro features. "
             "No long-term commitment."
         )
