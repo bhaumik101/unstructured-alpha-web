@@ -190,6 +190,11 @@ THE PAGES:
 
 12. Pre-Earnings Track Record — Historical signal accuracy in the 30/60/90 days before earnings.
 
+13. Decision Queue — Pro daily research triage that ranks saved holdings by persisted score
+    movement, upcoming earnings, thesis/evidence conflict, thesis review horizon, missing score
+    coverage, and portfolio concentration. It never creates trade instructions or synthetic facts;
+    completed work automatically reopens when the underlying evidence fingerprint changes.
+
 KEY SIGNALS:
 - ATA Trucking (PCS 9): Monthly freight tonnage. Leads ISM PMI by 6-8 weeks. FRED TRUCKD11.
 - Rail Traffic (PCS 9): Weekly intermodal volume. Leads trade data by 4-8 weeks. FRED RAILFRTINTERMODAL.

@@ -623,6 +623,7 @@ PRO_FEATS = [
     "Alerts when a Confluence Score materially moves or a signal flips — email + Discord + Slack",
     "Portfolio macro-exposure shifts, flagged as they happen",
     "Portfolio Review — cached executive read of concentration, coverage, and personalized score risk",
+    "Decision Queue — evidence-ranked daily triage across holdings, catalysts, and theses",
     "Read-only Pro API — integrate persisted score snapshots into your own research workflow",
     "Personalized 7 AM morning digest on your holdings",
     "Score history + 30-day sparklines + factor exposure",
@@ -878,6 +879,11 @@ st.markdown(f"""
 </tr>
 <tr>
     <td>Thesis Journal — decisions, invalidation rules, and outcomes</td>
+    <td style="text-align:center;" class="comp-no">—</td>
+    <td style="text-align:center;" class="comp-pro-col comp-yes">✓</td>
+</tr>
+<tr>
+    <td>Decision Queue — daily evidence and catalyst triage</td>
     <td style="text-align:center;" class="comp-no">—</td>
     <td style="text-align:center;" class="comp-pro-col comp-yes">✓</td>
 </tr>
