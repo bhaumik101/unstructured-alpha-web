@@ -2177,31 +2177,17 @@ def render_header(page_subtitle: str = "") -> None:
     # hidden provider sweep even when the page itself needed no macro data.
     try:
         from utils.score_history import get_latest_signal_states as _glss
+        from utils.regime import compute_macro_regime
         _rs = _glss()
-        _rb  = sum(1 for v in _rs.values() if not v.get("error") and v.get("status") == "bullish")
-        _rr  = sum(1 for v in _rs.values() if not v.get("error") and v.get("status") == "bearish")
-        _rn  = sum(1 for v in _rs.values() if not v.get("error") and v.get("status") == "neutral")
-        _rscored = _rb + _rr + _rn
+        # SSOT: the header bar and the home hero now classify the regime through
+        # ONE function fed the SAME source (persisted snapshots). Previously each
+        # rolled its own count off a different source, so the landing page showed
+        # two contradictory reads. See utils/regime.py.
+        _reg = compute_macro_regime(_rs, total=SIGNAL_COUNT)
+        _rb, _rr, _rn = _reg.bullish, _reg.bearish, _reg.neutral
+        _runavail = _reg.excluded
         _rs_date = max((str(v.get("snapshot_date") or "") for v in _rs.values()), default="")
-        _rto = max(1, _rscored)
-        # Signals in the registry that couldn't be scored this cycle (error /
-        # insufficient recent data). Surfaced so the bar's numbers reconcile to
-        # the advertised SIGNAL_COUNT instead of silently dropping ~6 signals.
-        _runavail = max(0, SIGNAL_COUNT - _rscored)
-        _rbp = _rb / _rto
-        _rrp = _rr / _rto
-        if not _rs:
-            _regime_lbl, _regime_col, _regime_bg = "AWAITING SNAPSHOT", "#8F9AAD", "rgba(143,154,173,0.05)"
-        elif _rbp >= 0.58:
-            _regime_lbl, _regime_col, _regime_bg = "RISK-ON", "#00D566", "rgba(0,213,102,0.06)"
-        elif _rrp >= 0.52:
-            _regime_lbl, _regime_col, _regime_bg = "RISK-OFF", "#FF4444", "rgba(255,68,68,0.06)"
-        elif _rbp >= 0.48:
-            _regime_lbl, _regime_col, _regime_bg = "LEANING BULLISH", "#00A847", "rgba(0,168,71,0.05)"
-        elif _rrp >= 0.44:
-            _regime_lbl, _regime_col, _regime_bg = "LEANING BEARISH", "#CC3333", "rgba(204,51,51,0.05)"
-        else:
-            _regime_lbl, _regime_col, _regime_bg = "MIXED SIGNALS", "#6B7FBF", "rgba(107,127,191,0.05)"
+        _regime_lbl, _regime_col, _regime_bg = _reg.label, _reg.color, _reg.bg
         st.markdown(
             f'<div style="background:{_regime_bg};border:1px solid rgba(255,255,255,0.06);'
             f'border-left:3px solid {_regime_col};'

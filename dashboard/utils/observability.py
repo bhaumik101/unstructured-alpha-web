@@ -44,6 +44,7 @@ import os
 import sys
 import time
 import uuid
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 # ── correlation id (per request / per Streamlit rerun) ────────────────────────
@@ -157,6 +158,60 @@ def log_event(event: str, level: int = logging.INFO, **fields) -> None:
         _event_logger.log(level, event, extra={"event": event, **fields})
     except Exception:  # pragma: no cover - logging must never crash a caller
         pass
+
+
+# ── slow-operation timing ─────────────────────────────────────────────────────
+# Default threshold above which an operation is worth flagging in production
+# logs. 1.5s is roughly the point where a user notices a page/section stalling.
+SLOW_MS_DEFAULT = int(os.environ.get("UA_SLOW_MS", "1500"))
+
+
+@contextmanager
+def timed(operation: str, threshold_ms: int | None = None, **fields):
+    """Time a block; log a structured `slow_operation` event if it runs long.
+
+    Usage:
+        with timed("get_all_signal_scores", tickers=len(universe)):
+            scores = ...
+
+    Anything over the threshold logs at WARNING with the elapsed ms and the
+    correlation id already attached by the logging filter, so a slow production
+    request is greppable ("event":"slow_operation") and attributable. Fast runs
+    log nothing (kept quiet so the signal isn't drowned) unless UA_TIME_ALL=1,
+    which also records fast ones at DEBUG for local profiling.
+
+    Never changes behaviour and never raises from the timing itself — the block's
+    own exceptions propagate normally, but are timed and flagged first so a slow
+    failure is still visible.
+    """
+    limit = SLOW_MS_DEFAULT if threshold_ms is None else int(threshold_ms)
+    start = time.perf_counter()
+    errored = False
+    try:
+        yield
+    except Exception:
+        errored = True
+        raise
+    finally:
+        # Timing must never break the caller — swallow anything the logging path
+        # throws so a broken logger can't turn a slow op into a crashed request.
+        try:
+            elapsed_ms = int((time.perf_counter() - start) * 1000)
+            if elapsed_ms >= limit or errored:
+                log_event(
+                    "slow_operation",
+                    level=logging.WARNING,
+                    operation=operation,
+                    ms=elapsed_ms,
+                    threshold_ms=limit,
+                    errored=errored,
+                    **fields,
+                )
+            elif os.environ.get("UA_TIME_ALL") == "1":
+                log_event("operation_timing", level=logging.DEBUG,
+                          operation=operation, ms=elapsed_ms, **fields)
+        except Exception:  # pragma: no cover - observability is best-effort
+            pass
 
 
 # ── startup diagnostics (Phase 1) ─────────────────────────────────────────────
